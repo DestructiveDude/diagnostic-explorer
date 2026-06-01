@@ -17,21 +17,19 @@ namespace ConsoleApp;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
         Trace.Listeners.Add(new ConsoleTraceListener());
 
-
         while (true)
         {
-            // DiagnosticHostingService.Start("http://localhost:2803/diagnostics");
-            // DiagnosticHostingService.Start("http://localhost:5000/diagnostics");
-            DiagnosticHostingService.Start("http://localhost:2804/diagnostics, http://localhost:6002/diagnostics");
-            // DiagnosticHostingService.Start("https://localhost:7097/diagnostics");
-            // DiagnosticHostingService.Start("http://localhost/api/diagnostics");
+            DiagnosticHostingService.Start("http://localhost:2804/diagnostics");
+
             Console.WriteLine("Diagnostics started");
             Console.ReadLine();
-            DiagnosticHostingService.Stop();
+
+            await DiagnosticHostingService.Stop();
+
             Console.WriteLine("Diagnostics stopped");
             Console.ReadLine();
         }
