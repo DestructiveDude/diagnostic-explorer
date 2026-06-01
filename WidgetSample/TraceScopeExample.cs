@@ -9,7 +9,6 @@ namespace WidgetSample
 {
 	public static class TraceScopeExample
 	{
-		private static Random _rand = new Random();
         private static int _count;
 
         // Caps the (mutual) recursion below so the demo can't run away into unbounded TraceScope/
@@ -22,7 +21,7 @@ namespace WidgetSample
 
 			using (new TraceScope())
 			{
-				int times = _rand.Next(1, 5);
+				int times = ThreadSafeRandom.Next(1, 5);
 				TraceScope.Trace($"{ident} About to call TestTraceScope2() {times} times");
                 for (int i = 0; i < times; i++)
                 {
@@ -38,10 +37,10 @@ namespace WidgetSample
 		{
 			using (new TraceScope())
 			{
-				if (depth < MaxDepth && _rand.Next(100) < 50)
+				if (depth < MaxDepth && ThreadSafeRandom.Next(100) < 50)
 					await TestTraceScope2(ident, depth + 1);
 
-				int times = _rand.Next(1, 3);
+				int times = ThreadSafeRandom.Next(1, 3);
 				TraceScope.Trace($"{ident} About to call TestTraceScope3() {times} times");
                 for (int i = 0; i < times; i++)
                 {
@@ -57,7 +56,7 @@ namespace WidgetSample
 		{
 			using (new TraceScope())
 			{
-				if (depth < MaxDepth && _rand.Next(100) < 5)
+				if (depth < MaxDepth && ThreadSafeRandom.Next(100) < 5)
 					    await TestTraceScope2(ident, depth + 1);
 
 				TraceScope.Trace($"{ident} About to call TestTraceScope4()");
@@ -73,7 +72,7 @@ namespace WidgetSample
 			using (new TraceScope())
 			{
                 await Task.Delay(20);
-				TraceScope.Trace($"{ident} Your lucky random number is { _rand.Next()}");
+				TraceScope.Trace($"{ident} Your lucky random number is { ThreadSafeRandom.Next()}");
                 await Task.Delay(20);
 				TraceScope.Trace($@"{ident} Here's a multiline trace message
 which, as you can see,

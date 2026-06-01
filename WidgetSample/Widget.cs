@@ -32,7 +32,6 @@ namespace WidgetSample
 	//Widget uses the DiagnosticManager.RegisterAsync method of registering itself with diagnostics
 	public class Widget : IDisposable, INotifyPropertyChanged
 	{
-		private static readonly Random _rand = new Random();
 		private static readonly string[] _names = new[] {"Widget X", "Widget Y", "Widget Z", "Widget W"};
 		private readonly int _id;
 		private DateTime _dateCreated;
@@ -58,9 +57,9 @@ namespace WidgetSample
 		[DiagnosticMethod]
 		public void Randomise()
 		{
-			Name = _names[_rand.Next(0, _names.Length)];
-			DateCreated = DateTime.Now.AddMinutes(_rand.Next(0, 10000));
-			Size = new Point(_rand.Next(), _rand.Next());
+			Name = _names[ThreadSafeRandom.Next(0, _names.Length)];
+			DateCreated = DateTime.Now.AddMinutes(ThreadSafeRandom.Next(0, 10000));
+			Size = new Point(ThreadSafeRandom.Next(), ThreadSafeRandom.Next());
 		}
 
 		[DiagnosticMethod]

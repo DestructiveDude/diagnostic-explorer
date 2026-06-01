@@ -49,7 +49,6 @@ namespace WidgetSample
         private static readonly ILog _widgetLog = LogManager.GetLogger("Widgets");
         private static readonly ILog _formLog = LogManager.GetLogger(typeof(Form1));
         private static int _evtCount1;
-        private static readonly Random _rand = new Random();
         private readonly BindingList<Gadget> _gadgets;
         private readonly BindingList<Widget> _widgets;
         private ComponentModelDemo _compModelDemo;
@@ -60,6 +59,9 @@ namespace WidgetSample
         private Timer _listTestTimer;
         private Timer _scopeTimer;
         private Task _scopeTask;
+
+        // Cancels the long-running RunScopeTask loop on shutdown so it doesn't outlive the form.
+        private readonly CancellationTokenSource _scopeCts = new CancellationTokenSource();
 
 
         public Form1()
@@ -108,7 +110,7 @@ namespace WidgetSample
 
 
             _scopeTimer = new Timer(x => DoScopeTimerCode(), null, 500, 500);
-            _scopeTask = RunScopeTask();
+            _scopeTask = RunScopeTask(_scopeCts.Token);
         }
 
         private static void StartDiagnostics()
@@ -121,7 +123,25 @@ namespace WidgetSample
         private void StopDiagnostics(object sender, EventArgs e)
         {
             Debug.WriteLine($"Calling StopDiagnostics");
-            DiagnosticHostingService.Stop();
+
+            // DiagnosticHostingService.Stop() is async; firing it and forgetting let the form
+            // (and possibly the process) tear down while connections were still being closed.
+            // Block on completion, but run it on the thread pool so awaiting it can't deadlock
+            // against the UI synchronization context during shutdown.
+            Task.Run(() => DiagnosticHostingService.Stop()).GetAwaiter().GetResult();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            // Tear down the background timers and the scope loop so they don't keep firing
+            // (and touching disposed WinForms controls) after the form is gone.
+            _scopeCts.Cancel();
+            _evtTimer?.Dispose();
+            _counterTimer?.Dispose();
+            _listTestTimer?.Dispose();
+            _scopeTimer?.Dispose();
+
+            base.OnFormClosed(e);
         }
 
         [ExtendedProperty] public Widget NullWidget => null;
@@ -176,7 +196,7 @@ namespace WidgetSample
                 for (int i = 0; i < 10; i++)
                 {
                     for (int j = 0; j < 10; j++)
-                        UpdateList.Add(_rand.Next(100));
+                        UpdateList.Add(ThreadSafeRandom.Next(100));
 
                     for (int j = 0; j < 10; j++)
                         UpdateList.RemoveAt(0);
@@ -230,51 +250,70 @@ namespace WidgetSample
         }
 
         [DiagnosticMethod]
-        public int GetRandomInt1() { return _rand.Next(); }
+        public int GetRandomInt1() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt2() { return _rand.Next(); }
+        public int GetRandomInt2() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt3() { return _rand.Next(); }
+        public int GetRandomInt3() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt4() { return _rand.Next(); }
+        public int GetRandomInt4() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt5() { return _rand.Next(); }
+        public int GetRandomInt5() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt6() { return _rand.Next(); }
+        public int GetRandomInt6() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt7() { return _rand.Next(); }
+        public int GetRandomInt7() { return ThreadSafeRandom.Next(); }
 
         [DiagnosticMethod]
-        public int GetRandomInt8() { return _rand.Next(); }
+        public int GetRandomInt8() { return ThreadSafeRandom.Next(); }
 
 
         [DiagnosticMethod]
         public string RandomText()
         {
-            return string.Join(Environment.NewLine, Enumerable.Range(1, _rand.Next(5, 100)).Select(_ => RandomLine()).ToArray());
+            return string.Join(Environment.NewLine, Enumerable.Range(1, ThreadSafeRandom.Next(5, 100)).Select(_ => RandomLine()).ToArray());
         }
 
         [DiagnosticMethod]
         public string RandomWord()
         {
-            return new string(Enumerable.Range(1, _rand.Next(1, 10))
-                .Select(_ => _rand.Next(0, 26))
+            return new string(Enumerable.Range(1, ThreadSafeRandom.Next(1, 10))
+                .Select(_ => ThreadSafeRandom.Next(0, 26))
                 .Select(x => (char) ('A' + ((char) x))).ToArray());
         }
 
         [DiagnosticMethod]
         public string RandomLine()
         {
-            return string.Join(" ", Enumerable.Range(1, _rand.Next(1, 50)).Select(_ => RandomWord()).ToArray());
+            return string.Join(" ", Enumerable.Range(1, ThreadSafeRandom.Next(1, 50)).Select(_ => RandomWord()).ToArray());
         }
 
         private void SendEvents(object o)
+        {
+            // Runs on a System.Threading.Timer thread. Reading control state (chk*.Checked)
+            // off the UI thread is illegal, so marshal the read across. Guard against the
+            // window handle having been destroyed during shutdown.
+            if (!IsHandleCreated)
+                return;
+
+            try
+            {
+                BeginInvoke(new Action(SendEventsCore));
+            }
+            catch (InvalidOperationException)
+            {
+                // Handle destroyed between the check above and the BeginInvoke - the form is
+                // closing, so there is nothing to do.
+            }
+        }
+
+        private void SendEventsCore()
         {
             if (chkSystem.Checked)
                 _ = RunScopedTraceExampleAsync(_formLog, $"Form Trace Scope {_evtCount1++}");
@@ -438,7 +477,7 @@ namespace WidgetSample
                 if (items.Count == 0)
                     return;
 
-                int index = _rand.Next(0, items.Count);
+                int index = ThreadSafeRandom.Next(0, items.Count);
                 T item = items[index];
                 items.RemoveAt(index);
 
@@ -547,9 +586,9 @@ namespace WidgetSample
             Trace.WriteLine($"REPORT {Task.CurrentId} {message}");
         }
 
-        private async Task RunScopeTask()
+        private async Task RunScopeTask(CancellationToken cancellationToken)
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 // using (var scope = new TraceScope("SYNC BLAH 1"))
                 {
@@ -562,7 +601,14 @@ namespace WidgetSample
                     TraceScope.Trace(message);
                 }
 
-                await Task.Delay(500);
+                try
+                {
+                    await Task.Delay(500, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
             }
         }
 
@@ -616,7 +662,7 @@ namespace WidgetSample
                         LoggingEventData data = new()
                         {
                             Message = $"Event #{i}",
-                            Level = IntToLevel(_rand.Next(1, 12) * 10000)
+                            Level = IntToLevel(ThreadSafeRandom.Next(1, 12) * 10000)
                         };
 
                         _formLog.Logger.Log(new LoggingEvent(data));

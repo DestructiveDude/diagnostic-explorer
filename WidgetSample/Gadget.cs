@@ -29,9 +29,8 @@ using DiagnosticExplorer;
 namespace WidgetSample
 {
 	//Widget extends DiagnosticManager in order to register itself with diagnostics
-	public class Gadget : INotifyPropertyChanged
+	public class Gadget : IDisposable, INotifyPropertyChanged
 	{
-		private static Random _rand = new Random();
 		public event PropertyChangedEventHandler PropertyChanged;
 
 		public Gadget(int id)
@@ -63,9 +62,33 @@ namespace WidgetSample
 				PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
 		}
 
+		#region IDisposable Members
+
+		// Mirror Widget: dispose unregisters the gadget from diagnostics so removal is
+		// deterministic (via RemoveItem) instead of relying on a GC pass to drop the
+		// DiagnosticManager registration.
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		~Gadget()
+		{
+			Dispose(false);
+		}
+
+		protected void Dispose(bool disposing)
+		{
+			if (disposing)
+				DiagnosticManager.Unregister(this);
+		}
+
+		#endregion
+
 		private string GetRandom(string[] items)
 		{
-			int index = _rand.Next(0, items.Length);
+			int index = ThreadSafeRandom.Next(0, items.Length);
 			return items[index];
 		}
 
