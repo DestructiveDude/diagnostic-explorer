@@ -17,9 +17,11 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
 {
     private readonly IDiagnosticHubClient _client;
     private readonly HubCallerContext _callerContext;
+    private readonly ISubject<SystemEvent[]> _eventsSet = Subject.Synchronize(new Subject<SystemEvent[]>());
+    private readonly ISubject<SystemEvent[]> _eventsStreamed = Subject.Synchronize(new Subject<SystemEvent[]>());
     public event EventHandler? Disconnected;
-    public Subject<SystemEvent[]> EventsSet { get; } = new();
-    public Subject<SystemEvent[]> EventsStreamed { get; } = new();
+    public IObservable<SystemEvent[]> EventsSet => _eventsSet;
+    public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
 
     public DiagnosticClientHandler(HubCallerContext callerContext, IDiagnosticHubClient client, AsyncResultBucket responses)
         : base(responses)
@@ -63,12 +65,12 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
 
     public void SetEvents(SystemEvent[] events)
     {
-        EventsSet.OnNext(events);
+        _eventsSet.OnNext(events);
     }
 
     public void StreamEvents(SystemEvent[] evt)
     {
-        EventsStreamed.OnNext(evt);
+        _eventsStreamed.OnNext(evt);
     }
 
     public void CloseConnection()
@@ -76,4 +78,3 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
         _callerContext.Abort();
     }
 }
-

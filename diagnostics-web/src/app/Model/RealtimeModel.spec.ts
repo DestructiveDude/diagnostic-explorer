@@ -308,6 +308,29 @@ describe('RealtimeModel', () => {
     });
 
     describe('selection and display state', () => {
+        it('clears active-process state when the active process is removed', () => {
+            const {model} = makeModel();
+            const active = proc('p-1', 'Worker');
+            const selected = {isSelected: true} as any;
+
+            model.activeProcess = active;
+            model.filteredProcesses = [active];
+            model.allProcesses = [active];
+            model.categories = [{name: 'A'} as any];
+            model.activeCat = model.categories[0];
+            model.selectedEvent = selected;
+            model.traceScopeVisible = true;
+
+            model.removeProcess('p-1');
+
+            expect(model.activeProcess).toBeNull();
+            expect(model.categories).toEqual([]);
+            expect(model.activeCat).toBeUndefined();
+            expect(model.selectedEvent).toBeUndefined();
+            expect(selected.isSelected).toBe(false);
+            expect(model.traceScopeVisible).toBe(false);
+        });
+
         it('selects an event and opens the trace scope', () => {
             const {model} = makeModel();
             const previous = {isSelected: true} as any;

@@ -52,13 +52,14 @@ public static class Program
         services.AddHostedService(sp => sp.GetRequiredService<RealtimeManager>());
         services.AddSingleton<RetroManager>();
         services.AddHostedService(sp => sp.GetRequiredService<RetroManager>());
+        bool enableDetailedHubErrors = builder.Environment.IsDevelopment();
         services.AddSignalR().AddHubOptions<DiagnosticHub>(options => {
             options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
             options.MaximumParallelInvocationsPerClient = 5;
         }).AddHubOptions<WebHub>(options => {
             options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
             options.MaximumParallelInvocationsPerClient = 5;
-            options.EnableDetailedErrors = true;
+            options.EnableDetailedErrors = enableDetailedHubErrors;
         }).AddJsonProtocol(options => {
             options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;

@@ -226,6 +226,18 @@ export class RealtimeModel {
     public removeProcess(id: string) {
         this.allProcesses = this.allProcesses.filter(p => p.id !== id);
         this.filteredProcesses = this.filteredProcesses.filter(p => p.id !== id);
+
+        if (this.activeProcess?.id === id) {
+            this.activeProcess = null;
+            this.categories = [];
+            this.activeCat = undefined;
+
+            if (this.selectedEvent)
+                this.selectedEvent.isSelected = false;
+
+            this.selectedEvent = undefined;
+            this.traceScopeVisible = false;
+        }
     }
 
     handleKeyDown($event: KeyboardEvent) {

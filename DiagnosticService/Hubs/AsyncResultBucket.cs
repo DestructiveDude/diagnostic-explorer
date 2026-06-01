@@ -67,6 +67,8 @@ public class AsyncResultBucket
                 // with its message/detail, instead of an AggregateException wrapping it.
                 return (T) await completionSource.Task;
 
+            await awaitResult;
+
             throw new TimeoutException($"{requestId} GetResult Timed out waiting");
         }
         finally

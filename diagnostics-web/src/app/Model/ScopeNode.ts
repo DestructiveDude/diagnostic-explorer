@@ -53,8 +53,11 @@ export class ScopeNode {
 
         var curCollapsibleRegion = undefined;
 
-        for (let i = 0; i < displayLines.length - 1; i++) {
+        for (let i = 0; i < displayLines.length; i++) {
             let dl = displayLines[i].trim();
+
+            if (dl === '')
+                continue;
 
             if (dl.indexOf("] BEGIN") > -1) {
                 let newRegion = new ScopeNode(dl, true);
@@ -148,4 +151,3 @@ export class ScopeNode {
         return regions[0];
     }
 }
-

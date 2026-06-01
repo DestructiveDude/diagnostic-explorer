@@ -1,4 +1,4 @@
-﻿using System.Reactive.Subjects;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,7 +12,7 @@ public interface IDiagnosticClient
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 
-    Subject<SystemEvent[]> EventsSet { get; }
-    Subject<SystemEvent[]> EventsStreamed { get; }
+    IObservable<SystemEvent[]> EventsSet { get; }
+    IObservable<SystemEvent[]> EventsStreamed { get; }
 
 }

@@ -69,10 +69,12 @@ public class RetroSearchProcess
         {
             Trace.WriteLine(ex);
             await _client.ProcessSearchError(Query.SearchId, ex.Message, ex.ToString());
-
         }
-        Finished?.Invoke(this, EventArgs.Empty);
-        _watch.Stop();;
+        finally
+        {
+            Finished?.Invoke(this, EventArgs.Empty);
+            _watch.Stop();
+        }
     }
 
     private async Task ExecuteQuery(Channel<RetroSearchResult> channel, CancellationToken cancel)

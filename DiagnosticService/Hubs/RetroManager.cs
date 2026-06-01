@@ -26,7 +26,7 @@ public class RetroManager : IHostedService
     private IRetroLogger? _logger;
     private Channel<IList<DiagnosticMsg>>? _writeChannel;
     private Task? _loggingTask;
-    private Subject<IList<DiagnosticMsg>>? _logSubject;
+    private ISubject<IList<DiagnosticMsg>>? _logSubject;
     private IDisposable? _logSubscription;
     private long _writeQueueSize = 0;
     private readonly ConcurrentDictionary<string, RetroSearchProcess> _searches = new();
@@ -69,7 +69,7 @@ public class RetroManager : IHostedService
         });
 
 
-        _logSubject = new Subject<IList<DiagnosticMsg>>();
+        _logSubject = Subject.Synchronize(new Subject<IList<DiagnosticMsg>>());
 
         // Keep the subscription so StopAsync can dispose it (was discarded → leaked across restarts).
         _logSubscription = _logSubject.SelectMany(list => list)
@@ -161,7 +161,7 @@ public class RetroManager : IHostedService
 
     public void LogEvents(IList<DiagnosticMsg> messages)
     {
-        Subject<IList<DiagnosticMsg>>? logSubject = _logSubject;
+        ISubject<IList<DiagnosticMsg>>? logSubject = _logSubject;
 
         if (logSubject != null)
         {
@@ -199,8 +199,17 @@ public class RetroManager : IHostedService
     private void HandleSearchFinished(object? sender, EventArgs e)
     {
         RetroSearchProcess search = (RetroSearchProcess) sender!;
+        _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search));
         RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s", 
             JsonSerializer.SerializeToElement(search.Query).ToString());
+    }
+
+    public Task CancelConnectionSearch(string connectionId)
+    {
+        if (_searches.TryRemove(connectionId, out RetroSearchProcess? running))
+            running.Cancel();
+
+        return Task.CompletedTask;
     }
 
     public Task CancelRetroSearch(int searchId, string connectionId)
