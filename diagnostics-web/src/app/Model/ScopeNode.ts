@@ -55,6 +55,10 @@ export class ScopeNode {
 
         for (let i = 0; i < displayLines.length; i++) {
             let dl = displayLines[i].trim();
+            // Iterate every line: the old `length - 1` bound dropped the final line (typically the
+            // outermost END) whenever the input had no trailing newline. Skip blank lines explicitly
+            // so a trailing empty split element no longer produces a spurious top-level node.
+            if (!dl) continue;
 
             if (dl === '')
                 continue;

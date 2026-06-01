@@ -59,6 +59,8 @@ public static class Program
         }).AddHubOptions<WebHub>(options => {
             options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
             options.MaximumParallelInvocationsPerClient = 5;
+            // Only expose detailed hub exception text to browser clients in development; in production
+            // it leaks internal error detail. enableDetailedHubErrors is IsDevelopment(). (A4)
             options.EnableDetailedErrors = enableDetailedHubErrors;
         }).AddJsonProtocol(options => {
             options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());

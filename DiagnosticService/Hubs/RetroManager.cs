@@ -136,20 +136,29 @@ public class RetroManager : IHostedService
 
     private async Task TryLog(IList<DiagnosticMsg> messages, CancellationToken cancel)
     {
-        for (int i = 0; i < 10; i++)
+        try
         {
-            try
+            for (int i = 0; i < 10; i++)
             {
-                await Logger.WriteMessages(messages, cancel);
-                Interlocked.Add(ref _writeQueueSize, -1 * messages.Count);
-                EventsWritten.Register(messages.Count);
-                break;
+                try
+                {
+                    await Logger.WriteMessages(messages, cancel);
+                    EventsWritten.Register(messages.Count);
+                    return;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _log.Error(ex);
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancel);
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.Error(ex);
-                await Task.Delay(TimeSpan.FromSeconds(1), cancel);
-            }
+        }
+        finally
+        {
+            // Decrement once whether the batch was written or abandoned after the retries: the count
+            // was incremented on enqueue, so a permanently-failing logger would otherwise leak
+            // WriteQueueSize upward forever (it never recovers after a sustained outage). (A8)
+            Interlocked.Add(ref _writeQueueSize, -1 * messages.Count);
         }
     }
 
@@ -199,13 +208,18 @@ public class RetroManager : IHostedService
     private void HandleSearchFinished(object? sender, EventArgs e)
     {
         RetroSearchProcess search = (RetroSearchProcess) sender!;
+        // Remove the finished search so completed searches don't linger in the registry until the
+        // connection starts another or disconnects. Pair-remove so a newer search that already
+        // replaced this entry is left intact. (A3)
         _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search));
-        RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s", 
+        RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
             JsonSerializer.SerializeToElement(search.Query).ToString());
     }
 
     public Task CancelConnectionSearch(string connectionId)
     {
+        // Called on client disconnect: cancel and drop any in-flight retro search for the connection
+        // so a disconnected client's search isn't left running or lingering in the registry. (A3)
         if (_searches.TryRemove(connectionId, out RetroSearchProcess? running))
             running.Cancel();
 

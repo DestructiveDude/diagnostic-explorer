@@ -56,9 +56,9 @@ namespace DiagnosticExplorer
         [DataMember]
         public string Detail { get; set; }
 
-        [ProtoMember(5)]
-        [DataMember]
-        public EventSeverity Severity { get; set; }
+        // ProtoMember(5) was EventSeverity Severity — removed. The server never populated it
+        // (write-dead) and the web no longer reads it; the tag is left as a gap so the remaining
+        // members keep their wire numbers. The EventSeverity enum stays (SystemEventArgs uses it).
 
         [ProtoMember(6)]
         [DataMember]
@@ -74,7 +74,7 @@ namespace DiagnosticExplorer
 
         public override string ToString()
         {
-            return $"{Id} {Date:d MMM yyyy H:mm:ss} {Severity} {Message}";
+            return $"{Id} {Date:d MMM yyyy H:mm:ss} {Message}";
         }
     }
 }

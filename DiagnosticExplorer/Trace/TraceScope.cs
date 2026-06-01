@@ -300,6 +300,11 @@ public class TraceScope : IDisposable
             }
 
             TraceMessage();
+
+            // ReaderWriterLockSlim is IDisposable; a TraceScope is created and disposed per traced
+            // operation, so not disposing the lock leaks it (and its lazily-allocated kernel handles)
+            // on every scope. Dispose last — TraceMessage()/ToString() above still read under it. (B4)
+            _traceItemsLock.Dispose();
         }
     }
 

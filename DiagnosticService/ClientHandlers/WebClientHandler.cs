@@ -14,6 +14,8 @@ public class WebClientHandler
     private IWebHubClient _client;
     private IDisposable? _processSubscription;
     private IDisposable? _processRemoveSubscription;
+    private readonly object _sendLock = new();
+    private Task _sendChain = Task.CompletedTask;
     private Task? _eventStreamTask;
     private CancellationTokenSource? _eventStreamCancel;
     private readonly object _eventStreamLock = new();
@@ -44,12 +46,29 @@ public class WebClientHandler
 
     private void HandleProcessesChanged(DiagProcess changed)
     {
-        _client.UpdateProcess(changed);
+        EnqueueSend(() => _client.UpdateProcess(changed));
     }
 
     private void HandleProcessRemoved(DiagProcess changed)
     {
-        _client.RemoveProcess(changed.Id);
+        EnqueueSend(() => _client.RemoveProcess(changed.Id));
+    }
+
+    // Serialize the per-client SignalR sends and observe their faults. The source
+    // ProcessChanged/ProcessRemoved subjects are Subject.Synchronize'd, so callbacks arrive in order;
+    // chaining preserves that order on the wire (an unawaited send could otherwise complete out of
+    // order — e.g. an update landing after the remove it preceded) and stops a failed send from being
+    // lost silently. (A10)
+    private void EnqueueSend(Func<Task> send)
+    {
+        lock (_sendLock)
+        {
+            _sendChain = _sendChain.ContinueWith(async _ =>
+            {
+                try { await send(); }
+                catch (Exception ex) { Trace.WriteLine($"WebClientHandler {ConnectionId} send failed: {ex.Message}"); }
+            }, TaskScheduler.Default).Unwrap();
+        }
     }
 
     public async Task ShowDiagnostics(string id, DiagnosticResponse response)

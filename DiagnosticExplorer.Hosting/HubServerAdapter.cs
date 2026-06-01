@@ -109,6 +109,13 @@ internal class HubServerAdapter : IDiagnosticHubClient
         {
             Trace.WriteLine("HubServerAdapter.SendEventStream cancelled");
         }
+        catch (Exception ex)
+        {
+            // A non-cancellation fault here ends event delivery to this client. The task is launched
+            // fire-and-forget (Task.Run in SubscribeEvents; the disposal continuation discards it), so
+            // without this catch the exception would go unobserved. Surface it rather than swallow it.
+            Trace.WriteLine($"HubServerAdapter.SendEventStream failed: {ex}");
+        }
     }
 
     public void Dispose()
@@ -180,28 +187,28 @@ internal class HubServerAdapter : IDiagnosticHubClient
         });
     }
 
-    public async Task<RegistrationResponse> Register(Registration registration)
+    public async Task<RegistrationResponse> Register(Registration registration, CancellationToken cancel = default)
     {
-        RpcResult<RegistrationResponse> response = await _hubConn.InvokeCoreAsync<RpcResult<RegistrationResponse>>(nameof(IDiagnosticHubServer.Register), new object[] { registration });
+        RpcResult<RegistrationResponse> response = await _hubConn.InvokeCoreAsync<RpcResult<RegistrationResponse>>(nameof(IDiagnosticHubServer.Register), new object[] { registration }, cancel);
         if (!response.IsSuccess)
             throw new ApplicationException(response.Message);
 
         return response.Response;
     }
 
-    public async Task Deregister(Registration registration)
+    public async Task Deregister(Registration registration, CancellationToken cancel = default)
     {
         if (_hubConn != null)
         {
-            RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.Deregister), new object[] { registration });
+            RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.Deregister), new object[] { registration }, cancel);
             if (!response.IsSuccess)
                 throw new ApplicationException(response.Message);
         }
     }
 
-    public async Task LogEvents(byte[] eventData)
+    public async Task LogEvents(byte[] eventData, CancellationToken cancel = default)
     {
-        RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.LogEvents), new object[] { eventData });
+        RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.LogEvents), new object[] { eventData }, cancel);
 
         if (!response.IsSuccess)
             throw new ApplicationException(response.Message);

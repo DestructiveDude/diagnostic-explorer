@@ -23,7 +23,10 @@ export class EventModel extends SystemEvent implements IFilterableEvent {
     }
 
     get displayText(): string {
-        return this.detail ?? this.message;
+        // `||` not `??`: detail deserializes to '' (the DiagResponse default) for a message-only
+        // event, and '' ?? x keeps the empty string, rendering blank detail. Fall back on any falsy
+        // detail so the message text is shown instead.
+        return this.detail || this.message;
     }
 
 }

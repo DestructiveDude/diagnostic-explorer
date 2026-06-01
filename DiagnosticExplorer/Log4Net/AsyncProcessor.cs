@@ -185,6 +185,13 @@ namespace DiagnosticExplorer.Log4Net
 			if (!taskEnded)
 			{
 				_loggingCancelationTokenSource.Cancel();
+
+				// Give an in-flight forward a brief, bounded window to finish before the caller's
+				// base.OnClose() closes the downstream appenders — otherwise the worker can be mid
+				// PerformAppend into an appender being closed underneath it. Bounded so a genuinely
+				// wedged downstream still can't hang shutdown indefinitely. (B5)
+				_loggingTask.Wait(TimeSpan.FromSeconds(1));
+
 				ForwardInternalError("The buffer was not able to be flushed before timeout occurred.", null);
 			}
 		}

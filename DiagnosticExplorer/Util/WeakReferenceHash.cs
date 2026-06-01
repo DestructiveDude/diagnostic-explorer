@@ -36,14 +36,20 @@ public class WeakReferenceHash<T> where T : class
     {
         if (name == null) throw new ArgumentNullException(nameof(name));
         if (obj == null) throw new ArgumentNullException(nameof(obj));
-        if (items.ContainsKey(name)) throw new ArgumentException(string.Format("There is already a {0} named '{1}'", typeof(T).Name, name));
 
-        lock (items) items.Add(name, new WeakReference(obj));
+        // Check-then-act under the same lock: SortedDictionary is not safe for a read racing a write,
+        // and the duplicate check must be atomic with the insert. (B3)
+        lock (items)
+        {
+            if (items.ContainsKey(name)) throw new ArgumentException(string.Format("There is already a {0} named '{1}'", typeof(T).Name, name));
+            items.Add(name, new WeakReference(obj));
+        }
     }
 
     public bool ContainsName(string name)
     {
-        return items.ContainsKey(name);
+        // SortedDictionary reads must be locked against concurrent mutation in Add/Remove/GetItem. (B3)
+        lock (items) return items.ContainsKey(name);
     }
 
     public void Remove(string name)

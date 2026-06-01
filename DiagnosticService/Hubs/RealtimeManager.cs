@@ -459,10 +459,12 @@ public class RealtimeManager : IHostedService
         if (!_webClients.TryGetValue(webConnectionId, out WebClientHandler? webClient))
             return false;
 
-        RemoveClientFromSubscriptions(webClient);
-
+        // Validate the target BEFORE tearing the client off its current subscription: a subscribe to
+        // a stale/removed process id must not silently drop the client's existing live feed. (A9)
         if (!_processes.TryGetValue(processId, out DiagProcess? process))
             return false;
+
+        RemoveClientFromSubscriptions(webClient);
 
         var subscription = _subscriptions.GetOrAdd(process, key => GetSubscription(process));
         await subscription.AddWebClient(webClient);

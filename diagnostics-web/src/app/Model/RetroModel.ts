@@ -29,8 +29,14 @@ export class RetroModel {
             });
             connection.on("ProcessSearchError", (searchId: number, error: string, detail: string) => {
                 console.log(error);
-                if (this.currentSearchId === searchId)
+                if (this.currentSearchId === searchId) {
+                    // Reset the active-search state, otherwise currentSearchId stays set and the UI is
+                    // stuck on "Searching..." — the next search() call would route to the cancel branch
+                    // and canDelete would never re-enable.
+                    this.onSearchComplete(true, false);
+                    this.titleMessage = `Search failed: ${error}`;
                     this.snackBar.open(error, '', {duration: 2_000});
+                }
             });
         });
     }

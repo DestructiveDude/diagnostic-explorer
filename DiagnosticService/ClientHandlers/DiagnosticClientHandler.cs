@@ -63,6 +63,9 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
         await _client.UnsubscribeEvents();
     }
 
+    // SetEvents/StreamEvents can be invoked concurrently for a single client under
+    // MaximumParallelInvocationsPerClient; the _eventsSet/_eventsStreamed subjects are wrapped in
+    // Subject.Synchronize (see field declarations) so their OnNext is already serialized. (A6)
     public void SetEvents(SystemEvent[] events)
     {
         _eventsSet.OnNext(events);

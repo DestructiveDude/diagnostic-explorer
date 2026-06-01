@@ -42,7 +42,6 @@ export class SystemEvent {
     message = '';
     detail = '';
     level = 0;
-    severity = '';
     sinkName = '';
     sinkCategory = '';
 }

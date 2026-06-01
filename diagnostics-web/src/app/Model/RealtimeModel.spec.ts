@@ -255,36 +255,36 @@ describe('RealtimeModel', () => {
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
 
-            connection.handlers['StreamEvents']('other', [evt({sinkCategory: 'Cat', sinkName: 'Sink', severity: 'High'})]);
+            connection.handlers['StreamEvents']('other', [evt({sinkCategory: 'Cat', sinkName: 'Sink'})]);
 
             expect(model.categories).toHaveLength(0);
         });
 
-        it('creates a category per sinkCategory and derives the level from severity', () => {
+        it('creates a category per sinkCategory and uses each event\'s level', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
 
             connection.handlers['StreamEvents']('active', [
-                evt({sinkCategory: 'Disk', sinkName: 'IO', severity: 'Medium'}),
-                evt({sinkCategory: 'Net', sinkName: 'Http', severity: 'Low'}),
+                evt({sinkCategory: 'Disk', sinkName: 'IO', level: Level.WARN}),
+                evt({sinkCategory: 'Net', sinkName: 'Http', level: Level.INFO}),
             ]);
 
             expect(model.categories.map(c => c.name).sort()).toEqual(['Disk', 'Net']);
-            // severity Medium -> WARN, Low -> INFO; worstSev is the max event level in the category.
+            // worstSev is the max event level in the category.
             expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.WARN);
             expect(model.categories.find(c => c.name === 'Net')!.worstSev).toBe(Level.INFO);
         });
 
-        it('keeps an explicit level instead of deriving it from severity', () => {
+        it('defaults the level to ERROR when an event arrives without one', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
 
             connection.handlers['StreamEvents']('active', [
-                evt({sinkCategory: 'Disk', sinkName: 'IO', severity: 'Low', level: Level.ERROR}),
+                evt({sinkCategory: 'Disk', sinkName: 'IO'}),
             ]);
 
             expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.ERROR);
@@ -296,10 +296,10 @@ describe('RealtimeModel', () => {
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
 
-            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO', severity: 'High'})]);
+            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO'})]);
             const firstSink = model.categories.find(c => c.name === 'Disk')!.eventSinks[0];
 
-            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO', severity: 'High'})]);
+            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO'})]);
             const secondSink = model.categories.find(c => c.name === 'Disk')!.eventSinks[0];
 
             // SetEvents resets eventSinks, so the sink is rebuilt rather than accumulated.

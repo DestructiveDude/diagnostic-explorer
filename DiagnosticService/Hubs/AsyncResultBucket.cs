@@ -39,10 +39,14 @@ public class AsyncResultBucket
 
         if (_results.TryGetValue(result.RequestId, out var completionSource))
         {
+            // Try* (not Set*): a duplicate reply for the same request id — possible under
+            // MaximumParallelInvocationsPerClient, or a late reply racing GetResult's finally — would
+            // otherwise throw "already completed" out of the hub return method and fault the hub
+            // invocation. The first reply wins; later ones no-op. (A7)
             if (result.IsSuccess)
-                completionSource.SetResult(returnValue);
+                completionSource.TrySetResult(returnValue);
             else
-                completionSource.SetException(new AsyncCallException(result.Message, result.Detail));
+                completionSource.TrySetException(new AsyncCallException(result.Message, result.Detail));
         }
         else
         {
@@ -67,6 +71,10 @@ public class AsyncResultBucket
                 // with its message/detail, instead of an AggregateException wrapping it.
                 return (T) await completionSource.Task;
 
+            // Task.Delay won the race: either the timeout elapsed OR the caller cancelled (e.g. the
+            // client disconnected, passing ConnectionAborted). Awaiting the delay task surfaces
+            // cancellation as cancellation (TaskCanceledException) rather than a misleading
+            // TimeoutException; only a genuine timeout falls through to throw below. (A5)
             await awaitResult;
 
             throw new TimeoutException($"{requestId} GetResult Timed out waiting");

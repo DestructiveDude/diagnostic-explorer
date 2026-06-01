@@ -80,35 +80,5 @@ namespace DiagnosticExplorer.Log4Net
 
 			return message;
 		}
-
-		private EventSeverity GetSeverity(Level level)
-		{
-			switch (level.Name.ToUpper())
-			{
-				case "ALL":
-				case "TRACE":
-				case "DEBUG":
-				case "FINE":
-				case "FINER":
-				case "FINEST":
-				case "INFO":
-                case "VERBOSE":
-				case "OFF":
-					return EventSeverity.Low;
-
-				case "WARN":
-					return EventSeverity.Medium;
-
-				case "CRITICAL":
-				case "EMERGENCY":
-				case "ERROR":
-				case "FATAL":
-				case "SEVERE":
-					return EventSeverity.High;
-
-				default:
-					return EventSeverity.High;
-			}
-		}
 	}
 }

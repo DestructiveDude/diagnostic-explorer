@@ -227,9 +227,13 @@ export class RealtimeModel {
         this.allProcesses = this.allProcesses.filter(p => p.id !== id);
         this.filteredProcesses = this.filteredProcesses.filter(p => p.id !== id);
 
+        // If the removed process was the one being viewed, drop the selection and its diagnostics
+        // view — otherwise activeProcess still points at a gone process and SetProperty/ExecuteOperation
+        // would be issued against it.
         if (this.activeProcess?.id === id) {
             this.activeProcess = null;
             this.categories = [];
+            this.operationSets = [];
             this.activeCat = undefined;
 
             if (this.selectedEvent)
@@ -237,6 +241,7 @@ export class RealtimeModel {
 
             this.selectedEvent = undefined;
             this.traceScopeVisible = false;
+            this.titleMessage = '';
         }
     }
 
@@ -346,13 +351,11 @@ export class RealtimeModel {
     }
 
     private setEventLevel(evt: SystemEvent): void {
-        if (!evt.level) {
-            evt.level = evt.severity === 'Low'
-                ? Level.INFO
-                : evt.severity === 'Medium'
-                    ? Level.WARN
-                    : Level.ERROR
-        }
+        // The server always populates level (log4net Level.Value), so this fallback only fires for
+        // an event that arrives without one — default it to ERROR so it stays visible. (Previously
+        // derived from evt.severity, which the server never sent; that dead field has been removed.)
+        if (!evt.level)
+            evt.level = Level.ERROR;
     }
 
     private getCat(name: string): CategoryModel {
