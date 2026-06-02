@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -37,7 +37,8 @@ public class RegistrationHandler
     private CancellationTokenSource _stopToken;
     private Task _registrationLoop;
     private Task _loggingTask;
-    private Subject<DiagnosticMsg> _logSubject = new();
+    private ISubject<DiagnosticMsg> _logSubject = Subject.Synchronize(new Subject<DiagnosticMsg>());
+    private IDisposable _logSubscription;
     private Channel<IList<DiagnosticMsg>> _logChannel;
 
     private Action<HttpConnectionOptions> _configureHttp;
@@ -75,7 +76,7 @@ public class RegistrationHandler
                 SingleWriter = false
             });
 
-        _logSubject
+        _logSubscription = _logSubject
             .Buffer(TimeSpan.FromSeconds(2), 50)
             .Where(evts => evts.Count != 0)
             .Subscribe(evts => _logChannel?.Writer.TryWrite(evts));
@@ -126,7 +127,7 @@ public class RegistrationHandler
                     continue;
 
                 Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
-                await adapter.LogEvents(data).ConfigureAwait(false);
+                await adapter.LogEvents(data, cancel).ConfigureAwait(false);
                 watch2.Stop();
                 Debug.WriteLine($"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms");
             }
@@ -156,7 +157,7 @@ public class RegistrationHandler
 
                 cancelToken.ThrowIfCancellationRequested();
 
-                RegistrationResponse response = await _hubAdapter.Register(_registration);
+                RegistrationResponse response = await _hubAdapter.Register(_registration, cancelToken);
 
                 delay = response.RenewTimeSeconds <= 0
                     ? TimeSpan.FromSeconds(20)
@@ -186,8 +187,11 @@ public class RegistrationHandler
 
     private async Task OpenHub()
     {
-        if (_hubAdapter != null)
-            return;
+        lock (_connLock)
+        {
+            if (_hubAdapter != null)
+                return;
+        }
 
         Debug.WriteLine("Diagnostic RegistrationHandler constructing connection");
         HubConnection connection = new HubConnectionBuilder()
@@ -207,16 +211,25 @@ public class RegistrationHandler
 
         connection.Closed += HandleClosed;
 
-        Debug.WriteLine("Diagnostic RegistrationHandler starting connection");
-        await connection.StartAsync(_stopToken.Token);
-
-        Debug.WriteLine("Diagnostic RegistrationHandler connection started");
-        HubServerAdapter adapter = new HubServerAdapter(connection);
-
-        lock (_connLock)
+        try
         {
-            _connection = connection;
-            _hubAdapter = adapter;
+            Debug.WriteLine("Diagnostic RegistrationHandler starting connection");
+            await connection.StartAsync(_stopToken.Token);
+
+            Debug.WriteLine("Diagnostic RegistrationHandler connection started");
+            HubServerAdapter adapter = new HubServerAdapter(connection);
+
+            lock (_connLock)
+            {
+                _connection = connection;
+                _hubAdapter = adapter;
+            }
+        }
+        catch
+        {
+            connection.Closed -= HandleClosed;
+            await connection.DisposeAsync();
+            throw;
         }
     }
 
@@ -278,12 +291,11 @@ public class RegistrationHandler
             // Complete the subject and channel writer BEFORE cancelling the stop token so
             // RunLoggingProcess can drain buffered messages. Cancelling first caused ReadAllAsync
             // to exit early and drop queued log items.
-            Subject<DiagnosticMsg> logSubject = _logSubject;
+            ISubject<DiagnosticMsg> logSubject = _logSubject;
             _logSubject = null;
             logSubject?.OnCompleted();
 
             _logChannel?.Writer.Complete();
-            _logChannel = null;
 
             _stopToken?.Cancel();
 
@@ -292,23 +304,40 @@ public class RegistrationHandler
             _stopToken = null;
 
             // Drain both background tasks before tearing the connection down. (M26)
-            if (loopTask != null)
-                await loopTask.ConfigureAwait(false);
-            if (logTask != null)
-                await logTask.ConfigureAwait(false);
+            try
+            {
+                if (loopTask != null)
+                    await loopTask.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _log.Error("Registration loop faulted during Stop", ex);
+            }
 
-            // Deregister while the adapter is still live (the loop no longer closes the connection
-            // on cancellation), then dispose the connection + adapter. (M26, M25)
-            await Deregister();
-            await CloseConnection();
+            try
+            {
+                if (logTask != null)
+                    await logTask.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _log.Error("Logging task faulted during Stop", ex);
+            }
+
+            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+            {
+                await Deregister(cts.Token);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _log.Error(ex);
+            await CloseConnection();
+            _logChannel = null;
+            _logSubscription?.Dispose();
         }
     }
 
-    private async Task Deregister()
+    private async Task Deregister(CancellationToken cancel = default)
     {
         // Snapshot under the lock: HandleClosed could null _hubAdapter concurrently.
         HubServerAdapter adapter;
@@ -320,7 +349,7 @@ public class RegistrationHandler
             if (adapter != null)
             {
                 _log.Info("DiagnosticHostingService Deregistered");
-                await adapter.Deregister(_registration);
+                await adapter.Deregister(_registration, cancel);
                 Debug.WriteLine("Deregistered successfully");
             }
         }
@@ -335,7 +364,7 @@ public class RegistrationHandler
     {
         // Snapshot: Stop() completes and nulls _logSubject; a log event arriving during/after
         // shutdown must be a no-op, not an NRE. (M27)
-        Subject<DiagnosticMsg> subject = _logSubject;
+        ISubject<DiagnosticMsg> subject = _logSubject;
         subject?.OnNext(evt);
     }
 }

@@ -34,6 +34,7 @@ namespace DiagnosticExplorer
 {
 	public class RateCounter
 	{
+		// The static timer is intended to run for the entire process lifetime to drive rate calculation.
 		private static readonly Timer _timer;
 		private static readonly List<WeakReference> _counters = new List<WeakReference>();
 		private DateTime _lastCheck = DateTime.UtcNow;
@@ -72,6 +73,8 @@ namespace DiagnosticExplorer
 
 		private void Increment()
 		{
+			// Lock order: always acquire _counters lock before _counts lock.
+			// This method is called from Run() which already holds the _counters lock.
 			lock (_counts)
 			{
 				_times[_index % _counts.Length] = DateTime.UtcNow - _lastCheck;
@@ -172,6 +175,7 @@ namespace DiagnosticExplorer
 		{
 			try
 			{
+				// Lock order: always acquire _counters lock before _counts lock.
 				lock (_counters)
 				{
 					for (int i = _counters.Count - 1; i >= 0; i--)

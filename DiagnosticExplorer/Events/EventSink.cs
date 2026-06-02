@@ -124,10 +124,30 @@ namespace DiagnosticExplorer
                     break;
         }
 
+        private bool _invalid;
+
+        internal void Invalidate()
+        {
+            _invalid = true;
+        }
+
+        public void Clear()
+        {
+            while (Events.TryDequeue(out _)) ;
+            Interlocked.Exchange(ref _idCount, 0);
+        }
+
         private void AddSingleEvent(SystemEvent evt)
         {
-            Events.Enqueue(evt);
-            _repo.RegisterEvent(evt);
+            if (_invalid)
+                return;
+
+            // Events are enqueued inside RegisterEvent under the repo read lock to ensure
+            // stream creation snapshots are atomic with respect to live broadcasts (DE03-DUP).
+            _repo.RegisterEvent(this, evt);
+
+            // Bounded queue size is a soft limit; under concurrent logging from multiple threads,
+            // the queue size can transiently exceed MaxMessages before items are dequeued.
             if (Events.Count > MaxMessages)
                 Events.TryDequeue(out _);
         }

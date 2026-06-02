@@ -34,9 +34,14 @@ namespace DiagnosticExplorer.Log4Net
 	{
 		public override FilterDecision Decide(LoggingEvent loggingEvent)
 		{
-			ILog log = LogManager.Exists(loggingEvent.LoggerName);
+			if (loggingEvent.Repository == null)
+				return FilterDecision.Deny;
 
-			Logger hlog = log?.Logger as Logger;
+			Hierarchy hierarchy = loggingEvent.Repository as Hierarchy;
+			if (hierarchy == null)
+				return FilterDecision.Deny;
+
+			Logger hlog = hierarchy.Exists(loggingEvent.LoggerName) as Logger;
 
 			if (hlog == null || hlog.Appenders.Count != 0)
 				return FilterDecision.Deny;

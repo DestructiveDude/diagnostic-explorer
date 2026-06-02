@@ -40,6 +40,7 @@ namespace DiagnosticExplorer.Log4Net
 		// nullable DateTime read can tear. (M17a)
 		private readonly object _stateLock = new();
 		private bool _isInError;
+		private bool _isHalfOpen;
 		private DateTime? _lastError;
 		private DateTime? _lastMessageSent;
 
@@ -80,6 +81,7 @@ namespace DiagnosticExplorer.Log4Net
 			lock (_stateLock)
 			{
 				_isInError = false;
+				_isHalfOpen = false;
 				_errorTime = null;
 			}
 		}
@@ -114,13 +116,19 @@ namespace DiagnosticExplorer.Log4Net
 		{
 			get
 			{
-				TimeSpan? timeFailed = TimeUntilNextActive();
-				if (timeFailed.HasValue)
+				lock (_stateLock)
 				{
-					string remaining = FormatTimeSpan(_timeout - timeFailed.Value);
-					return $"FAILED, Ready in {remaining}";
+					if (_isHalfOpen)
+						return "PROBING";
+
+					TimeSpan? timeFailed = TimeUntilNextActive();
+					if (timeFailed.HasValue)
+					{
+						string remaining = FormatTimeSpan(_timeout - timeFailed.Value);
+						return $"FAILED, Ready in {remaining}";
+					}
+					return "READY";
 				}
-				return "READY";
 			}
 		}
 
@@ -137,43 +145,80 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected bool DoAppend(Func<AppendResult> appendAction)
 		{
+			bool isProbe = false;
+
 			lock (_stateLock)
 			{
-				if (ShouldResetErrorNoLock())
-				{
-					_errorTime = null;
-					_isInError = false;
-				}
-
 				if (_isInError)
+				{
+					if (ShouldResetErrorNoLock())
+					{
+						// Timeout expired: transition from error to half-open, and this thread becomes the probe.
+						_isInError = false;
+						_isHalfOpen = true;
+						isProbe = true;
+					}
+					else
+					{
+						// Still in error / quarantined
+						return false;
+					}
+				}
+				else if (_isHalfOpen)
+				{
+					// Another thread is already probing; reject this thread to avoid thundering herd.
 					return false;
+				}
 			}
 
-			// The append itself runs outside the lock (it can be slow I/O — SMTP send / file write).
+			// Run append action outside the lock
 			AppendResult result = appendAction();
-			if (result.Success)
+
+			lock (_stateLock)
 			{
-				lock (_stateLock)
+				if (isProbe)
 				{
-					_lastMessageSent = SystemDateTime.UtcNow();
-				}
-				MessagesSent.Register(1);
-			}
-			else
-			{
-				lock (_stateLock)
-				{
-					_lastError = SystemDateTime.UtcNow();
-					_lastErrorMessage = result.Message;
-					if (_timeout > TimeSpan.Zero)
+					_isHalfOpen = false;
+					if (result.Success)
 					{
-						// Engage the fail-timeout quarantine. Without this the IsInError guard
-						// above never trips, ShouldResetError never runs, and a dead appender is
-						// retried on every event ("READY" forever).
+						// Probe succeeded: clear error state
+						_errorTime = null;
+						_isInError = false;
+					}
+					else
+					{
+						// Probe failed: go back to error state with a new timeout
 						_errorTime = SystemDateTime.UtcNow();
 						_isInError = true;
 					}
 				}
+				else
+				{
+					// Normal append path (not a probe)
+					if (!result.Success)
+					{
+						_lastError = SystemDateTime.UtcNow();
+						_lastErrorMessage = result.Message;
+						if (_timeout > TimeSpan.Zero)
+						{
+							_errorTime = SystemDateTime.UtcNow();
+							_isInError = true;
+						}
+					}
+				}
+
+				if (result.Success)
+				{
+					_lastMessageSent = SystemDateTime.UtcNow();
+				}
+			}
+
+			if (result.Success)
+			{
+				MessagesSent.Register(1);
+			}
+			else
+			{
 				Errors.Register(1);
 			}
 
@@ -269,13 +314,23 @@ namespace DiagnosticExplorer.Log4Net
 		public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout) : base(timeout)
 		{
 			RawAppender = appenderToWrap ?? throw new ArgumentNullException(nameof(appenderToWrap));
-			AppenderSkeleton convertedAppender = appenderToWrap as AppenderSkeleton;
-			if (convertedAppender != null)
+
+			if (appenderToWrap is AsyncFallbackAppender || 
+			    appenderToWrap is AsyncForwardingAppender || 
+			    appenderToWrap is AsyncSmtpAppender)
 			{
-				Appender = convertedAppender;
-				ErrorHandler = new AppenderProxyErrorHandler();
-				MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
+				throw new ArgumentException($"Cannot wrap async appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' inside AppenderProxy. Failover and quarantine are not supported for asynchronous appenders.");
 			}
+
+			AppenderSkeleton convertedAppender = appenderToWrap as AppenderSkeleton;
+			if (convertedAppender == null)
+			{
+				throw new ArgumentException($"Appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' does not inherit from AppenderSkeleton. AppenderProxy requires AppenderSkeleton targets to track errors.");
+			}
+
+			Appender = convertedAppender;
+			ErrorHandler = new AppenderProxyErrorHandler();
+			MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
 		}
 
 		private AppenderProxyErrorHandler ErrorHandler { get; }

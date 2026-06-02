@@ -10,7 +10,7 @@ namespace DiagnosticExplorer.Log4Net
 	[DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 	public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppender
 	{
-		private readonly object _lock = new();
+		protected readonly object _lock = new();
 
 		protected ForwardingAppenderBase()
 		{

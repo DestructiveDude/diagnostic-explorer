@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -12,10 +12,7 @@
   </PropertyGroup>
 
   
-  <ItemGroup>
-    <Compile Remove="DiagnosticService.cs" />
-    <Compile Remove="Util\AsyncResultBucket.cs" />
-  </ItemGroup>
+  
 
   <!-- Expose internal helpers (ScopeStack, TypeUtil) to the unit test project.
        The attribute lands in the shipped assembly but only names the test

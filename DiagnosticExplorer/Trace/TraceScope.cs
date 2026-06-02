@@ -123,10 +123,9 @@ public class TraceScope : IDisposable
 
     public void StartAutoTraceTimer(TimeSpan time)
     {
-        if (_autoTraceTimer != null)
-            _autoTraceTimer.Dispose();
-
-        _autoTraceTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
+        Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
+        Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
+        oldTimer?.Dispose();
     }
 
     private void AutoTraceAfterTimeout(object state)
@@ -296,11 +295,11 @@ public class TraceScope : IDisposable
         if (disposing)
         {
 
-            if (_autoTraceTimer != null)
+            Timer timer = Interlocked.Exchange(ref _autoTraceTimer, null);
+            if (timer != null)
             {
-                _autoTraceTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                _autoTraceTimer.Dispose();
-                _autoTraceTimer = null;
+                try { timer.Change(Timeout.Infinite, Timeout.Infinite); } catch (ObjectDisposedException) { }
+                timer.Dispose();
             }
 
             _disposed = DateTime.UtcNow;
@@ -317,7 +316,14 @@ public class TraceScope : IDisposable
             // ReaderWriterLockSlim is IDisposable; a TraceScope is created and disposed per traced
             // operation, so not disposing the lock leaks it (and its lazily-allocated kernel handles)
             // on every scope. Dispose last — TraceMessage()/ToString() above still read under it. (B4)
-            _traceItemsLock.Dispose();
+            try
+            {
+                _traceItemsLock.Dispose();
+            }
+            catch (SynchronizationLockException)
+            {
+                // Suppress if timer callback is mid-flight holding the lock
+            }
         }
     }
 

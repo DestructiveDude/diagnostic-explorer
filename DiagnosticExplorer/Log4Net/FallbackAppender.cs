@@ -48,7 +48,16 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected void PerformAppend(LoggingEvent loggingEvent)
 		{
-			Queue<AppenderProxy> proxyQueue = new Queue<AppenderProxy>(Proxies);
+			loggingEvent.Fix = FixFlags.All;
+			List<AppenderProxy> proxies;
+			lock (_lock)
+			{
+				proxies = Proxies;
+			}
+			if (proxies == null)
+				return;
+
+			Queue<AppenderProxy> proxyQueue = new Queue<AppenderProxy>(proxies);
 
 			while (proxyQueue.Count > 0)
 			{
@@ -67,9 +76,22 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected void PerformAppend(LoggingEvent[] loggingEvents)
 		{
+			foreach (var loggingEvent in loggingEvents)
+			{
+				loggingEvent.Fix = FixFlags.All;
+			}
+
+			List<AppenderProxy> proxies;
+			lock (_lock)
+			{
+				proxies = Proxies;
+			}
+			if (proxies == null)
+				return;
+
 			EventsIn.Register(loggingEvents.Length);
 
-			var appenderQueue = new Queue<AppenderProxy>(Proxies);
+			var appenderQueue = new Queue<AppenderProxy>(proxies);
 			while (appenderQueue.Count > 0)
 			{
 				AppenderProxy appender = appenderQueue.Dequeue();
@@ -87,11 +109,11 @@ namespace DiagnosticExplorer.Log4Net
 
 		private void RecordAppenderError(Queue<AppenderProxy> appenderQueue, AppenderProxy appender)
 		{
-			ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Appender.Name}] has an error.");
+			ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
 			if (appenderQueue.Count > 0)
 			{
 				var nextAppender = appenderQueue.Peek();
-				LogLog.Debug(GetType(), $"Chaining through to appender [{nextAppender.Appender.Name}]");
+				LogLog.Debug(GetType(), $"Chaining through to appender [{nextAppender.Name}]");
 			}
 			else
 				ForwardingAppenderBase.LogLogError(GetType(), "No more appenders exist to chain through to");

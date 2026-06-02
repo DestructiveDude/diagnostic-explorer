@@ -81,7 +81,7 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected override void OnClose()
 		{
-			_processor.Close();
+			_processor?.Close();
 			base.OnClose();
 		}
 

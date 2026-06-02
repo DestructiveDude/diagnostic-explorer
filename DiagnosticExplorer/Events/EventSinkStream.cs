@@ -65,11 +65,11 @@ sealed public class EventSinkStream : IDisposable
 
     public void Dispose()
     {
-        Disposed?.Invoke(this, EventArgs.Empty);
-        Disposed = null;
-
         _eventSubscription?.Dispose();
         _innerSubject.Dispose();
         _eventSubject = null;
+
+        Disposed?.Invoke(this, EventArgs.Empty);
+        Disposed = null;
     }
 }

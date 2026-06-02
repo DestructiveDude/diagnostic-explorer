@@ -45,12 +45,33 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected void PerformAppend(LoggingEvent loggingEvent)
 		{
-			Parallel.ForEach(Proxies, appender => PerformAppend(appender, loggingEvent));
+			loggingEvent.Fix = FixFlags.All;
+			List<AppenderProxy> proxies;
+			lock (_lock)
+			{
+				proxies = Proxies;
+			}
+			if (proxies != null)
+			{
+				Parallel.ForEach(proxies, appender => PerformAppend(appender, loggingEvent));
+			}
 		}
 
 		protected void PerformAppend(LoggingEvent[] loggingEvents)
 		{
-			Parallel.ForEach(Proxies, appender => PerformAppend(appender, loggingEvents));
+			foreach (var loggingEvent in loggingEvents)
+			{
+				loggingEvent.Fix = FixFlags.All;
+			}
+			List<AppenderProxy> proxies;
+			lock (_lock)
+			{
+				proxies = Proxies;
+			}
+			if (proxies != null)
+			{
+				Parallel.ForEach(proxies, appender => PerformAppend(appender, loggingEvents));
+			}
 		}
 
 		protected void PerformAppend(AppenderProxy appender, LoggingEvent loggingEvent)
@@ -81,7 +102,7 @@ namespace DiagnosticExplorer.Log4Net
 
 		private void RecordAppenderError(AppenderProxy appender)
 		{
-			ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Appender.Name}] has an error.");
+			ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
 		}
 	}
 }

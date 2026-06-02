@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -94,6 +94,7 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected override void Append(LoggingEvent loggingEvent)
 		{
+			EventsIn.Register(1);
 			PerformSend(loggingEvent);
 		}
 
@@ -110,15 +111,10 @@ namespace DiagnosticExplorer.Log4Net
 			if (Layout.Footer != null)
 				bodyWriter.Write(Layout.Footer);
 
+			string body = bodyWriter.ToString();
+			string subject = RenderSubject(loggingEvent);
 
-			using MailMessage message = new MailMessage();
-			message.Body = bodyWriter.ToString();
-			message.From = new MailAddress(From);
-			message.To.Add(To);
-			message.Subject = RenderSubject(loggingEvent);
-			message.Priority = Priority;
-
-			SendToProxies(message);
+			SendToProxies(body, subject);
 		}
 
 		private string RenderSubject(LoggingEvent loggingEvent)
@@ -140,14 +136,25 @@ namespace DiagnosticExplorer.Log4Net
 			}
 		}
 
-		protected void SendToProxies(MailMessage message)
+		protected void SendToProxies(string body, string subject)
 		{
 			foreach (SmtpAppenderProxy proxy in Proxies)
 			{
-				if (proxy.TrySend(message))
+				using (MailMessage message = new MailMessage())
 				{
-					EventsOut.Register(1);
-					break;
+					message.Body = body;
+					if (!string.IsNullOrEmpty(From))
+						message.From = new MailAddress(From);
+					if (!string.IsNullOrEmpty(To))
+						message.To.Add(To);
+					message.Subject = subject;
+					message.Priority = Priority;
+
+					if (proxy.TrySend(message))
+					{
+						EventsOut.Register(1);
+						break;
+					}
 				}
 				EventsErrored.Register(1);
 				RecordAppenderError(proxy);

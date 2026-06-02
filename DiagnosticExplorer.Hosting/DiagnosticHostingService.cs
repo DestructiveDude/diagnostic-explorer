@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -68,7 +68,7 @@ public class DiagnosticHostingService
     private static void TryStart(DiagnosticHostingService candidate)
     {
         if (Interlocked.CompareExchange(ref _instance, candidate, null) != null)
-            return;
+            throw new InvalidOperationException("An instance of DiagnosticHostingService is already running. Only one instance can run at a time.");
 
         if (!candidate.StartHosting())
             Interlocked.CompareExchange(ref _instance, null, candidate);
@@ -137,7 +137,10 @@ public class DiagnosticHostingService
     {
         try
         {
-            DiagnosticRetroAppender.SetLoggingAction(null);
+            if (Volatile.Read(ref _instance) == null)
+            {
+                DiagnosticRetroAppender.SetLoggingAction(null);
+            }
 
             // Null-guard: StartHosting may have failed (or Stop been called without a successful
             // Start), leaving _registrationHandlers null.

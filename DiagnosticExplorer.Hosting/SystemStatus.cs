@@ -37,7 +37,10 @@ internal class SystemStatus
     {
         DiagnosticManager.Register(this, "Environment", "System");
 
-        Pid = Process.GetCurrentProcess().Id;
+        using (Process p = Process.GetCurrentProcess())
+        {
+            Pid = p.Id;
+        }
         User = $"{Environment.UserDomainName}\\{Environment.UserName}";
         HostMachine = Environment.MachineName;
         ProcessorCount = Environment.ProcessorCount;
@@ -55,7 +58,10 @@ internal class SystemStatus
     public int Threads
     {
         get {
-            return Process.GetCurrentProcess().Threads.Count;
+            using (Process p = Process.GetCurrentProcess())
+            {
+                return p.Threads.Count;
+            }
         }
     }
 
@@ -64,7 +70,10 @@ internal class SystemStatus
     public double VirtualMemory
     {
         get {
-            return Process.GetCurrentProcess().PagedMemorySize64 / (1024F * 1024F);
+            using (Process p = Process.GetCurrentProcess())
+            {
+                return p.PagedMemorySize64 / (1024F * 1024F);
+            }
         }
     }
 
@@ -72,7 +81,10 @@ internal class SystemStatus
     public double Memory
     {
         get {
-            return Process.GetCurrentProcess().WorkingSet64 / (1024F * 1024F);
+            using (Process p = Process.GetCurrentProcess())
+            {
+                return p.WorkingSet64 / (1024F * 1024F);
+            }
         }
     }
 
@@ -94,7 +106,10 @@ internal class SystemStatus
     public TimeSpan UpTime
     {
         get {
-            return DateTime.Now - Process.GetCurrentProcess().StartTime;
+            using (Process p = Process.GetCurrentProcess())
+            {
+                return DateTime.Now - p.StartTime;
+            }
         }
     }
 

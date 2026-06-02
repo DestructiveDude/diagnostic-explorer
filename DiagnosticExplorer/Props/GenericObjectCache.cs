@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,8 +38,8 @@ namespace DiagnosticExplorer
 		public static T CreateGenericObject<T>(Type genericType, params Type[] typeArguments)
 		{
 			string key = string.Format("{0} {1}",
-																 genericType.FullName,
-																 string.Join(", ", typeArguments.Select(x => x.FullName).ToArray()));
+																 genericType.AssemblyQualifiedName,
+																 string.Join(", ", typeArguments.Select(x => x.AssemblyQualifiedName).ToArray()));
 
 			return (T)_objectCache.GetOrAdd(key, _ =>
 			{

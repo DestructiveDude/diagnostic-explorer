@@ -18,7 +18,8 @@ namespace DiagnosticExplorer
 
 		private static readonly ConcurrentDictionary<string, List<PropertyGetter>> _typeHash = new();
 
-		private static readonly ConcurrentDictionary<Type, OperationSet> _operationLookup = new();
+		private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _operationLookup = new();
+		private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _staticOperationLookup = new();
 		private static int _operationSetId;
         public static bool Enabled { get; set; } = true;
 
@@ -30,6 +31,7 @@ namespace DiagnosticExplorer
 		internal static void Clear()
 		{
 			_operationLookup.Clear();
+			_staticOperationLookup.Clear();
 			_typeHash.Clear();
 			lock (RegisteredObjects)
 				RegisteredObjects.Clear();
@@ -61,20 +63,24 @@ namespace DiagnosticExplorer
             if (name == null)
                 return name;
 
-            if (!NameAlreadyTaken(name, category))
+            var takenNames = new HashSet<string>(_ignoreCase);
+            foreach (var ro in RegisteredObjects)
+            {
+                if (!ReferenceEquals(ro, obj) && _ignoreCase.Equals(category, ro.BagCategory))
+                {
+                    takenNames.Add(ro.BagName);
+                }
+            }
+
+            if (!takenNames.Contains(name))
                 return name;
 
             for (int i = 2; ; i++)
             {
                 string extension = $" {i}";
                 string newName = $"{name}{extension}";
-                if (!NameAlreadyTaken(newName, category))
+                if (!takenNames.Contains(newName))
                     return newName;
-            }
-
-            bool NameAlreadyTaken(string proposedName, string proposedCat)
-            {
-                return RegisteredObjects.Any(ro => !ReferenceEquals(ro, obj) && _ignoreCase.Equals(proposedName, ro.BagName) && _ignoreCase.Equals(proposedCat, ro.BagCategory));
             }
         }
 
@@ -155,14 +161,15 @@ namespace DiagnosticExplorer
 		{
 			if (sourceObject == null) return null;
 
-			Type propType = sourceObject.GetType();
+			if (sourceObject is Type type)
+			{
+				Lazy<OperationSet> lazy = _staticOperationLookup.GetOrAdd(type, t => new Lazy<OperationSet>(() => BuildStaticOperationSet(t)));
+				return lazy.Value;
+			}
 
-			// ConcurrentDictionary makes the cache thread-safe; GetOrAdd replaces the
-			// previous broken double-checked locking over a plain Dictionary. The factory
-			// may run more than once under contention, but only one result is stored and
-			// CreateOperationSet is idempotent. Ids come from a monotonic counter so two
-			// distinct sets can never collide on Id.
-			return _operationLookup.GetOrAdd(propType, BuildOperationSet);
+			Type propType = sourceObject.GetType();
+			Lazy<OperationSet> lazyInstance = _operationLookup.GetOrAdd(propType, t => new Lazy<OperationSet>(() => BuildOperationSet(t)));
+			return lazyInstance.Value;
 		}
 
 		private static OperationSet BuildOperationSet(Type propType)
@@ -173,16 +180,42 @@ namespace DiagnosticExplorer
 			return operationSet;
 		}
 
+		private static OperationSet BuildStaticOperationSet(Type propType)
+		{
+			OperationSet operationSet = CreateStaticOperationSet(propType);
+			if (operationSet != null)
+				operationSet.Id = Interlocked.Increment(ref _operationSetId).ToString();
+			return operationSet;
+		}
+
 		private static OperationSet CreateOperationSet(Type propType)
 		{
 			if (propType == null) throw new ArgumentNullException(nameof(propType));
 
 			if (propType.FullName == null) return null;
-			if (propType.FullName.StartsWith("System")) return null;
+			if (propType.FullName.StartsWith("System.")) return null;
 
 			OperationSet operationSet = new();
 
 			foreach (MethodInfo method in propType.GetMethods(PublicMethods).OrderBy(x => x.Name))
+			{
+				if (IsMethodValidOperationTarget(method))
+					operationSet.Operations.Add(new Operation(method));
+			}
+
+			return operationSet.Operations.Count == 0 ? null : operationSet;
+		}
+
+		private static OperationSet CreateStaticOperationSet(Type propType)
+		{
+			if (propType == null) throw new ArgumentNullException(nameof(propType));
+
+			if (propType.FullName == null) return null;
+			if (propType.FullName.StartsWith("System.")) return null;
+
+			OperationSet operationSet = new();
+
+			foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).OrderBy(x => x.Name))
 			{
 				if (IsMethodValidOperationTarget(method))
 					operationSet.Operations.Add(new Operation(method));
@@ -310,6 +343,22 @@ namespace DiagnosticExplorer
 			if (type != typeof (object))
 			{
 				DiagnosticClassAttribute diagAttr = GetAttribute<DiagnosticClassAttribute>(type, false);
+
+				if (inheritedAttr == null)
+				{
+					for (Type baseType = type.BaseType; baseType != null && baseType != typeof(object); baseType = baseType.BaseType)
+					{
+						DiagnosticClassAttribute attr = GetAttribute<DiagnosticClassAttribute>(baseType, false);
+						if (attr != null)
+						{
+							if (!attr.DeclaringTypeOnly)
+							{
+								inheritedAttr = attr;
+							}
+							break;
+						}
+					}
+				}
 
 				if (inheritedAttr == null || !inheritedAttr.DeclaringTypeOnly || diagAttr != null)
 				{
@@ -528,52 +577,50 @@ namespace DiagnosticExplorer
 
 		public static OperationResponse SetProperty(IEnumerable<RegisteredObject> registeredObjects, string path, string value)
 		{
-			if (path == null) throw new ArgumentNullException(nameof(path));
-
-			PropIdent ident = PropIdent.Parse(path);
-			PropertyBag bag = GetRegisteredObject(registeredObjects, ident);
-			Property prop = bag.GetProperty(ident.PropName, ident.PropCategory);
-
-			if (prop == null)
-			{
-				string msg = $"Can't find property [{ident.PropCategory}].[{ident.PropName}]";
-				throw new ArgumentException(msg);
-			}
-
-			if (prop.SourceObject == null)
-			{
-				string msg = $"Property [{ident.PropCategory}].[{ident.PropName}] doesn't have a source object!";
-				return OperationResponse.Error(msg);
-			}
-
-			if (prop.SourceProperty == null)
-			{
-				string msg = $"Property [{ident.PropCategory}].[{ident.PropName}] doesn't have a source PropertyInfo!";
-				return OperationResponse.Error(msg);
-			}
-
-			if (!prop.CanSet)
-			{
-				string msg = $"You are not allowed to set [{ident.PropCategory}].[{ident.PropName}], AllowSet is not enabled!";
-				return OperationResponse.Error(msg);
-			}
-
-			bool isType = prop.SourceObject is Type;
-			if (!isType && !prop.SourceProperty.DeclaringType.IsInstanceOfType(prop.SourceObject))
-			{
-				string msg = $"'{ident.PropCategory}'.'{ident.PropName}' property {prop.SourceProperty.Name} expects type {prop.SourceProperty.DeclaringType.Name}, got {prop.SourceObject.GetType().Name}";
-				return OperationResponse.Error(msg);
-			}
-
 			try
 			{
-				object newValue = ConvertValue(prop.SourceProperty.PropertyType, value);
+				if (path == null)
+					return OperationResponse.Error("Property path not specified");
+
+				PropIdent ident = PropIdent.Parse(path);
+				RegisteredObject regObj = registeredObjects.FindByCategoryAndName(ident.BagCategory, ident.BagName);
+				if (regObj == null)
+					return OperationResponse.Error($"Can't find PropertyBag {ident.BagCategory}.{ident.BagName}");
+
+				object obj = regObj.Object;
+				if (obj == null)
+					return OperationResponse.Error($"PropertyBag {ident.BagCategory}.{ident.BagName} was garbage collected just before I could set the property.  How bizarre!");
+
+				List<PropertyGetter> valueGetters = GetPropertyGetters(obj);
+				PropertyGetter getter = valueGetters.FirstOrDefault(g => 
+					_ignoreCase.Equals(g.Name, ident.PropName) && 
+					_ignoreCase.Equals(g.Category ?? "", ident.PropCategory ?? ""));
+
+				if (getter == null)
+					return OperationResponse.Error($"Can't find property [{ident.PropCategory}].[{ident.PropName}]");
+
+				if (getter.PropInfo == null)
+					return OperationResponse.Error($"Property [{ident.PropCategory}].[{ident.PropName}] doesn't have a source PropertyInfo!");
+
+				if (!getter.CanSet)
+					return OperationResponse.Error($"You are not allowed to set [{ident.PropCategory}].[{ident.PropName}], AllowSet is not enabled!");
+
+				bool isType = obj is Type;
+				if (!isType && !getter.PropInfo.DeclaringType.IsInstanceOfType(obj))
+					return OperationResponse.Error($"'{ident.PropCategory}'.'{ident.PropName}' property {getter.PropInfo.Name} expects type {getter.PropInfo.DeclaringType.Name}, got {obj.GetType().Name}");
+
+				object newValue = ConvertValue(getter.PropInfo.PropertyType, value);
 				if (isType)
-					prop.SourceProperty.SetValue(null, newValue, null);
+					getter.PropInfo.SetValue(null, newValue, null);
 				else
-					prop.SourceProperty.SetValue(prop.SourceObject, newValue, null);
+					getter.PropInfo.SetValue(obj, newValue, null);
 
 				return OperationResponse.Success();
+			}
+			catch (TargetInvocationException ex) when (ex.InnerException != null)
+			{
+				Exception inner = ex.InnerException;
+				return OperationResponse.Error(inner.Message, inner.ToString());
 			}
 			catch (Exception ex)
 			{
@@ -608,7 +655,12 @@ namespace DiagnosticExplorer
 
 			public static PropIdent Parse(string path)
 			{
+				if (string.IsNullOrWhiteSpace(path))
+					throw new ArgumentException("Path cannot be empty.");
+
 				string[] elements = path.Split('|');
+				if (elements.Length < 2 || string.IsNullOrEmpty(elements[0]) || string.IsNullOrEmpty(elements[1]))
+					throw new ArgumentException($"Invalid property/operation path: '{path}'. Path must contain at least a category and name, separated by '|'.");
 
 				PropIdent ident = new();
 				ident.BagCategory = NullIfEmpty(elements.ElementAtOrDefault(0));
@@ -652,11 +704,7 @@ namespace DiagnosticExplorer
 			{
 				return Convert.ChangeType(value, type);
 			}
-			catch (FormatException)
-			{
-				throw;
-			}
-			catch
+			catch (Exception ex) when (ex is FormatException || ex is InvalidCastException || ex is OverflowException)
 			{
 				object parsed;
 				if (TryParseValue(type, value, out parsed))
