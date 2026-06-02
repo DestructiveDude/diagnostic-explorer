@@ -40,8 +40,6 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected override void Append(LoggingEvent loggingEvent)
         {
-            // Debug.WriteLine("DiagnosticRetroAppender.Append");
-            // Debug.WriteLine("DiagnosticRetroAppender.PerformSend");
             DiagnosticMsg msg = new() {
                 Level = loggingEvent.Level.Value,
                 Date = DateTime.UtcNow,

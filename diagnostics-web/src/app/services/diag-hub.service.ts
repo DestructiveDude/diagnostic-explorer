@@ -52,6 +52,7 @@ export class DiagHubService {
                     })
                     .build();
 
+                connection.onreconnecting(err => this.handleConnectionClosed(err));
                 connection.onclose(err => this.handleConnectionClosed(err));
                 await connection.start();
 

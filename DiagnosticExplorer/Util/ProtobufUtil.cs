@@ -21,7 +21,6 @@ namespace DiagnosticExplorer.Util
 
 			if (stream.Length <= compressThreshold)
 			{
-//				Debug.WriteLine($"ProtobufUtil.Compress<{typeof(T).Name}> raw length is {stream.Length}");
 				return stream.ToArray();
 			}
 
@@ -33,7 +32,6 @@ namespace DiagnosticExplorer.Util
 				stream.CopyTo(gstream);
 			}
 			byte[] compressed = compressedStream.ToArray();
-//			Debug.WriteLine($"ProtobufUtil.Compress<{typeof(T).Name}> uncompressed: {stream.Length} compressed: {compressed.Length}");
 
 			return compressed;
 		}

@@ -87,9 +87,6 @@ namespace DiagnosticExplorer
 
 			try
 			{
-				//return obj => propInfo.GetValue(obj, null);
-
-				//This method takes 2/3 time of propInfo.GetValue
 				if (isStatic)
 					return obj => propInfo.GetValue(obj, null);
 
@@ -176,11 +173,6 @@ namespace DiagnosticExplorer
 		public bool CanSet { get; private set; }
 		public string Category { get; private set; }
 
-		public string GetValue(object obj, out object objectValue)
-		{
-			return GetValue(obj, GetFunc, out objectValue);
-		}
-
 		protected string FormatEnumerable(IEnumerable col, string separator, int maxItems)
 		{
 			// Materialize once. This was Count() followed by Take() over a possibly-lazy sequence,
@@ -205,6 +197,11 @@ namespace DiagnosticExplorer
 
 			string pre = string.Format("{0} item{1}: ", count, count == 1 ? "" : "s");
 			return pre + string.Join(separator, values.ToArray());
+		}
+
+		public string GetValue(object obj, out object objectValue)
+		{
+			return GetValue(obj, GetFunc, out objectValue);
 		}
 
 		public string GetValue(object obj, Func<object, object> propInfo, out object propertyValue)

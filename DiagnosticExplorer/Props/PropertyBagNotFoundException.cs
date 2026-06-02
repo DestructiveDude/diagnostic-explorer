@@ -28,7 +28,7 @@ using System.Runtime.Serialization;
 namespace DiagnosticExplorer
 {
 	[Serializable]
-	public class PropertyBagNotFoundException : ApplicationException
+	public class PropertyBagNotFoundException : Exception
 	{
 		public PropertyBagNotFoundException()
 		{

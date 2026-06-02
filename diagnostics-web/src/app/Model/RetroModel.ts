@@ -114,6 +114,7 @@ export class RetroModel {
             const searchId = this.currentSearchId;
             this.onSearchComplete(true, false);
             await this.hubService.cancelRetroSearch(searchId);
+            return;
         }
 
         this.titleMessage = 'Searching...';

@@ -212,7 +212,7 @@ namespace DiagnosticExplorer
 
 			OperationSet operationSet = new();
 
-			foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).OrderBy(x => x.Name).Where(IsMethodValidOperationTarget))
+			foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).Where(IsMethodValidOperationTarget).OrderBy(x => x.Name))
 			{
 				operationSet.Operations.Add(new Operation(method));
 			}
@@ -642,7 +642,7 @@ namespace DiagnosticExplorer
 
 		#endregion
 
-		private class PropIdent
+		private sealed class PropIdent
 		{
 			public string BagCategory { get; private set; }
 			public string BagName { get; private set; }

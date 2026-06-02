@@ -9,13 +9,13 @@ using log4net.Util;
 
 namespace DiagnosticExplorer.Log4Net
 {
-	public class AsyncProcessor
+	public class AsyncProcessor : IDisposable
 	{
 		private BlockingCollection<LoggingEventContext> _loggingEvents;
 		private CancellationTokenSource _loggingCancelationTokenSource;
 		private CancellationToken _loggingCancelationToken;
 		private Task _loggingTask;
-		private Action<LoggingEvent> _forwardLoggingEvent;
+		private readonly Action<LoggingEvent> _forwardLoggingEvent;
 		private volatile bool _shutDownRequested;
 
 
@@ -94,8 +94,6 @@ namespace DiagnosticExplorer.Log4Net
 			{
 				Debug.WriteLine(exception);
 				LogLog.Error(GetType(), message, exception);
-//				ForwardingAppenderBase.LogLogError(GetType(), message, exception);
-//				_forwardLoggingEvent(new LoggingEvent(GetType(), null, GetType().Name, Level.Error, message, exception) {Fix = Fix});
 			}
 			catch (Exception ex)
 			{
