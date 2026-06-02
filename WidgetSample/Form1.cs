@@ -622,14 +622,14 @@ namespace WidgetSample
             try
             {
                 Invoke(() => {
-                    using (var scope = new TraceScope("SYNC BLAH 2"))
+                    using (new TraceScope("SYNC BLAH 2"))
                     {
                         string message = $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TIMER {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$% ";
                     TraceScope.Trace(message);
                 }
             });
                 Invoke(() => {
-                    using (var scope = new TraceScope("ASYNC BLAH 2"))
+                    using (new TraceScope("ASYNC BLAH 2"))
                     {
                         string message = $"<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% SCOPE TIMER {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} <EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% ";
                         TraceScope.Trace(message);

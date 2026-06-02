@@ -11,6 +11,7 @@ namespace DiagnosticExplorer;
 sealed public class EventSinkStream : IDisposable
 {
     public event EventHandler Disposed;
+    private readonly Subject<SystemEvent> _innerSubject;
     private ISubject<SystemEvent> _eventSubject;
     private readonly IDisposable _eventSubscription;
     private readonly int bufferSize = 100;
@@ -21,7 +22,8 @@ sealed public class EventSinkStream : IDisposable
         InitialEvents = initialEvents;
         this.bufferSize = bufferSize;
 
-        _eventSubject = Subject.Synchronize(new Subject<SystemEvent>());
+        _innerSubject = new Subject<SystemEvent>();
+        _eventSubject = Subject.Synchronize(_innerSubject);
         _eventSubscription = _eventSubject.BufferWhenAvailable(buffer)
             .Subscribe(WriteEvents, () => EventChannel?.Writer.Complete());
 
@@ -67,6 +69,7 @@ sealed public class EventSinkStream : IDisposable
         Disposed = null;
 
         _eventSubscription?.Dispose();
+        _innerSubject.Dispose();
         _eventSubject = null;
     }
 }
