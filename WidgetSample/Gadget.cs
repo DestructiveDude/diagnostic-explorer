@@ -92,10 +92,10 @@ namespace WidgetSample
 			return items[index];
 		}
 
-		private static string[] _names = new[]
+		private static readonly string[] _names = new[]
 		                                 	{"Gadget X", "Gadget Y", "Gadget Z", "Gadget W"};
 
-		private static string[] _purposes = new[]
+		private static readonly string[] _purposes = new[]
 		                                    	{"Technical", "Muckabout", "Stuff"};
 
 		public override string ToString()

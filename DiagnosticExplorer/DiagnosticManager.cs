@@ -194,11 +194,8 @@ namespace DiagnosticExplorer
 
 			OperationSet operationSet = new();
 
-			foreach (MethodInfo method in propType.GetMethods(PublicMethods).OrderBy(x => x.Name))
-			{
-				if (IsMethodValidOperationTarget(method))
-					operationSet.Operations.Add(new Operation(method));
-			}
+			foreach (MethodInfo method in propType.GetMethods(PublicMethods).Where(IsMethodValidOperationTarget).OrderBy(x => x.Name))
+				operationSet.Operations.Add(new Operation(method));
 
 			return operationSet.Operations.Count == 0 ? null : operationSet;
 		}
@@ -358,9 +355,8 @@ namespace DiagnosticExplorer
 
 				if (inheritedAttr == null || !inheritedAttr.DeclaringTypeOnly || diagAttr != null)
 				{
-					foreach (PropertyInfo propInfo in type.GetProperties(PublicInstancePropertyFlags | BindingFlags.DeclaredOnly))
-						if (ShouldIncludeProperty(diagAttr ?? inheritedAttr, propInfo))
-							yield return propInfo;
+					foreach (PropertyInfo propInfo in type.GetProperties(PublicInstancePropertyFlags | BindingFlags.DeclaredOnly).Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p)))
+						yield return propInfo;
 				}
 
 				foreach (PropertyInfo propInfo in GetInstanceProperties(type.BaseType, diagAttr ?? inheritedAttr))

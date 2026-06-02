@@ -26,6 +26,7 @@ public class RetroManager : IHostedService
     private IRetroLogger? _logger;
     private Channel<IList<DiagnosticMsg>>? _writeChannel;
     private Task? _loggingTask;
+    private Subject<IList<DiagnosticMsg>>? _ownedLogSubject;
     private ISubject<IList<DiagnosticMsg>>? _logSubject;
     private IDisposable? _logSubscription;
     private long _writeQueueSize = 0;
@@ -69,7 +70,8 @@ public class RetroManager : IHostedService
         });
 
 
-        _logSubject = Subject.Synchronize(new Subject<IList<DiagnosticMsg>>());
+        _ownedLogSubject = new Subject<IList<DiagnosticMsg>>();
+        _logSubject = Subject.Synchronize(_ownedLogSubject);
 
         // Keep the subscription so StopAsync can dispose it (was discarded → leaked across restarts).
         _logSubscription = _logSubject.SelectMany(list => list)
@@ -100,6 +102,8 @@ public class RetroManager : IHostedService
         _logSubject = null;
         _logSubscription?.Dispose();
         _logSubscription = null;
+        _ownedLogSubject?.Dispose();
+        _ownedLogSubject = null;
 
         _writeChannel?.Writer.Complete();
 

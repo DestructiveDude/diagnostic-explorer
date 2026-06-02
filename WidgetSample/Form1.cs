@@ -51,14 +51,14 @@ namespace WidgetSample
         private static int _evtCount1;
         private readonly BindingList<Gadget> _gadgets;
         private readonly BindingList<Widget> _widgets;
-        private ComponentModelDemo _compModelDemo;
-        private Timer _counterTimer;
-        private Timer _evtTimer;
+        private readonly ComponentModelDemo _compModelDemo;
+        private readonly Timer _counterTimer;
+        private readonly Timer _evtTimer;
 
         private string _infoText;
-        private Timer _listTestTimer;
-        private Timer _scopeTimer;
-        private Task _scopeTask;
+        private readonly Timer _listTestTimer;
+        private readonly Timer _scopeTimer;
+        private readonly Task _scopeTask;
 
         // Cancels the long-running RunScopeTask loop on shutdown so it doesn't outlive the form.
         private readonly CancellationTokenSource _scopeCts = new CancellationTokenSource();

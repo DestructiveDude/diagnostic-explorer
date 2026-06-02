@@ -105,7 +105,8 @@ public class RetroSearchLifecycleTests
     {
         RetroManager manager = CreateManager();
         OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-        ISubject<IList<DiagnosticMsg>> subject = Subject.Synchronize(new Subject<IList<DiagnosticMsg>>());
+        using Subject<IList<DiagnosticMsg>> ownedSubject = new();
+        ISubject<IList<DiagnosticMsg>> subject = Subject.Synchronize(ownedSubject);
 
         SetPrivateField(manager, "_logSubject", subject);
         using IDisposable subscription = subject.Subscribe(observer);

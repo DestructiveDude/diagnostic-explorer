@@ -100,7 +100,7 @@ namespace DiagnosticExplorer.Log4Net
 
 		protected void PerformSend(LoggingEvent loggingEvent)
 		{
-			StringWriter bodyWriter = new StringWriter();
+			using StringWriter bodyWriter = new StringWriter();
 
 			if (Layout.Header != null)
 				bodyWriter.Write(Layout.Header);
@@ -124,7 +124,7 @@ namespace DiagnosticExplorer.Log4Net
 
 			try
 			{
-				StringWriter subjectWriter = new StringWriter();
+				using StringWriter subjectWriter = new StringWriter();
 				//format the layout
 				Subject.Format(subjectWriter, loggingEvent);
 

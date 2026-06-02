@@ -248,7 +248,7 @@ namespace DiagnosticExplorer.Log4Net
 	[DiagnosticClass(AttributedPropertiesOnly = true)]
 	public class SmtpAppenderProxy : AppenderProxyBase
 	{
-		private SmtpAppender _appender;
+		private readonly SmtpAppender _appender;
 
 		public SmtpAppenderProxy(SmtpAppender appender, string smtpHost, TimeSpan timeout) : base(timeout)
 		{

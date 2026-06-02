@@ -12,7 +12,7 @@ namespace DiagWebService.ClientHandlers;
 
 public class WebClientHandler
 {
-    private IWebHubClient _client;
+    private readonly IWebHubClient _client;
     private IDisposable? _processSubscription;
     private IDisposable? _processRemoveSubscription;
     private readonly object _sendLock = new();
@@ -159,6 +159,7 @@ public class WebClientHandler
         }
         catch (OperationCanceledException)
         {
+            // expected when the event stream is cancelled via Stop()
         }
         catch (Exception ex)
         {

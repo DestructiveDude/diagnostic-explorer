@@ -9,13 +9,13 @@ namespace DiagnosticExplorer
 {
 	internal class CollectionGetter : PropertyGetter
 	{
-		private string _separator;
-		private CollectionMode _mode;
-		private int _maxItems;
-		private Func<object, object> _nameFunc;
-		private Func<object, object> _valueFunc;
-		private Func<object, object> _descrFunc;
-		private Func<object, object> _catFunc;
+		private readonly string _separator;
+		private readonly CollectionMode _mode;
+		private readonly int _maxItems;
+		private readonly Func<object, object> _nameFunc;
+		private readonly Func<object, object> _valueFunc;
+		private readonly Func<object, object> _descrFunc;
+		private readonly Func<object, object> _catFunc;
 
 		public CollectionGetter(PropertyInfo info, CollectionPropertyAttribute attr, bool isStatic)
 			: base(info, isStatic)

@@ -114,10 +114,7 @@ namespace DiagnosticExplorer
 			double r = _counts.Sum();
 			TimeSpan totalTime = _times.Aggregate((t1, t2) => t1 + t2);
 
-			if (totalTime == TimeSpan.Zero)
-				_rate = 0;
-			else
-				_rate = r / totalTime.TotalSeconds;
+			_rate = totalTime == TimeSpan.Zero ? 0 : r / totalTime.TotalSeconds;
 		}
 
 		public void Register(int count)

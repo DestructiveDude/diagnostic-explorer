@@ -31,7 +31,7 @@ namespace DiagnosticExplorer
 {
 	public class RegisteredObject
 	{
-		private WeakReference _objectRef;
+		private readonly WeakReference _objectRef;
 		public string BagName { get; set; }
 		public string BagCategory { get; set; }
 

@@ -366,8 +366,8 @@ public class DiagnosticSubscription
                 await Task.Delay(2000, cancelToken);
             }
         }
-        catch (TaskCanceledException) {}
-        catch (OperationCanceledException) {}
+        catch (TaskCanceledException) { /* expected on cancellation */ }
+        catch (OperationCanceledException) { /* expected on cancellation */ }
 
         //Debug.WriteLine($"@@@@@@@@@@ RunLoop {Process.Id} exit");
     }

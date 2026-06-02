@@ -173,8 +173,8 @@ public class TraceScope : IDisposable
     public override string ToString()
     {
         StringBuilder sb = new StringBuilder();
-        StringWriter writer = new StringWriter(sb);
-        IndentedTextWriter indentedWriter = new IndentedTextWriter(writer);
+        using StringWriter writer = new StringWriter(sb);
+        using IndentedTextWriter indentedWriter = new IndentedTextWriter(writer);
 
         DateTime lastMessage = _created;
         ToString(indentedWriter, _created, ref lastMessage, 0);
@@ -223,7 +223,7 @@ public class TraceScope : IDisposable
     private bool FullTraceRequired(ATraceItem item)
     {
         if (item.TraceScope == null) return false;
-        if (item.TraceScope._forceTrace) return false;
+        if (item.TraceScope._forceTrace) return true;
         if (item.TraceScope.SuppressDetailThreshold == null) return true;
 
         TimeSpan thresh = item.TraceScope.SuppressDetailThreshold.Value;
@@ -356,11 +356,11 @@ public class TraceScope : IDisposable
 
     private Action<string> GetTraceMethod(double millis)
     {
-        foreach (var pair in _traceMethods.Reverse())
-            if (millis >= pair.Key)
-                return pair.Value;
-
-        return _traceMethods.FirstOrDefault().Value;
+        return _traceMethods.Reverse()
+            .Where(pair => millis >= pair.Key)
+            .Select(pair => pair.Value)
+            .FirstOrDefault()
+            ?? _traceMethods.FirstOrDefault().Value;
     }
 
     #region Write Methods
