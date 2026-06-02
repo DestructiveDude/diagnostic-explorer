@@ -18,7 +18,7 @@ public class PropertyGroup
                 Name = group.Name ?? "General",
             };
             result.Add(groupResult);
-            groupResult.Properties = Property.Map(path + "|" + group.Name ?? "", group.Properties).ToArray();
+            groupResult.Properties = Property.Map(path + "|" + (group.Name ?? ""), group.Properties).ToArray();
         }
 
         return result;

@@ -83,9 +83,11 @@ public class RetroManager : IHostedService
 
         _logger = Options.CreateRetroLogger();
 
-        // Tie the drain loop to ApplicationStopping (not the host's start-abort token) so it
-        // keeps running for the app's lifetime and cancels cleanly on shutdown.
-        _loggingTask = Task.Run(() => RunLoop(_lifetime.ApplicationStopping));
+        // Do NOT pass ApplicationStopping here: ApplicationStopping fires before StopAsync is
+        // invoked, so the drain loop would exit early and drop queued messages. Instead, let
+        // the loop run until the channel writer completes (signalled in StopAsync), with the
+        // 5-second Task.WhenAny in StopAsync as the hard-cap.
+        _loggingTask = Task.Run(() => RunLoop(CancellationToken.None));
         return Task.CompletedTask;
     }
 
@@ -109,15 +111,8 @@ public class RetroManager : IHostedService
 
     private async Task RunLoop(CancellationToken cancel)
     {
-        try
-        {
-            await foreach (var messages in WriteChannel.Reader.ReadAllAsync(cancel))
-                await TryLog(messages, cancel);
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected on shutdown when the cancellation token trips; nothing to do.
-        }
+        await foreach (var messages in WriteChannel.Reader.ReadAllAsync(cancel))
+            await TryLog(messages, cancel);
     }
 
 

@@ -16,6 +16,7 @@ export class DiagHubService {
     public connection?: HubConnection;
     public connectionReady = new ReplaySubject<HubConnection>(1);
     public connectionStarted = new ReplaySubject<HubConnection>(1);
+    private connecting = false;
 
 
     constructor(
@@ -24,6 +25,13 @@ export class DiagHubService {
     }
 
     public async connect(): Promise<void> {
+        // Guard against concurrent reconnect loops: if handleConnectionClosed fires while a
+        // connect() is already in its retry delay, the second call returns immediately and the
+        // existing loop continues (this.connection is already undefined, so the while condition
+        // remains true and the existing loop reconnects).
+        if (this.connecting) return;
+        this.connecting = true;
+        try {
         while (!this.connection) {
             try {
 
@@ -33,8 +41,6 @@ export class DiagHubService {
                     .withUrl(this.baseUrl, this.apiKey ? {accessTokenFactory: () => this.apiKey} : {})
                     .build();
 
-                connection.onreconnecting(err => console.log('Hub reconnecting', err))
-                connection.onreconnected(connectionId => console.log('Hub reconnected', connectionId))
                 connection.onclose(err => this.handleConnectionClosed(err));
                 await connection.start();
 
@@ -49,6 +55,9 @@ export class DiagHubService {
                 console.log(err);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
+        }
+        } finally {
+            this.connecting = false;
         }
     }
 

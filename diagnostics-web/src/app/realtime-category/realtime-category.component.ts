@@ -45,7 +45,7 @@ export class RealtimeCategoryComponent implements OnInit {
     }
 
     handleClick($event: MouseEvent) {
-        $event.cancelBubble = true;
+        $event.stopPropagation();
     }
 
     showOperationsDialog(evt: MouseEvent, subCat: SubCat): void {

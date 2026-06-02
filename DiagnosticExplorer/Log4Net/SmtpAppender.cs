@@ -74,7 +74,7 @@ namespace DiagnosticExplorer.Log4Net
 			string[] hosts = (SmtpHost ?? "").Split(',', ';').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
 
 			if (FailTimeout < TimeSpan.Zero)
-				FailTimeout = hosts.Length == 1 ? TimeSpan.Zero : TimeSpan.FromMinutes(5);
+				FailTimeout = hosts.Length <= 1 ? TimeSpan.Zero : TimeSpan.FromMinutes(5);
 
 			Proxies = new List<SmtpAppenderProxy>();
 

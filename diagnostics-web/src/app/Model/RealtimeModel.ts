@@ -141,8 +141,7 @@ export class RealtimeModel {
         cats = _.sortBy(cats, c => c.name);
 
 
-        if (cats.filter(c => !c.subCats.length && !c.eventSinks.length))
-            cats = cats.filter(c => c.subCats.length || c.eventSinks.length);
+        cats = cats.filter(c => c.subCats.length || c.eventSinks.length);
 
         this.categories = cats;
 

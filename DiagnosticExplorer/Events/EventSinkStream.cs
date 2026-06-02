@@ -11,16 +11,17 @@ namespace DiagnosticExplorer;
 sealed public class EventSinkStream : IDisposable
 {
     public event EventHandler Disposed;
-    private Subject<SystemEvent> _eventSubject;
+    private ISubject<SystemEvent> _eventSubject;
     private readonly IDisposable _eventSubscription;
     private readonly int bufferSize = 100;
 
     public EventSinkStream(SystemEvent[] initialEvents, TimeSpan buffer, int bufferSize)
     {
+        if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), "bufferSize must be positive");
         InitialEvents = initialEvents;
         this.bufferSize = bufferSize;
 
-        _eventSubject = new();
+        _eventSubject = Subject.Synchronize(new Subject<SystemEvent>());
         _eventSubscription = _eventSubject.BufferWhenAvailable(buffer)
             .Subscribe(WriteEvents, () => EventChannel?.Writer.Complete());
 

@@ -51,7 +51,7 @@
                 <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">{{ evt.name }}</span>
                 <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 flex-grow-0 whitespace-nowrap">{{ evt?.message }}</span>
                 <div class="col-start-1 row-start-1 justify-self-end self-center h-full text-xs flex items-center"
-                  (click)="handleClick($event)" (keydown)="$event.cancelBubble = true"
+                  (click)="handleClick($event)" (keydown)="$event.stopPropagation()"
                   (dblclick)="handleClick($event)">
                   <app-event-filter [(filterVisible)]="evt.filterVisible"
                   [(criteria)]="evt.filterCriteria"></app-event-filter>

@@ -6,14 +6,14 @@
       <mat-expansion-panel [expanded]="true"
         (click)="$event.preventDefault()"
         class="h-full">
-        <mat-expansion-panel-header class="bg-neutral-700" (click)="$event.cancelBubble = true">
+        <mat-expansion-panel-header class="bg-neutral-700" (click)="$event.stopPropagation()">
           <mat-panel-title class="flex-grow-0">
-            <div class="w-full grid" (click)="$event.cancelBubble = true">
+            <div class="w-full grid" (click)="$event.stopPropagation()">
 
               <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">Retro Results</span>
               <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 whitespace-nowrap">{{ model.resultsMessage }}</span>
               <div class="col-start-1 row-start-1 justify-self-end self-center h-4 text-xs"
-                (keydown)="$event.cancelBubble = true">
+                (keydown)="$event.stopPropagation()">
                 <app-event-filter [(filterVisible)]="model.filterVisible"
                 [(criteria)]="model.filterCriteria"></app-event-filter>
               </div>
@@ -86,3 +86,4 @@
       </as-split-area>
     }
   </as-split>
+</div>

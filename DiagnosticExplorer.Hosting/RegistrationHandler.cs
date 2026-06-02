@@ -69,7 +69,7 @@ public class RegistrationHandler
         _configureHttp = configureHttp;
         _stopToken = new CancellationTokenSource();
         _logChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(
-            new BoundedChannelOptions(1_000_000) {
+            new BoundedChannelOptions(10_000) {
                 FullMode = BoundedChannelFullMode.DropWrite,
                 SingleReader = true,
                 SingleWriter = false
@@ -88,50 +88,55 @@ public class RegistrationHandler
 
     private async Task RunLoggingProcess(CancellationToken cancel)
     {
-        try
+        // Loop until the channel writer is completed (Stop() completes it before cancelling the
+        // stop token so queued messages are not dropped). ReadAsync(None) throws ChannelClosedException
+        // when the writer is complete and no items remain — that is the natural exit signal.
+        // The cancel token is still checked while waiting for the hub adapter so we don't block
+        // indefinitely during a hub-less shutdown.
+        while (true)
         {
-            while (!cancel.IsCancellationRequested)
+            IList<DiagnosticMsg> messages;
+            try
             {
-                IList<DiagnosticMsg> messages = await _logChannel.Reader.ReadAsync(cancel);
-                try
-                {
-                    Stopwatch watch1 = Stopwatch.StartNew();
-                    byte[] data = ProtobufUtil.Compress(messages, 1024);
-                    watch1.Stop();
-
-                    Stopwatch watch2 = Stopwatch.StartNew();
-                    while (_hubAdapter == null)
-                        await Task.Delay(TimeSpan.FromSeconds(1), cancel);
-
-                    // Snapshot: _hubAdapter can be nulled by HandleClosed/CloseConnection between
-                    // the wait above and the send below.
-                    HubServerAdapter adapter = _hubAdapter;
-                    if (adapter == null)
-                        continue;
-
-                    Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
-                    await adapter.LogEvents(data).ConfigureAwait(false);
-                    watch2.Stop();
-                    Debug.WriteLine($"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Failed to log {messages.Count} messages: {ex.Message}");
-                }
+                messages = await _logChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ChannelClosedException)
+            {
+                break;
             }
 
-            Debug.WriteLine($"RunLoggingProcess HAS NOW STOPPED");
+            try
+            {
+                Stopwatch watch1 = Stopwatch.StartNew();
+                byte[] data = ProtobufUtil.Compress(messages, 1024);
+                watch1.Stop();
+
+                Stopwatch watch2 = Stopwatch.StartNew();
+                while (_hubAdapter == null)
+                {
+                    if (cancel.IsCancellationRequested)
+                        return;
+                    await Task.Delay(TimeSpan.FromSeconds(1), CancellationToken.None);
+                }
+
+                // Snapshot: _hubAdapter can be nulled by HandleClosed/CloseConnection between
+                // the wait above and the send below.
+                HubServerAdapter adapter = _hubAdapter;
+                if (adapter == null)
+                    continue;
+
+                Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
+                await adapter.LogEvents(data).ConfigureAwait(false);
+                watch2.Stop();
+                Debug.WriteLine($"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to log {messages.Count} messages: {ex.Message}");
+            }
         }
-        catch (OperationCanceledException)
-        {
-            Debug.WriteLine($"RegistrationHandler.RunLoggingProcess cancelled");
-        }
-        catch (ChannelClosedException)
-        {
-            // Stop() completes the channel during shutdown; a read racing that completion surfaces
-            // here rather than as OperationCanceledException. Expected on stop, not an error.
-            Debug.WriteLine($"RegistrationHandler.RunLoggingProcess channel closed");
-        }
+
+        Debug.WriteLine($"RunLoggingProcess HAS NOW STOPPED");
     }
 
     private async Task RunRegistrationProcess(CancellationToken cancelToken)
@@ -270,15 +275,17 @@ public class RegistrationHandler
             Task loopTask = _registrationLoop;
             Task logTask = _loggingTask;
 
-            _stopToken?.Cancel();
-
-            // Capture+null the subject before completing it so a concurrent LogEvent can't NRE. (M27)
+            // Complete the subject and channel writer BEFORE cancelling the stop token so
+            // RunLoggingProcess can drain buffered messages. Cancelling first caused ReadAllAsync
+            // to exit early and drop queued log items.
             Subject<DiagnosticMsg> logSubject = _logSubject;
             _logSubject = null;
             logSubject?.OnCompleted();
 
             _logChannel?.Writer.Complete();
             _logChannel = null;
+
+            _stopToken?.Cancel();
 
             _registrationLoop = null;
             _loggingTask = null;

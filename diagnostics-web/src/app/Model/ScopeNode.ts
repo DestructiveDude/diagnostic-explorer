@@ -42,7 +42,7 @@ export class ScopeNode {
 
     public static parseTraceScope(displayText: string): ScopeNode | undefined {
         let regions: ScopeNode[] = [];
-        let scopePattern = /\[00\.000] \[00\.000] BEGIN.*/gs;
+        let scopePattern = /\[\d{2}\.\d{3}] \[\d{2}\.\d{3}] BEGIN.*/gs;
         let result = displayText.match(scopePattern);
         if (!result?.length)
             return undefined;

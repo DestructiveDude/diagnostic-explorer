@@ -201,16 +201,11 @@ public class MongoRetroLogger : IRetroLogger
         if (!string.IsNullOrWhiteSpace(query.Message))
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Message, query.Message, RegexOptions.IgnoreCase));
 
-        IAsyncCursor<RetroMsg> searchResult = await collection.FindAsync(filter, options, cancel)
+        using IAsyncCursor<RetroMsg> searchResult = await collection.FindAsync(filter, options, cancel)
             .ConfigureAwait(false);
 
         while (await searchResult.MoveNextAsync(cancel))
-        {
-            foreach (var item in searchResult.Current)
-                item.Date = item.Date.ToLocalTime();
-
             yield return searchResult.Current.ToArray();
-        }
     }
 
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)

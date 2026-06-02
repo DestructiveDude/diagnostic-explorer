@@ -114,16 +114,16 @@ export class RetroModel {
             const searchId = this.currentSearchId;
             this.onSearchComplete(true, false);
             await this.hubService.cancelRetroSearch(searchId);
-        } else {
-            this.titleMessage = 'Searching...';
-            let query: RetroQuery = this.createSearchQuery();
-            this.results = [];
-            this.filteredResults = [];
-            this.currentSearchId = ++this.searchCount;
-            query.searchId = this.currentSearchId;
-            this.searchStartTime = new Date();
-            await this.hubService.startRetroSearch(query);
         }
+
+        this.titleMessage = 'Searching...';
+        let query: RetroQuery = this.createSearchQuery();
+        this.results = [];
+        this.filteredResults = [];
+        this.currentSearchId = ++this.searchCount;
+        query.searchId = this.currentSearchId;
+        this.searchStartTime = new Date();
+        await this.hubService.startRetroSearch(query);
     }
 
     async delete(): Promise<void> {

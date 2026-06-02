@@ -37,10 +37,11 @@ public class RetroSearchProcess
     public void Start()
     {
         _watch.Restart();
-        var channel = Channel.CreateUnbounded<RetroSearchResult>(new UnboundedChannelOptions
+        var channel = Channel.CreateBounded<RetroSearchResult>(new BoundedChannelOptions(200)
         {
-            SingleReader = true, 
-            SingleWriter = true
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait,
         });
 
 
@@ -67,6 +68,8 @@ public class RetroSearchProcess
         }
         catch (Exception ex)
         {
+            // Cancel the query producer so ExecuteQuery exits promptly when delivery fails.
+            _cancelToken.Cancel();
             Trace.WriteLine(ex);
             await _client.ProcessSearchError(Query.SearchId, ex.Message, ex.ToString());
         }
@@ -94,7 +97,7 @@ public class RetroSearchProcess
                     SearchId = Query.SearchId,
                     Results = messages,
                 };
-                channel.Writer.TryWrite(result);
+                await channel.Writer.WriteAsync(result, cancel);
             }
 
             channel.Writer.Complete();
