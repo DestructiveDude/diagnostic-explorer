@@ -31,7 +31,7 @@ namespace DiagnosticExplorer.Log4Net
 	public abstract class AppenderProxyBase
 	{
 		protected TimeSpan _timeout;
-		protected DateTime? _errorTime;
+		private DateTime? _errorTime;
 
 		// Guards the failover state (_isInError + the nullable _errorTime) and the diagnostic
 		// timestamps (_lastError + _lastMessageSent). These are written by the append thread
@@ -84,8 +84,14 @@ namespace DiagnosticExplorer.Log4Net
 			}
 		}
 
+		private string _lastErrorMessage;
+
 		[Property]
-		public string LastErrorMessage { get; set; }
+		public string LastErrorMessage
+		{
+			get { lock (_stateLock) return _lastErrorMessage; }
+			set { lock (_stateLock) _lastErrorMessage = value; }
+		}
 
 		private TimeSpan? TimeUntilNextActive()
 		{
@@ -147,25 +153,28 @@ namespace DiagnosticExplorer.Log4Net
 			AppendResult result = appendAction();
 			if (result.Success)
 			{
-				LastMessageSent = SystemDateTime.UtcNow();
+				lock (_stateLock)
+				{
+					_lastMessageSent = SystemDateTime.UtcNow();
+				}
 				MessagesSent.Register(1);
 			}
 			else
 			{
-				LastError = SystemDateTime.UtcNow();
-				LastErrorMessage = result.Message;
-				Errors.Register(1);
-				if (_timeout > TimeSpan.Zero)
+				lock (_stateLock)
 				{
-					// Engage the fail-timeout quarantine. Without this the IsInError guard
-					// above never trips, ShouldResetError never runs, and a dead appender is
-					// retried on every event ("READY" forever).
-					lock (_stateLock)
+					_lastError = SystemDateTime.UtcNow();
+					_lastErrorMessage = result.Message;
+					if (_timeout > TimeSpan.Zero)
 					{
+						// Engage the fail-timeout quarantine. Without this the IsInError guard
+						// above never trips, ShouldResetError never runs, and a dead appender is
+						// retried on every event ("READY" forever).
 						_errorTime = SystemDateTime.UtcNow();
 						_isInError = true;
 					}
 				}
+				Errors.Register(1);
 			}
 
 			return result.Success;

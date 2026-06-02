@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -67,13 +67,15 @@ namespace DiagnosticExplorer.Log4Net
 		protected override void Append(LoggingEvent loggingEvent)
 		{
 			EventsIn.Register(1);
-			_processor.Append(loggingEvent);
+			var processor = _processor;
+			processor?.Append(loggingEvent);
 		}
 
 		protected override void Append(LoggingEvent[] loggingEvents)
 		{
 			EventsIn.Register(loggingEvents.Length);
-			_processor.Append(loggingEvents);
+			var processor = _processor;
+			processor?.Append(loggingEvents);
 		}
 
 	

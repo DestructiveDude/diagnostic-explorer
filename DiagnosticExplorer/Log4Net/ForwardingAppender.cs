@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,6 +34,7 @@ namespace DiagnosticExplorer.Log4Net
 
 			if (loggingEvents.Length == 1)
 			{
+				EventsIn.Register(1);
 				PerformAppend(loggingEvents[0]);
 				return;
 			}

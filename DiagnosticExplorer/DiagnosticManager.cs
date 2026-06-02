@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -674,8 +674,19 @@ namespace DiagnosticExplorer
 			if (method == null)
 				return false;
 
-			parsed = method.Invoke(null, new object[] {value});
-			return true;
+			try
+			{
+				parsed = method.Invoke(null, new object[] {value});
+				return true;
+			}
+			catch (TargetInvocationException ex)
+			{
+				if (ex.InnerException != null)
+				{
+					System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+				}
+				throw;
+			}
 		}
 	}
 }
