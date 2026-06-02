@@ -64,12 +64,9 @@ namespace DiagnosticExplorer
                 return name;
 
             var takenNames = new HashSet<string>(_ignoreCase);
-            foreach (var ro in RegisteredObjects)
+            foreach (var ro in RegisteredObjects.Where(ro => !ReferenceEquals(ro, obj) && _ignoreCase.Equals(category, ro.BagCategory)))
             {
-                if (!ReferenceEquals(ro, obj) && _ignoreCase.Equals(category, ro.BagCategory))
-                {
-                    takenNames.Add(ro.BagName);
-                }
+                takenNames.Add(ro.BagName);
             }
 
             if (!takenNames.Contains(name))
@@ -215,10 +212,9 @@ namespace DiagnosticExplorer
 
 			OperationSet operationSet = new();
 
-			foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).OrderBy(x => x.Name))
+			foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).OrderBy(x => x.Name).Where(IsMethodValidOperationTarget))
 			{
-				if (IsMethodValidOperationTarget(method))
-					operationSet.Operations.Add(new Operation(method));
+				operationSet.Operations.Add(new Operation(method));
 			}
 
 			return operationSet.Operations.Count == 0 ? null : operationSet;

@@ -37,7 +37,8 @@ public class RegistrationHandler
     private CancellationTokenSource _stopToken;
     private Task _registrationLoop;
     private Task _loggingTask;
-    private ISubject<DiagnosticMsg> _logSubject = Subject.Synchronize(new Subject<DiagnosticMsg>());
+    private readonly Subject<DiagnosticMsg> _ownedLogSubject = new();
+    private ISubject<DiagnosticMsg> _logSubject;
     private IDisposable _logSubscription;
     private Channel<IList<DiagnosticMsg>> _logChannel;
 
@@ -49,6 +50,7 @@ public class RegistrationHandler
         _url = url;
         _registration = registration;
         _apiKey = apiKey;
+        _logSubject = Subject.Synchronize(_ownedLogSubject);
 
         // F8: never send the API key over a cleartext transport. Fail fast at construction rather
         // than silently leaking it on http/ws negotiate + WebSocket requests.
@@ -309,6 +311,10 @@ public class RegistrationHandler
                 if (loopTask != null)
                     await loopTask.ConfigureAwait(false);
             }
+            catch (OperationCanceledException)
+            {
+                // expected on cancellation during Stop; not a fault
+            }
             catch (Exception ex)
             {
                 _log.Error("Registration loop faulted during Stop", ex);
@@ -318,6 +324,10 @@ public class RegistrationHandler
             {
                 if (logTask != null)
                     await logTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // expected on cancellation during Stop; not a fault
             }
             catch (Exception ex)
             {
@@ -334,6 +344,7 @@ public class RegistrationHandler
             await CloseConnection();
             _logChannel = null;
             _logSubscription?.Dispose();
+            _ownedLogSubject.Dispose();
         }
     }
 

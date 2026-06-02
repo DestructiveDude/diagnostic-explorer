@@ -137,10 +137,7 @@ public class DiagnosticHostingService
     {
         try
         {
-            if (Volatile.Read(ref _instance) == null)
-            {
-                DiagnosticRetroAppender.SetLoggingAction(null);
-            }
+            DiagnosticRetroAppender.SetLoggingAction(null);
 
             // Null-guard: StartHosting may have failed (or Stop been called without a successful
             // Start), leaving _registrationHandlers null.

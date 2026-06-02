@@ -126,6 +126,13 @@ public class TraceScope : IDisposable
         Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
         Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
         oldTimer?.Dispose();
+        // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
+        // above: newTimer is now orphaned in _autoTraceTimer, so clear and dispose it.
+        if (_disposed != null)
+        {
+            Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
+            orphan?.Dispose();
+        }
     }
 
     private void AutoTraceAfterTimeout(object state)
@@ -298,7 +305,7 @@ public class TraceScope : IDisposable
             Timer timer = Interlocked.Exchange(ref _autoTraceTimer, null);
             if (timer != null)
             {
-                try { timer.Change(Timeout.Infinite, Timeout.Infinite); } catch (ObjectDisposedException) { }
+                try { timer.Change(Timeout.Infinite, Timeout.Infinite); } catch (ObjectDisposedException) { /* concurrently disposed — disarm is best-effort, ignore */ }
                 timer.Dispose();
             }
 
