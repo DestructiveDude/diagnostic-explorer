@@ -199,6 +199,7 @@ namespace DiagnosticExplorer
 		private static bool IsMethodValidOperationTarget(MethodInfo method)
 		{
 			if (method.IsSpecialName) return false;
+			if (method.IsGenericMethod) return false;
 			if (method.GetParameters().Any(x => x.IsOut)) return false;
 			if (method.GetParameters().Any(x => x.ParameterType.IsByRef)) return false;
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -209,6 +209,7 @@ public class RetroManager : IHostedService
         _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search));
         RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
             JsonSerializer.SerializeToElement(search.Query).ToString());
+        search.Dispose();
     }
 
     public Task CancelConnectionSearch(string connectionId)

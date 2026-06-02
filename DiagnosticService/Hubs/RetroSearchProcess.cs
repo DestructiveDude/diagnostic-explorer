@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -9,7 +9,7 @@ using Diagnostics.Service.Common.Transport;
 
 namespace Diagnostics.Service.Common.Hubs;
 
-public class RetroSearchProcess
+public class RetroSearchProcess : IDisposable
 {
     private IWebHubClient _client;
     public RetroQuery Query { get; }
@@ -113,4 +113,8 @@ public class RetroSearchProcess
         }
     }
 
+    public void Dispose()
+    {
+        _cancelToken.Dispose();
+    }
 }

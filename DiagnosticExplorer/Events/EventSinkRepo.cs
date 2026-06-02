@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DiagnosticExplorer;
 
-public class EventSinkRepo
+public class EventSinkRepo : IDisposable
 {
 
     private readonly List<EventSinkStream> _sinkStreams = new();
@@ -105,5 +105,10 @@ public class EventSinkRepo
         {
             _eventStreamLock.ExitWriteLock();
         }
+    }
+
+    public void Dispose()
+    {
+        _eventStreamLock.Dispose();
     }
 }
