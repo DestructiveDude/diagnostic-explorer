@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -10,6 +10,8 @@ namespace DiagnosticExplorer.Log4Net
 	[DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 	public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppender
 	{
+		private readonly object _lock = new();
+
 		protected ForwardingAppenderBase()
 		{
 		}
@@ -60,6 +62,65 @@ namespace DiagnosticExplorer.Log4Net
 		{
 			base.OnClose();
 			DiagnosticManager.Unregister(this);
+		}
+
+		public override void AddAppender(IAppender newAppender)
+		{
+			base.AddAppender(newAppender);
+			if (Proxies != null && newAppender != null)
+			{
+				lock (_lock)
+				{
+					if (!Proxies.Any(p => ReferenceEquals(p.RawAppender, newAppender)))
+					{
+						var newProxies = new List<AppenderProxy>(Proxies)
+						{
+							new AppenderProxy(newAppender, FailTimeout)
+						};
+						Proxies = newProxies;
+					}
+				}
+			}
+		}
+
+		public override IAppender RemoveAppender(IAppender appender)
+		{
+			IAppender removed = base.RemoveAppender(appender);
+			if (Proxies != null && removed != null)
+			{
+				lock (_lock)
+				{
+					var newProxies = Proxies.Where(p => !ReferenceEquals(p.RawAppender, removed)).ToList();
+					Proxies = newProxies;
+				}
+			}
+			return removed;
+		}
+
+		public override IAppender RemoveAppender(string name)
+		{
+			IAppender removed = base.RemoveAppender(name);
+			if (Proxies != null && removed != null)
+			{
+				lock (_lock)
+				{
+					var newProxies = Proxies.Where(p => !ReferenceEquals(p.RawAppender, removed)).ToList();
+					Proxies = newProxies;
+				}
+			}
+			return removed;
+		}
+
+		public override void RemoveAllAppenders()
+		{
+			base.RemoveAllAppenders();
+			if (Proxies != null)
+			{
+				lock (_lock)
+				{
+					Proxies = new List<AppenderProxy>();
+				}
+			}
 		}
 
 	}

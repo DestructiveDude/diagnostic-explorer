@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -250,6 +250,8 @@ namespace DiagnosticExplorer.Log4Net
 	[DiagnosticClass(AttributedPropertiesOnly = true)]
 	public class AppenderProxy : AppenderProxyBase
 	{
+		public IAppender RawAppender { get; }
+
 		/// <summary>
 		/// Wraps up an <see cref="IAppender"/> adding extra behaviour to how to handle
 		/// an error while appending
@@ -257,14 +259,14 @@ namespace DiagnosticExplorer.Log4Net
 		/// <param name="timeout">Duration to wait before attempting to append again after an error</param>
 		public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout) : base(timeout)
 		{
+			RawAppender = appenderToWrap ?? throw new ArgumentNullException(nameof(appenderToWrap));
 			AppenderSkeleton convertedAppender = appenderToWrap as AppenderSkeleton;
-			if (convertedAppender == null)
-				throw new InvalidOperationException("AppenderProxy requires an AppenderSkeleton-derived appender in order to hook into the IErrorHandler and gather errors.");
-
-			Appender = convertedAppender;
-
-			ErrorHandler = new AppenderProxyErrorHandler();
-			MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
+			if (convertedAppender != null)
+			{
+				Appender = convertedAppender;
+				ErrorHandler = new AppenderProxyErrorHandler();
+				MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
+			}
 		}
 
 		private AppenderProxyErrorHandler ErrorHandler { get; }
@@ -275,7 +277,7 @@ namespace DiagnosticExplorer.Log4Net
 		/// <returns>Whether the append was successful</returns>
 		public bool TryAppend(LoggingEvent loggingEvent)
 		{
-			return DoAppend(() => FireAppendAction(() => Appender.DoAppend(loggingEvent)));
+			return DoAppend(() => FireAppendAction(() => RawAppender.DoAppend(loggingEvent)));
 		}
 
 		/// <summary>
@@ -284,22 +286,42 @@ namespace DiagnosticExplorer.Log4Net
 		/// <returns>Whether the append was successful</returns>
 		public bool TryAppend(LoggingEvent[] loggingEvents)
 		{
-			return DoAppend(() => FireAppendAction(() => Appender.DoAppend(loggingEvents)));
+			return DoAppend(() => FireAppendAction(() =>
+			{
+				if (Appender != null)
+				{
+					Appender.DoAppend(loggingEvents);
+				}
+				else
+				{
+					foreach (var loggingEvent in loggingEvents)
+					{
+						RawAppender.DoAppend(loggingEvent);
+					}
+				}
+			}));
 		}
 
 		private AppendResult FireAppendAction(Action appendAction)
 		{
-			ErrorHandler.EnableForCurrentThread();
-			ErrorHandler.ResetError();
+			if (ErrorHandler != null)
+			{
+				ErrorHandler.EnableForCurrentThread();
+				ErrorHandler.ResetError();
+			}
 			try
 			{
 				appendAction();
 			}
+			catch (Exception ex)
+			{
+				return new AppendResult(false, ex.Message);
+			}
 			finally
 			{
-				ErrorHandler.Disable();
+				ErrorHandler?.Disable();
 			}
-			return new AppendResult(!ErrorHandler.HasError, ErrorHandler.Message);
+			return new AppendResult(ErrorHandler == null || !ErrorHandler.HasError, ErrorHandler?.Message);
 		}
 
 		/// <summary>
@@ -307,6 +329,6 @@ namespace DiagnosticExplorer.Log4Net
 		/// </summary>
 		public AppenderSkeleton Appender { get; }
 
-		public string Name => Appender.Name;
+		public string Name => RawAppender.Name;
 	}
 }

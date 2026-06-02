@@ -53,6 +53,10 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
 
     private string? ExtractKey()
     {
+        // Check for the short-lived cookie first to avoid query string leak in browsers.
+        if (Request.Cookies.TryGetValue("Diag-Hub-Auth", out var cookieToken) && !string.IsNullOrEmpty(cookieToken))
+            return cookieToken.ToString().Trim();
+
         // All paths are Trim()'d consistently — a whitespace-padded key (copy-paste, padding proxy)
         // must not silently fail the fixed-time comparison. (F7)
         if (Request.Headers.TryGetValue(HeaderName, out var apiKeyHeader) && !string.IsNullOrEmpty(apiKeyHeader))

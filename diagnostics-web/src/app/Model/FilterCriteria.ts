@@ -1,4 +1,4 @@
-﻿import {Null} from '../util/Null';
+import {Null} from '../util/Null';
 import * as _ from 'lodash';
 import {Watch} from '../util/Watch';
 import {IFilterableEvent} from './IFilterableEvent';
@@ -57,8 +57,14 @@ export class FilterCriteria {
             info = notice = warn = error = true;
 
         try {
-            if (this.searchText?.trim())
-                matcher = new RegExp(this.searchText, 'i');
+            if (this.searchText?.trim()) {
+                const text = this.searchText.trim();
+                if (text.length <= 80 && isSafeRegex(text)) {
+                    matcher = new RegExp(text, 'i');
+                } else {
+                    matcher = new RegExp(_.escapeRegExp(text), 'i');
+                }
+            }
         } catch (err) {
             matcher = new RegExp(_.escapeRegExp(this.searchText), 'i');
         }
@@ -88,4 +94,36 @@ export class FilterCriteria {
     private initFilterFunc(): void {
         this._filterFunc = this.createFilterFunc();
     }
+}
+
+function isSafeRegex(pattern: string): boolean {
+    if (!pattern) return true;
+
+    // Check for nested/repeated quantifiers that are a major source of ReDoS
+    if (/(\+|\*)\s*(\+|\*)/.test(pattern)) return false;
+
+    // Check for nested quantifiers in parentheses: e.g. (.*)* or (a+)+
+    let openCount = 0;
+    let insideGroup = '';
+    for (let i = 0; i < pattern.length; i++) {
+        const char = pattern[i];
+        if (char === '(') {
+            openCount++;
+        } else if (char === ')') {
+            openCount--;
+            if (openCount === 0) {
+                const nextChar = pattern[i + 1];
+                if (nextChar === '*' || nextChar === '+' || nextChar === '?') {
+                    if (/[*+?]/.test(insideGroup)) {
+                        return false;
+                    }
+                }
+                insideGroup = '';
+            }
+        } else if (openCount > 0) {
+            insideGroup += char;
+        }
+    }
+
+    return true;
 }

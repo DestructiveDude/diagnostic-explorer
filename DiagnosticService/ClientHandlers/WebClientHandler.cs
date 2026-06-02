@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -16,11 +17,25 @@ public class WebClientHandler
     private IDisposable? _processRemoveSubscription;
     private readonly object _sendLock = new();
     private Task _sendChain = Task.CompletedTask;
-    private Task? _eventStreamTask;
-    private CancellationTokenSource? _eventStreamCancel;
+    private readonly ConcurrentDictionary<string, EventStreamState> _eventStreams = new();
     private readonly object _eventStreamLock = new();
-    private string? _pendingEventStreamId;
-    private EventSinkRepo? _pendingEventStreamRepo;
+
+    private class EventStreamState : IDisposable
+    {
+        public Task Task { get; }
+        public CancellationTokenSource Cancel { get; }
+
+        public EventStreamState(Task task, CancellationTokenSource cancel)
+        {
+            Task = task;
+            Cancel = cancel;
+        }
+
+        public void Dispose()
+        {
+            Cancel.Dispose();
+        }
+    }
 
     public WebClientHandler(string connectionId, IWebHubClient client)
     {
@@ -45,6 +60,15 @@ public class WebClientHandler
     {
         _processSubscription?.Dispose();
         _processRemoveSubscription?.Dispose();
+
+        lock (_eventStreamLock)
+        {
+            foreach (var kvp in _eventStreams)
+            {
+                kvp.Value.Cancel.Cancel();
+            }
+            _eventStreams.Clear();
+        }
     }
 
     private void HandleProcessesChanged(DiagProcess changed)
@@ -91,44 +115,30 @@ public class WebClientHandler
 
     public void StartStreamingEvents(string id, EventSinkRepo sinkRepo)
     {
-        //Debug.WriteLine($"########## WebClientHandler.StartStreamingEvents connection {ConnectionId}");
         lock (_eventStreamLock)
         {
-            if (_eventStreamTask is { IsCompleted: false })
+            if (_eventStreams.TryRemove(id, out var existingState))
             {
-                if (_eventStreamCancel?.IsCancellationRequested == true)
-                {
-                    _pendingEventStreamId = id;
-                    _pendingEventStreamRepo = sinkRepo;
-                }
-
-                return;
+                existingState.Cancel.Cancel();
             }
 
-            _pendingEventStreamId = null;
-            _pendingEventStreamRepo = null;
-            StartStreamingEventsLocked(id, sinkRepo);
+            CancellationTokenSource cancelSource = new();
+            Task task = StreamEvents(id, sinkRepo, cancelSource.Token);
+            var state = new EventStreamState(task, cancelSource);
+            _eventStreams[id] = state;
+            _ = ObserveEventStream(id, task, cancelSource);
         }
     }
 
-    public void StopStreamingEvents()
+    public void StopStreamingEvents(string id)
     {
-        //Debug.WriteLine($"########## WebClientHandler.StopStreamingEvents {ConnectionId}");
         lock (_eventStreamLock)
         {
-            _pendingEventStreamId = null;
-            _pendingEventStreamRepo = null;
-            _eventStreamCancel?.Cancel();
+            if (_eventStreams.TryRemove(id, out var state))
+            {
+                state.Cancel.Cancel();
+            }
         }
-    }
-
-    private void StartStreamingEventsLocked(string id, EventSinkRepo sinkRepo)
-    {
-        CancellationTokenSource eventStreamCancel = new();
-        Task eventStreamTask = StreamEvents(id, sinkRepo, eventStreamCancel.Token);
-        _eventStreamCancel = eventStreamCancel;
-        _eventStreamTask = eventStreamTask;
-        _ = ObserveEventStream(eventStreamTask, eventStreamCancel);
     }
 
     private async Task StreamEvents(string id, EventSinkRepo sinkRepo, CancellationToken cancel)
@@ -136,7 +146,6 @@ public class WebClientHandler
         using EventSinkStream? stream = sinkRepo.CreateSinkStream(TimeSpan.FromMilliseconds(25), 100);
         try
         {
-            //Debug.WriteLine($"########## WebClientHandler calling _client.SetEvents({id}, {stream.InitialEvents.Length} events)");
             await _client.SetEvents(id, stream.InitialEvents);
 
             while (!cancel.IsCancellationRequested)
@@ -145,26 +154,19 @@ public class WebClientHandler
                 if (evts != null)
                 {
                     await _client.StreamEvents(id, evts);
-                    //Debug.WriteLine($"########## WebClientHandler calling _client.StreamEvent({id}, 1 event)");
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            //Debug.WriteLine("########## Stream event task cancelled");
         }
         catch (Exception ex)
         {
-            // Don't swallow silently: a non-cancellation failure here ends event delivery to this
-            // client. In practice it coincides with the SignalR connection dropping (handled by
-            // OnDisconnectedAsync, which removes the web client). Surfacing it makes the otherwise
-            // invisible "events just stopped" case diagnosable. (Automatic stream restart is a
-            // deferred follow-up — it needs loop-guarding to avoid hammering a broken client.)
             Trace.WriteLine($"WebClientHandler {ConnectionId} event stream failed, delivery stopped: {ex.Message}");
         }
     }
 
-    private async Task ObserveEventStream(Task eventStreamTask, CancellationTokenSource eventStreamCancel)
+    private async Task ObserveEventStream(string id, Task eventStreamTask, CancellationTokenSource eventStreamCancel)
     {
         try
         {
@@ -174,21 +176,10 @@ public class WebClientHandler
         {
             lock (_eventStreamLock)
             {
-                if (ReferenceEquals(_eventStreamTask, eventStreamTask))
+                if (_eventStreams.TryGetValue(id, out var state) && ReferenceEquals(state.Task, eventStreamTask))
                 {
-                    _eventStreamTask = null;
-                    if (_pendingEventStreamId != null && _pendingEventStreamRepo != null)
-                    {
-                        string pendingEventStreamId = _pendingEventStreamId;
-                        EventSinkRepo pendingEventStreamRepo = _pendingEventStreamRepo;
-                        _pendingEventStreamId = null;
-                        _pendingEventStreamRepo = null;
-                        StartStreamingEventsLocked(pendingEventStreamId, pendingEventStreamRepo);
-                    }
+                    _eventStreams.TryRemove(id, out _);
                 }
-
-                if (ReferenceEquals(_eventStreamCancel, eventStreamCancel))
-                    _eventStreamCancel = null;
             }
 
             eventStreamCancel.Dispose();

@@ -107,8 +107,15 @@ public class TraceScope : IDisposable
 
     private void AddTraceItem(ATraceItem traceItem)
     {
-        using (_traceItemsLock.WriteGuard())
-            _traceItems.Add(traceItem);
+        try
+        {
+            using (_traceItemsLock.WriteGuard())
+                _traceItems.Add(traceItem);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if the TraceScope has been disposed
+        }
     }
 
     #endregion
@@ -124,9 +131,15 @@ public class TraceScope : IDisposable
 
     private void AutoTraceAfterTimeout(object state)
     {
-        AddTraceItem(new ATraceItem("FORCE TRACE AFTER TIMEOUT"));
-
-        TraceMessage();
+        try
+        {
+            AddTraceItem(new ATraceItem("FORCE TRACE AFTER TIMEOUT"));
+            TraceMessage();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if the TraceScope has been disposed concurrently
+        }
     }
 
     public static TraceScope Current => _scopeStack.Value?.Current;
@@ -317,6 +330,10 @@ public class TraceScope : IDisposable
             if (!_isRoot && !_forceTrace) return;
 
             action(ToString());
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore silently if lock is disposed during concurrent TraceMessage call
         }
         catch (Exception ex)
         {

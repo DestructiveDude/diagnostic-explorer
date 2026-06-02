@@ -27,6 +27,7 @@
 }
 
 
+::ng-deep .realtime-category .mat-mdc-tab-group,
 ::ng-deep .realtime-category .mat-tab-group {
   overflow: hidden !important;
 }
@@ -35,6 +36,7 @@
   align-items: center !important;
 }
 
+::ng-deep .realtime-category .mat-mdc-tab-body-content,
 ::ng-deep .realtime-category .mat-tab-body-content {
   overflow: auto;
 }

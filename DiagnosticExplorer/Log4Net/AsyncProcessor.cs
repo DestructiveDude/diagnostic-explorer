@@ -32,7 +32,7 @@ namespace DiagnosticExplorer.Log4Net
 
 			_loggingCancelationTokenSource = new CancellationTokenSource();
 			_loggingCancelationToken = _loggingCancelationTokenSource.Token;
-			_loggingTask = new Task(SubscriberLoop, _loggingCancelationToken);
+			_loggingTask = new Task(SubscriberLoop, _loggingCancelationToken, TaskCreationOptions.LongRunning);
 		}
 
 		private BufferOverflowMode Overflow { get; }

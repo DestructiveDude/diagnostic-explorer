@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
@@ -47,9 +47,9 @@ public class DiagnosticSubscription
             {
                 DiagnosticClient = diagClient;
                 _eventSubscriptionRestartBlocked = true;
+                StopRequestLoop();
             }
 
-            StopRequestLoop();
             StopDiagClientEvents(previousClient);
             StopWebClientEvents();
             lock (_startStopLock)
@@ -72,7 +72,7 @@ public class DiagnosticSubscription
         foreach (WebClientHandler handler in handlers)
         {
             //Debug.WriteLine($"@@@@@@@@@@ StopWebClientEventStreaming handler {handler.ConnectionId} stop streaming events");
-            handler.StopStreamingEvents();
+            handler.StopStreamingEvents(ProcessId);
         }
     }
 
@@ -104,7 +104,7 @@ public class DiagnosticSubscription
         {
             //Debug.WriteLine($"@@@@@@@@@@ DiagnosticSubscription.RemoveWebClient {webClient.ConnectionId} currently {_webClients.Count} clients before removal");
 
-            webClient.StopStreamingEvents();
+            webClient.StopStreamingEvents(ProcessId);
 
             lock (_startStopLock)
             {
@@ -249,6 +249,9 @@ public class DiagnosticSubscription
         }
 
         Trace.WriteLine($"DiagnosticSubscription {Process.Id} failed to subscribe events: {ex.Message}");
+
+        // F-M16: Schedule a retry after a 5-second delay to recover from transient failures
+        Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => StartIfRequired(), TaskScheduler.Default);
     }
 
     private void HandleUnsubscribeEventsCompletion(IDiagnosticClient diagnosticClient, Exception? ex)

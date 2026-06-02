@@ -161,7 +161,27 @@ namespace WidgetSample
             get { return _infoText; }
             set {
                 _infoText = value;
-                if (PropertyChanged != null) PropertyChanged(this, new PropertyChangedEventArgs("InfoText"));
+                if (PropertyChanged != null)
+                {
+                    if (!IsDisposed && IsHandleCreated && InvokeRequired)
+                    {
+                        try
+                        {
+                            BeginInvoke(new Action(() => {
+                                if (!IsDisposed)
+                                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("InfoText"));
+                            }));
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // Ignore if handle is destroyed concurrently during shutdown
+                        }
+                    }
+                    else
+                    {
+                        PropertyChanged(this, new PropertyChangedEventArgs("InfoText"));
+                    }
+                }
             }
         }
 
@@ -178,13 +198,41 @@ namespace WidgetSample
         [CollectionProperty(CollectionMode.List, Category = "All Gadgets")]
         public IList<Gadget> Gadgets
         {
-            get { return _gadgets; }
+            get
+            {
+                if (!IsDisposed && IsHandleCreated && InvokeRequired)
+                {
+                    try
+                    {
+                        return (IList<Gadget>)Invoke((Delegate)new Func<IList<Gadget>>(() => _gadgets.ToList()));
+                    }
+                    catch
+                    {
+                        return new List<Gadget>();
+                    }
+                }
+                return _gadgets;
+            }
         }
 
         [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(Widget.FullName))]
         public IList<Widget> Widgets
         {
-            get { return _widgets; }
+            get
+            {
+                if (!IsDisposed && IsHandleCreated && InvokeRequired)
+                {
+                    try
+                    {
+                        return (IList<Widget>)Invoke((Delegate)new Func<IList<Widget>>(() => _widgets.ToList()));
+                    }
+                    catch
+                    {
+                        return new List<Widget>();
+                    }
+                }
+                return _widgets;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

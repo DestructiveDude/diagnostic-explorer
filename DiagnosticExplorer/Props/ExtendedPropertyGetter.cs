@@ -45,7 +45,26 @@ namespace DiagnosticExplorer
         {
             string newPrepend = CombineCategories(catPrepend, _name);
 
-            object val = GetFunc(obj);
+            object val;
+            try
+            {
+                val = GetFunc(obj);
+            }
+            catch (Exception ex)
+            {
+                Property p = new Property
+                {
+                    Name = "Error",
+                    Value = $"<{ex.InnerException?.Message ?? ex.Message}>",
+                    CanSet = false,
+                    SourceObject = obj,
+                    SourceProperty = PropInfo
+                };
+                string prependToCategory = PrependToCategory(newPrepend);
+                bag.AddProperty(p, prependToCategory);
+                return;
+            }
+
             if (val == null)
             {
                 Property p = new Property

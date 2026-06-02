@@ -35,10 +35,21 @@ export class DiagHubService {
         while (!this.connection) {
             try {
 
-                // H1: send the API key via accessTokenFactory when configured (access_token query
-                // on the WS upgrade). Empty key (default) connects with no token, as before.
+                // H1: Set a short-lived cookie containing the API key (if configured) so that both the
+                // negotiate request and the WebSocket upgrade request securely send it without exposing
+                // the API key in the query string.
+                if (this.apiKey) {
+                    let cookieString = `Diag-Hub-Auth=${encodeURIComponent(this.apiKey)}; path=/; max-age=60; SameSite=Strict`;
+                    if (window.location.protocol === 'https:') {
+                        cookieString += '; Secure';
+                    }
+                    document.cookie = cookieString;
+                }
+
                 const connection = new signalR.HubConnectionBuilder()
-                    .withUrl(this.baseUrl, this.apiKey ? {accessTokenFactory: () => this.apiKey} : {})
+                    .withUrl(this.baseUrl, {
+                        withCredentials: true
+                    })
                     .build();
 
                 connection.onclose(err => this.handleConnectionClosed(err));

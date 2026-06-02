@@ -4,16 +4,19 @@
   padding: 0 !important;
 }
 
+::ng-deep .mat-mdc-dialog-container,
 ::ng-deep .mat-dialog-container {
   @apply bg-neutral-600;
   padding: 0 !important;
 }
 
+::ng-deep .mat-mdc-dialog-content,
 ::ng-deep .mat-dialog-content {
   padding: 0 !important;
   margin: 0 !important;
 }
 
+::ng-deep .mat-mdc-toolbar,
 ::ng-deep .mat-toolbar {
   padding: 0 !important;
 }
