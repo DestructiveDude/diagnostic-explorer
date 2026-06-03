@@ -75,30 +75,24 @@ input.p-inputtext:focus,
 .p-splitter-horizontal > .p-splitter-gutter > .p-splitter-gutter-handle { width: 2px !important; height: 28px !important; }
 .p-splitter-vertical > .p-splitter-gutter > .p-splitter-gutter-handle { height: 2px !important; width: 28px !important; }
 
-/* ─── Teal resize grips on DataTable column edges ─────────────────────────── */
-.p-datatable-thead > tr > th {
-  position: relative;
-}
-.p-datatable-thead > tr > th .p-column-resizer {
-  overflow: visible !important;
-}
-.p-datatable-thead > tr > th .p-column-resizer::after {
+/* ─── Teal resize grips on DataTable column edges ─────────────────────────────
+   Drawn directly on the header cell edge (mockup `.th span::after` technique) so
+   they show regardless of whether PrimeNG's .p-column-resizer span renders; the
+   actual resize handle sits underneath, so pointer-events:none keeps drag working. */
+.p-datatable-thead > tr > th { position: relative; }
+.p-datatable-thead > tr > th:not(:last-child)::after {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
+  right: -1px; top: 4px; bottom: 4px;
   width: 2px;
   background: var(--resize);
   box-shadow: 0 0 6px var(--resize);
   border-radius: 2px;
-  opacity: 0.85;
+  opacity: 0.8;
+  pointer-events: none;
   transition: opacity 0.12s;
 }
-.p-datatable-thead > tr > th:hover .p-column-resizer::after,
-.p-datatable-thead > tr > th .p-column-resizer:hover::after {
-  opacity: 1;
-}
+.p-datatable-thead > tr > th:hover::after { opacity: 1; }
 
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
 .noselect {

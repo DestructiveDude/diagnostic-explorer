@@ -1,7 +1,7 @@
 <div class="h-full w-full overflow-hidden flex flex-col retro-nav">
-  <div class="grid grid-cols-1fr-auto text-xxs items-center">
+  <div class="flex flex-col gap-2 p-2">
 
-    <p-iconfield class="px-2">
+    <p-iconfield class="w-full">
       <input pInputText type="text" class="w-full text-xs" placeholder="Filter"
              [(ngModel)]="model.processSearch"
              (keydown)="model.handleKeyDown($event)">
@@ -11,9 +11,9 @@
       }
     </p-iconfield>
 
-    <div class="flex items-center mr-4">
+    <div class="flex items-center">
       <p-checkbox [(ngModel)]="model.onlineOnly" [binary]="true" inputId="onlineOnly" size="small" />
-      <label for="onlineOnly" class="text-xs opacity-50 ml-1 cursor-pointer">Online</label>
+      <label for="onlineOnly" class="text-xs opacity-50 ml-1 cursor-pointer">Online only</label>
     </div>
   </div>
 
@@ -38,11 +38,8 @@
             (click)="model.selectProcess(item)"
             [class.online]="getProcess(item).state === 'Online'"
             [class.active]="item === model.activeProcess">
-          <td class="pl-2 pr-0">
-            <div class="grid grid-cols-1fr-auto w-full items-center">
-              <span class="truncate" [title]="item.processName">{{ item.processName }}</span>
-              <span class="ml-1 mr-0 w-4 alert-pill {{item.labelClass}}"></span>
-            </div>
+          <td class="pl-2">
+            <span class="truncate" [title]="item.processName">{{ item.processName }}</span>
           </td>
           <td class="pl-2" [title]="item.machineName">{{ item.machineName }}</td>
           <td class="pl-2" [title]="item.userName">{{ item.userName }}</td>
