@@ -67,7 +67,7 @@ input.p-inputtext:focus,
 
 /* Left rail never shrinks below the toggle's natural width (keeps Realtime/Retro
    from squashing when the sidebar gutter is dragged in). */
-.p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 180px; max-width: 360px; }
+.p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 250px; max-width: 500px; }
 
 /* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
 .p-splitter-gutter { background: var(--border) !important; }
