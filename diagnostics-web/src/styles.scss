@@ -11,8 +11,8 @@
 /* ─── Palette tokens ──────────────────────────────────────────────────────── */
 :root,
 .app-dark {
-  --bg:        #0d1117;  /* GitHub canvas (the grey)  */
-  --topbar:    #010409;  /* GitHub header (near-black) */
+  --bg:        #010409;  /* rail / canvas / empty content pane */
+  --topbar:    #000000;  /* header + box body (black)          */
   --surface:   #161b22;  /* GitHub subtle/box surface  */
   --border:    #30363d;  /* GitHub fine divider line   */
   --head:      #e6edf3;  /* GitHub primary text        */
