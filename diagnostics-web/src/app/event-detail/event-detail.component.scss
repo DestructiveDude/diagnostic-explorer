@@ -1,1 +1,25 @@
 :host { display:block; height:100%; }
+
+// Make the PrimeNG tab shell fill the docked panel so the Detail/Trace-Scope
+// content stretches to the full height instead of collapsing to its content.
+:host ::ng-deep .evt-tabs.p-tabs { height:100%; display:flex; flex-direction:column; min-height:0; }
+:host ::ng-deep .evt-tabs .p-tabpanels { flex:1 1 auto; min-height:0; padding:0; overflow:hidden; }
+:host ::ng-deep .evt-tabs .p-tabpanel { height:100%; }
+
+.detail-body { height:100%; display:flex; flex-direction:column; min-height:0; }
+
+.meta {
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;
+  padding:6px 12px; border-bottom:1px solid var(--border); flex:0 0 auto;
+}
+.meta-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.dk { color:var(--label); text-transform:uppercase; font-size:9px; letter-spacing:.05em; }
+.dv { color:var(--head); font-size:12px; }
+.dv.lvl { color:var(--active); font-weight:600; }
+
+.bd {
+  flex:1 1 auto; min-height:0; margin:0; overflow:auto;
+  padding:8px 12px; background:#0f172a; color:var(--value);
+  font-family: ui-monospace, Consolas, monospace; font-size:12px; line-height:1.5;
+  white-space:pre-wrap; word-break:break-word;
+}

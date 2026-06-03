@@ -21,13 +21,13 @@
               <ng-template #header>
                 <div>{{ group.name ?? 'General' }}</div>
               </ng-template>
-              <div class="ml-4 grid grid-cols-[200px_1fr] lg:grid-cols-[200px_1fr_200px_1fr] gap-x-2 gap-y-2">
+              <div class="prop-grid grid grid-cols-[max-content_1fr] lg:grid-cols-[max-content_1fr_max-content_1fr] gap-x-3 gap-y-0.5 px-1 py-1">
                 @for (prop of group.properties; track prop) {
-                  <span class="text-sm my-1 prop-name"
+                  <span class="text-xs prop-name"
                         [class.settable]="prop.canSet"
                         [class.cursor-pointer]="prop.canSet"
                         (click)="prop.canSet && showSetPropertyDialog(prop)">{{ prop.name }}</span>
-                  <span class="text-sm my-1 prop-value"
+                  <span class="text-xs prop-value"
                         (dblclick)="handleDoubleClick(prop, $event)"
                         [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
                         tooltipStyleClass="tooltips">{{ prop.value }}</span>
