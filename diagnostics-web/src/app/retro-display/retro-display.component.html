@@ -1,89 +1,74 @@
-<div class="h-full flex flex-col items-stretch retro-display">
-  <as-split direction="vertical">
-    <as-split-area [size]="75" [minSize]="10" [maxSize]="90">
+<div class="h-full">
+  <p-splitter layout="vertical" [panelSizes]="[75, 25]" [minSizes]="[0, 0]"
+              styleClass="h-full border-0" stateKey="diag-retro-split" stateStorage="local">
 
+    <!-- Top panel: header + results table -->
+    <ng-template #panel>
+      <div class="h-full flex flex-col">
 
-      <mat-expansion-panel [expanded]="true"
-        (click)="$event.preventDefault()"
-        class="h-full">
-        <mat-expansion-panel-header class="bg-neutral-700" (click)="$event.stopPropagation()">
-          <mat-panel-title class="flex-grow-0">
-            <div class="w-full grid" (click)="$event.stopPropagation()">
-
-              <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">Retro Results</span>
-              <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 whitespace-nowrap">{{ model.resultsMessage }}</span>
-              <div class="col-start-1 row-start-1 justify-self-end self-center h-4 text-xs"
-                (keydown)="$event.stopPropagation()">
-                <app-event-filter [(filterVisible)]="model.filterVisible"
-                [(criteria)]="model.filterCriteria"></app-event-filter>
-              </div>
-            </div>
-          </mat-panel-title>
-        </mat-expansion-panel-header>
-
-        @if (model.displayResults.length == 0) {
-          <span class="place-self-center">No events</span>
-        }
-        @if (model.displayResults?.length) {
-          <mat-table [dataSource]="model.displayResults" class="h-full">
-            <ng-container matColumnDef="date">
-              <mat-header-cell mat-header-cell *matHeaderCellDef>Date</mat-header-cell>
-              <mat-cell *matCellDef="let item">{{ item.date | date:'d MMM yyy HH:mm:ss' }}</mat-cell>
-            </ng-container>
-            <ng-container matColumnDef="level">
-              <mat-header-cell *matHeaderCellDef>Level</mat-header-cell>
-              <mat-cell mat-cell *matCellDef="let item">{{ item.level | levelName }}</mat-cell>
-            </ng-container>
-            <ng-container matColumnDef="machine">
-              <mat-header-cell *matHeaderCellDef>Machine</mat-header-cell>
-              <mat-cell mat-cell *matCellDef="let item">{{ item.machine }}</mat-cell>
-            </ng-container>
-            <ng-container matColumnDef="user">
-              <mat-header-cell *matHeaderCellDef>User</mat-header-cell>
-              <mat-cell mat-cell *matCellDef="let item">{{ item.user }}</mat-cell>
-            </ng-container>
-            <ng-container matColumnDef="process">
-              <mat-header-cell *matHeaderCellDef>Process</mat-header-cell>
-              <mat-cell mat-cell *matCellDef="let item"><span>{{ item.process }}</span></mat-cell>
-            </ng-container>
-            <ng-container matColumnDef="message">
-              <mat-header-cell *matHeaderCellDef>Message</mat-header-cell>
-              <mat-cell *matCellDef="let item"><span>{{ item.message | summaryLine:100 }}</span></mat-cell>
-            </ng-container>
-            <mat-header-row *matHeaderRowDef="columnNames; sticky: true"></mat-header-row>
-            <mat-row *matRowDef="let item; columns: columnNames"
-              (mouseover)="model.handleMouseOver(item, $event)"
-              (click)="model.setCurrentEvent(item)"
-              class="cursor-pointer text-black noselect event-level-{{item.level | levelName | lowercase}}"
-            [class.font-bold]="item.isSelected"></mat-row>
-          </mat-table>
-        }
-      </mat-expansion-panel>
-
-    </as-split-area>
-
-    @if (model.traceScopeVisible) {
-      <as-split-area [size]="25">
-        <div class="grid h-full detail-tabs">
-          <mat-tab-group class="col-start-1 row-start-1 scope-tabs">
-            <mat-tab label="Detail">
-              <textarea class="bg-neutral-900 text-neutral-300 resize-none"
-                readonly
-                [value]="model.selectedEvent?.message ?? ''"></textarea>
-            </mat-tab>
-            <mat-tab label="Trace Scope">
-              <textarea class="bg-neutral-900 text-neutral-300 resize-none"
-                readonly
-                [value]="(model.selectedEvent?.detail ?? model.selectedEvent?.message) ?? ''"></textarea>
-            </mat-tab>
-          </mat-tab-group>
-          <button (click)="model.hideTraceScope()"
-            class="col-start-1 row-start-1 align-self-start justify-self-end cursor-pointer z-50 opacity-50 hover:opacity-100"
-            mat-icon-button>
-            <mat-icon>close</mat-icon>
-          </button>
+        <!-- Header row -->
+        <div class="flex items-center gap-3 px-3 py-1 bg-[var(--surface)] border-b border-[var(--border)] shrink-0">
+          <span class="text-[var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
+          <span class="text-[var(--label)] text-xs opacity-70 whitespace-nowrap">{{ model.resultsMessage }}</span>
+          <div class="ml-auto" (keydown)="$event.stopPropagation()">
+            <app-event-filter [(filterVisible)]="model.filterVisible" [(criteria)]="model.filterCriteria" />
+          </div>
         </div>
-      </as-split-area>
-    }
-  </as-split>
+
+        <!-- Results table -->
+        <div class="flex-1 overflow-auto">
+          <p-table [value]="model.displayResults"
+                   [resizableColumns]="true"
+                   columnResizeMode="expand"
+                   size="small"
+                   scrollHeight="flex"
+                   styleClass="sev-table w-full">
+
+            <ng-template #header>
+              <tr>
+                <th pResizableColumn class="whitespace-nowrap">Date</th>
+                <th pResizableColumn>Level</th>
+                <th pResizableColumn>Machine</th>
+                <th pResizableColumn>User</th>
+                <th pResizableColumn>Process</th>
+                <th pResizableColumn>Message</th>
+              </tr>
+            </ng-template>
+
+            <ng-template #body let-item>
+              <tr class="event-level-{{item.level | levelName | lowercase}} cursor-pointer noselect"
+                  [class.event-row-selected]="item.isSelected"
+                  (mousedown)="model.setCurrentEvent(item)"
+                  (mouseover)="model.handleMouseOver(item, $event)">
+                <td class="whitespace-nowrap">{{ item.date | date:'d MMM yyyy HH:mm:ss' }}</td>
+                <td>{{ item.level | levelName }}</td>
+                <td>{{ item.machine }}</td>
+                <td>{{ item.user }}</td>
+                <td>{{ item.process }}</td>
+                <td>{{ item.message | summaryLine:100 }}</td>
+              </tr>
+            </ng-template>
+
+            <ng-template #emptymessage>
+              <tr>
+                <td colspan="6" class="text-center text-[var(--label)] italic p-4">No events</td>
+              </tr>
+            </ng-template>
+
+          </p-table>
+        </div>
+
+      </div>
+    </ng-template>
+
+    <!-- Bottom panel: event detail -->
+    <ng-template #panel>
+      @if (model.traceScopeVisible && model.selectedEvent) {
+        <app-event-detail [event]="selectedAsEventModel" (closed)="model.hideTraceScope()" />
+      } @else {
+        <div class="h-full flex items-center justify-center text-[var(--label)] italic text-sm">No event selected</div>
+      }
+    </ng-template>
+
+  </p-splitter>
 </div>

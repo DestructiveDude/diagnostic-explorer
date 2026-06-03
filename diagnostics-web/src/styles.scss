@@ -164,3 +164,63 @@ fieldset {
 .no-toggle-panel .p-panel-toggle-button {
   display: none !important;
 }
+
+/* ─── Shared severity-band table (.sev-table) ─────────────────────────────────
+   Applied to both the realtime-events native <table class="sev-table"> and the
+   retro p-table (styleClass="sev-table ..."). The PrimeNG p-datatable markup
+   needs extra-specific selectors — see the second mixin block below.
+   ─────────────────────────────────────────────────────────────────────────── */
+.sev-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.sev-table th { text-align: left; background: var(--surface); color: var(--head); padding: 3px 8px; position: sticky; top: 0; }
+.sev-table td { padding: 3px 8px; color: #cbd5e1; }
+.sev-table td:first-child,
+.sev-table td:nth-child(2),
+.sev-table td:nth-child(3) { font-weight: 700; }
+.sev-table td:last-child { color: #fff; font-size: 12.5px; font-weight: 600; }
+.sev-table tr.event-row-selected { outline: 2px solid var(--accent); outline-offset: -1px; filter: brightness(1.15); }
+.sev-table tbody tr { user-select: none; }
+
+@mixin sev-band($bg, $slice, $text) {
+  td { background: $bg; }
+  td:first-child { border-left: 4px solid $slice; box-shadow: inset 7px 0 9px -6px $slice; }
+  td:first-child, td:nth-child(2), td:nth-child(3) { color: $text; }
+}
+
+/* Native <table class="sev-table"> — realtime-events */
+.sev-table tr.event-level-error, .sev-table tr.event-level-severe, .sev-table tr.event-level-critical,
+.sev-table tr.event-level-alert, .sev-table tr.event-level-fatal, .sev-table tr.event-level-emergency { @include sev-band(var(--sev-error-bg), var(--sev-error-slice), var(--sev-error-text)); }
+.sev-table tr.event-level-warn { @include sev-band(var(--sev-warn-bg), var(--sev-warn-slice), var(--sev-warn-text)); }
+.sev-table tr.event-level-notice { @include sev-band(var(--sev-notice-bg), var(--sev-notice-slice), var(--sev-notice-text)); }
+.sev-table tr.event-level-verbose, .sev-table tr.event-level-trace,
+.sev-table tr.event-level-debug, .sev-table tr.event-level-info { @include sev-band(var(--sev-info-bg), var(--sev-info-slice), var(--sev-info-text)); }
+
+/* PrimeNG p-datatable (styleClass="sev-table") — retro-display.
+   PrimeNG injects its own td/tr styles at higher specificity, so we mirror the
+   mixin with fully-qualified selectors targeting the PrimeNG DOM structure. */
+@mixin sev-band-pt($bg, $slice, $text) {
+  & > td { background: $bg; }
+  & > td:first-child { border-left: 4px solid $slice; box-shadow: inset 7px 0 9px -6px $slice; }
+  & > td:first-child, & > td:nth-child(2), & > td:nth-child(3) { color: $text; }
+}
+
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-error,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-severe,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-critical,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-alert,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-fatal,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-emergency { @include sev-band-pt(var(--sev-error-bg), var(--sev-error-slice), var(--sev-error-text)); }
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-warn { @include sev-band-pt(var(--sev-warn-bg), var(--sev-warn-slice), var(--sev-warn-text)); }
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-notice { @include sev-band-pt(var(--sev-notice-bg), var(--sev-notice-slice), var(--sev-notice-text)); }
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-verbose,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-trace,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-debug,
+.sev-table.p-datatable .p-datatable-tbody > tr.event-level-info { @include sev-band-pt(var(--sev-info-bg), var(--sev-info-slice), var(--sev-info-text)); }
+
+/* PrimeNG p-datatable: selected row, header, and cell base styles */
+.sev-table.p-datatable .p-datatable-tbody > tr.event-row-selected { outline: 2px solid var(--accent); outline-offset: -1px; filter: brightness(1.15); }
+.sev-table.p-datatable .p-datatable-thead > tr > th { background: var(--surface); color: var(--head); padding: 3px 8px; font-size: 11px; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td { padding: 3px 8px; font-size: 11px; color: #cbd5e1; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td:first-child,
+.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(2),
+.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(3) { font-weight: 700; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td:last-child { color: #fff; font-size: 12.5px; font-weight: 600; }

@@ -1,18 +1,2 @@
-table { width:100%; border-collapse:collapse; font-size:11px; }
-th { text-align:left; background:var(--surface); color:var(--head); padding:3px 8px; position:sticky; top:0; }
-td { padding:3px 8px; color:#cbd5e1; }
-td:first-child, td:nth-child(2), td:nth-child(3) { font-weight:700; }
-td:last-child { color:#fff; font-size:12.5px; font-weight:600; }
-tr.event-row-selected { outline:2px solid var(--accent); outline-offset:-1px; filter:brightness(1.15); }
-tbody tr { user-select:none; }
-
-@mixin band($bg,$slice,$text) {
-  td { background:$bg; }
-  td:first-child { border-left:4px solid $slice; box-shadow: inset 7px 0 9px -6px $slice; }
-  td:first-child, td:nth-child(2), td:nth-child(3) { color:$text; }
-}
-tr.event-level-error, tr.event-level-severe, tr.event-level-critical,
-tr.event-level-alert, tr.event-level-fatal, tr.event-level-emergency { @include band(var(--sev-error-bg), var(--sev-error-slice), var(--sev-error-text)); }
-tr.event-level-warn { @include band(var(--sev-warn-bg), var(--sev-warn-slice), var(--sev-warn-text)); }
-tr.event-level-notice { @include band(var(--sev-notice-bg), var(--sev-notice-slice), var(--sev-notice-text)); }
-tr.event-level-verbose, tr.event-level-trace, tr.event-level-debug, tr.event-level-info { @include band(var(--sev-info-bg), var(--sev-info-slice), var(--sev-info-text)); }
+/* Base table styles and severity-band rules live in src/styles.scss under .sev-table.
+   No component-specific overrides needed. */

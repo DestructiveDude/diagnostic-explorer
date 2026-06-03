@@ -38,7 +38,6 @@ import {APP_BASE_HREF, DatePipe} from '@angular/common';
 import {SummaryLinePipe} from './pipes/summary-line.pipe';
 import {MatProgressBarModule} from '@angular/material/progress-bar';
 import {LevelNamePipe} from './pipes/level-name.pipe';
-import {AngularSplitModule} from 'angular-split';
 import {CategoryNavComponent} from './category-nav/category-nav.component';
 import {TraceScopeComponent} from './trace-scope/trace-scope.component';
 import {EventDetailComponent} from './event-detail/event-detail.component';
@@ -104,7 +103,6 @@ import {ProgressBarModule} from 'primeng/progressbar';
         MatDatepickerModule,
         MatNativeDateModule,
         MatProgressBarModule,
-        AngularSplitModule,
         MatListModule,
         TableModule,
         CheckboxModule,
