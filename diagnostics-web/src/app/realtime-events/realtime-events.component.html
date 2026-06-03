@@ -1,26 +1,26 @@
-<div class="overflow-y-auto border border-gray-700 rounded realtime-events" style="max-height: 300px;">
+<div class="overflow-y-auto border border-[var(--border)] rounded realtime-events" style="max-height: 300px;">
   @if (!sink?.filteredEvents?.length) {
-    <div class="p-4 text-center text-gray-500">No events</div>
+    <div class="p-4 text-center text-[var(--label)]">No events</div>
   } @else {
-    <table class="w-full border-collapse text-sm">
-      <thead class="sticky top-0 bg-gray-800 z-10">
+    <table>
+      <thead class="sticky top-0 z-10">
         <tr>
-          <th class="p-2 text-left w-20">Id</th>
-          <th class="p-2 text-left w-44 whitespace-nowrap">Date</th>
-          <th class="p-2 text-left w-20">Level</th>
-          <th class="p-2 text-left">Message</th>
+          <th class="w-20">Id</th>
+          <th class="w-44 whitespace-nowrap">Date</th>
+          <th class="w-20">Level</th>
+          <th>Message</th>
         </tr>
       </thead>
       <tbody>
         @for (event of sink!.filteredEvents; track event) {
-          <tr class="border-b border-gray-700 event-row-{{event.level | levelName | lowercase}} cursor-pointer"
+          <tr class="event-level-{{event.level | levelName | lowercase}} cursor-pointer"
               [class.event-row-selected]="event.isSelected"
               (mousedown)="realtime.setCurrentEvent(event)"
               (mouseover)="realtime.handleMouseOver(event, $event)">
-            <td class="p-2">{{ event.id }}</td>
-            <td class="p-2 whitespace-nowrap">{{ event.date | date:'yyyy-MM-dd HH:mm:ss' }}</td>
-            <td class="p-2">{{ event.level | levelName }}</td>
-            <td class="p-2">{{ event.message }}</td>
+            <td>{{ event.id }}</td>
+            <td class="whitespace-nowrap">{{ event.date | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td>{{ event.level | levelName }}</td>
+            <td>{{ event.message }}</td>
           </tr>
         }
       </tbody>
