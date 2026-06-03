@@ -1,8 +1,8 @@
 @if (category) {
-  <div class="realtime-category">
+  <div class="realtime-category flex flex-col gap-[9px]">
 
     @for (sub of category.subCats; track sub) {
-      <p-panel [toggleable]="true" [collapsed]="!sub.isExpanded" class="no-toggle-panel block mb-4">
+      <p-panel [toggleable]="true" [collapsed]="!sub.isExpanded" class="no-toggle-panel block">
         <ng-template #header>
           <div class="flex-1 cursor-pointer select-none"
                (click)="sub.isExpanded = !sub.isExpanded"
@@ -40,7 +40,7 @@
     }
 
     @for (evt of category.eventSinks; track evt) {
-      <p-panel [toggleable]="true" [collapsed]="!evt.isExpanded" class="no-toggle-panel block mb-4">
+      <p-panel [toggleable]="true" [collapsed]="!evt.isExpanded" class="no-toggle-panel block">
         <ng-template #header>
           <div class="flex items-center w-full gap-2 min-w-0">
             <div class="flex-1 cursor-pointer select-none truncate"

@@ -1,10 +1,10 @@
 <div class="h-full">
   @if (model.categories.length) {
-    <p-splitter layout="vertical" [panelSizes]="[72, 28]" [minSizes]="[0, 0]"
+    <p-splitter layout="vertical" [panelSizes]="[72, 28]" [minSizes]="[0, 0]" [gutterSize]="6"
                 styleClass="h-full border-0" stateKey="diag-detail-split" stateStorage="local">
       <ng-template #panel>
         <div class="h-full flex overflow-hidden">
-          <div class="flex-1 overflow-auto p-2">
+          <div class="flex-1 overflow-auto p-[9px]">
             <app-realtime-category [category]="model.categories[model.selectedIndex]" />
           </div>
           <app-category-nav class="flex-none" [categories]="model.categories"

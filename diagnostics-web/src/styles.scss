@@ -72,8 +72,9 @@ input.p-inputtext:focus,
   transition: opacity .12s;
 }
 .p-splitter-gutter:hover .p-splitter-gutter-handle { opacity: 1; }
-.p-splitter-horizontal > .p-splitter-gutter > .p-splitter-gutter-handle { width: 2px !important; height: 28px !important; }
-.p-splitter-vertical > .p-splitter-gutter > .p-splitter-gutter-handle { height: 2px !important; width: 28px !important; }
+/* Thicker than the 1px default — mockup grip is a chunky teal bar. */
+.p-splitter-horizontal > .p-splitter-gutter > .p-splitter-gutter-handle { width: 3px !important; height: 30px !important; }
+.p-splitter-vertical > .p-splitter-gutter > .p-splitter-gutter-handle { height: 3px !important; width: 30px !important; }
 
 /* ─── Teal resize grips on DataTable column edges ─────────────────────────────
    Drawn directly on the header cell edge (mockup `.th span::after` technique) so

@@ -14,10 +14,11 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.alert-pill {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentColor;
+/* Process-table header — mockup .th: bold head text on a surface bar, border-bottom */
+:host ::ng-deep .p-datatable-thead > tr > th {
+  background: var(--surface) !important;
+  color: var(--head) !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-weight: 600;
+  padding: 4px 8px;
 }
