@@ -31,9 +31,9 @@ namespace DiagnosticExplorer
 {
     internal class DateGetter : PropertyGetter
     {
-        private bool _exposeDate = true;
-        private bool _exposeElapsed = false;
-        private bool _exposeTimeUntil = false;
+        private readonly bool _exposeDate = true;
+        private readonly bool _exposeElapsed;
+        private readonly bool _exposeTimeUntil;
 
         public DateGetter(PropertyInfo prop, DatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
         {

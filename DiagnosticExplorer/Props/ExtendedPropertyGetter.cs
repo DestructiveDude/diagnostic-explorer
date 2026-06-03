@@ -33,7 +33,7 @@ namespace DiagnosticExplorer
 {
     internal class ExtendedPropertyGetter : PropertyGetter
     {
-        private string _name;
+        private readonly string _name;
 
         public ExtendedPropertyGetter(PropertyInfo info, ExtendedPropertyAttribute attr, bool isStatic)
             : base(info, isStatic)
