@@ -47,10 +47,10 @@ public class TraceScope : IDisposable
 {
     private static AsyncLocal<ScopeStack> _scopeStack = new();
  		
-    private DateTime _created = DateTime.UtcNow;
+    private readonly DateTime _created = DateTime.UtcNow;
     private DateTime? _disposed;
-    private List<ATraceItem> _traceItems = new();
-    private ReaderWriterLockSlim _traceItemsLock = new();
+    private readonly List<ATraceItem> _traceItems = new();
+    private readonly ReaderWriterLockSlim _traceItemsLock = new();
     private bool _forceTrace;
     private bool _isRoot;
     private Timer _autoTraceTimer;

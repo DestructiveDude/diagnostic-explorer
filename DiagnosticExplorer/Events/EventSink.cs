@@ -40,7 +40,7 @@ namespace DiagnosticExplorer
 	{
 		public const int MaxMessages = 1000;
 		private const int MaxLength = 102400;
-        private EventSinkRepo _repo;
+        private readonly EventSinkRepo _repo;
 
 		internal EventSink(EventSinkRepo repo, string name, string category)
         {

@@ -161,5 +161,6 @@ public class EventSinkRepo : IDisposable
             _eventStreamLock.ExitWriteLock();
         }
         _eventStreamLock.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
