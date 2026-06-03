@@ -1,51 +1,31 @@
-<div class="h-full w-full grid grid-rows-auto-1fr">
-    <div class="h-12">
-        <div class="flex-grow-0 w-full h-12 bg-neutral-800 grid grid-cols-1 grid-rows-1 items-center px-4">
-            <label class="col-start-1 row-start-1 justify-self-start font-medium">Diagnostic Explorer</label>
-            <button [disabled]="!appModel.mainMessageCanClick"
-                    [class.invisible]="!appModel.mainMessage"
-                    (click)="appModel.mainMessageClick()"
-                    class="{{appModel.mainMessageClass}} col-start-1 row-start-1 justify-self-center">{{ appModel.mainMessage }}
-            </button>
+<div class="h-full w-full grid grid-rows-[auto_1fr] bg-[var(--bg)]">
+  <div class="h-11 bg-[var(--topbar)] border-b border-[var(--border)] grid grid-cols-3 items-center px-3">
+    <label class="text-[var(--head)] font-medium">Diagnostic Explorer</label>
+    <button [class.invisible]="!appModel.mainMessage" (click)="appModel.mainMessageClick()"
+            class="{{appModel.mainMessageClass}} justify-self-center">{{ appModel.mainMessage }}</button>
+    <span class="text-xs justify-self-end text-[var(--label)]">{{ appModel.titleMessage }}</span>
+  </div>
 
-            <span class="text-xs col-start-1 row-start-1 justify-self-end">{{ appModel.titleMessage }}</span>
-
+  <p-splitter [panelSizes]="[22, 78]" [minSizes]="[15, 0]" styleClass="h-full w-full border-0"
+              stateKey="diag-main-split" stateStorage="local">
+    <ng-template #panel>
+      <div class="h-full grid grid-rows-[auto_1fr] overflow-hidden">
+        <div class="p-1">
+          <p-selectButton [options]="modes" [(ngModel)]="appModel.tabIndex"
+                          optionLabel="label" optionValue="value" [allowEmpty]="false"
+                          styleClass="w-full" />
         </div>
-    </div>
-
-    <div class="w-full h-full overflow-hidden">
-        <as-split direction="horizontal">
-            <as-split-area [size]="25" [minSize]="10" [maxSize]="50">
-                <div class="w-full border-r-2 border-black grid grid-rows-auto-1fr h-full overflow-hidden">
-
-                    <div class="flex-grow-0 grid grid-cols-2 gap-1 p-1">
-                        <p-button class="w-full" styleClass="w-full justify-center"
-                                  [outlined]="appModel.tabIndex !== 0"
-                                  severity="secondary"
-                                  (onClick)="appModel.viewRealtime()" label="Realtime" [tabindex]="-1" />
-                        <p-button class="w-full" styleClass="w-full justify-center"
-                                  [outlined]="appModel.tabIndex !== 1"
-                                  severity="secondary"
-                                  (onClick)="appModel.viewRetro()" label="Retro" [tabindex]="-1" />
-                    </div>
-
-                    <div class="flex-grow-1 h-full w-full overflow-hidden">
-                        <app-realtime-nav [class.hidden]="appModel.tabIndex != 0"></app-realtime-nav>
-                        <app-retro-nav [class.hidden]="appModel.tabIndex != 1"></app-retro-nav>
-                    </div>
-                </div>
-            </as-split-area>
-
-            <as-split-area [size]="75">
-
-                <div class="overflow-hidden h-full w-full">
-                    <app-realtime-display [class.hidden]="appModel.tabIndex != 0"
-                                          class="start-row-1 start-col-1"></app-realtime-display>
-                    <app-retro-display [class.hidden]="appModel.tabIndex != 1"
-                                       class="start-row-1 start-col-1"></app-retro-display>
-                </div>
-            </as-split-area>
-        </as-split>
-    </div>
+        <div class="overflow-hidden">
+          <app-realtime-nav [class.hidden]="appModel.tabIndex !== 0" />
+          <app-retro-nav [class.hidden]="appModel.tabIndex !== 1" />
+        </div>
+      </div>
+    </ng-template>
+    <ng-template #panel>
+      <div class="h-full overflow-hidden">
+        <app-realtime-display [class.hidden]="appModel.tabIndex !== 0" />
+        <app-retro-display [class.hidden]="appModel.tabIndex !== 1" />
+      </div>
+    </ng-template>
+  </p-splitter>
 </div>
-<!--   <app-collapsible-region [region]="region"></app-collapsible-region>-->

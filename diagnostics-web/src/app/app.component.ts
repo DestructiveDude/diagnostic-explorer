@@ -12,6 +12,7 @@ import {RetroModel} from './Model/RetroModel';
 })
 export class AppComponent {
     title = 'diagnostics-web';
+    modes = [ { label: 'Realtime', value: 0 }, { label: 'Retro', value: 1 } ];
 
     constructor(readonly appModel: AppModel) {
         appModel.start();
