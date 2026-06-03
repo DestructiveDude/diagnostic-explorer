@@ -4,10 +4,10 @@ import {AppComponent} from './app.component';
 import {AppModel} from './Model/AppModel';
 
 /**
- * Characterization coverage for the app shell. The component pulls in the
- * Material toolbar and a tree of feature components, and its constructor kicks
- * off AppModel.start() (which opens a SignalR connection in production). We
- * stub AppModel so construction is side-effect free and allow the child
+ * Characterization coverage for the app shell. The component renders the
+ * PrimeNG splitter shell and a tree of feature components, and its constructor
+ * kicks off AppModel.start() (which opens a SignalR connection in production).
+ * We stub AppModel so construction is side-effect free and allow the child
  * elements through CUSTOM_ELEMENTS_SCHEMA, then assert the real shell renders
  * rather than the long-removed Angular CLI placeholder.
  */
@@ -49,12 +49,13 @@ describe('AppComponent', () => {
         expect(startCalls).toBe(1);
     });
 
-    it('renders the Material toolbar shell rather than the Angular CLI placeholder', () => {
+    it('renders the splitter shell rather than the Angular CLI placeholder', () => {
         const fixture = TestBed.createComponent(AppComponent);
         fixture.detectChanges();
 
         const compiled: HTMLElement = fixture.nativeElement;
-        expect(compiled.querySelector('mat-toolbar')).not.toBeNull();
+        expect(compiled.querySelector('p-splitter')).not.toBeNull();
+        expect(compiled.textContent).toContain('Diagnostic Explorer');
         expect(compiled.textContent).not.toContain('app is running!');
     });
 });
