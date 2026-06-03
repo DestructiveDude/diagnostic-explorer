@@ -43,6 +43,8 @@ import {CollapsibleRegionComponent} from "./collapsible-region/collapsible-regio
 import {getBaseLocation} from "./util/util";
 import {BASE_API_URL, BASE_API_KEY} from "../injectionTokens";
 import {environment} from "../environments/environment";
+import {providePrimeNG} from 'primeng/config';
+import Aura from '@primeng/themes/aura';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -89,7 +91,8 @@ import {environment} from "../environments/environment";
         { provide: BASE_API_URL, useValue: environment.apiRoot },
         { provide: BASE_API_KEY, useValue: environment.apiKey },
         DatePipe,
-        provideHttpClient(withInterceptorsFromDi())
+        provideHttpClient(withInterceptorsFromDi()),
+        providePrimeNG({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } })
     ] })
 export class AppModule {
 }

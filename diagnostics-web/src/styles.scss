@@ -5,6 +5,10 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+// PrimeNG icon font (pi pi-*). The Aura theme itself is provided in code via
+// providePrimeNG() in app.module.ts; only the icon font needs a CSS import.
+@import 'primeicons/primeicons.css';
+
 
 // TODO(v15): As of v15 mat.core no longer includes default typography styles.
 //  The following line adds:
