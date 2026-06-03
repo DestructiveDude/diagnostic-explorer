@@ -1,17 +1,8 @@
-<mat-dialog-content class="mat-typography">
-    <mat-card class="bg-stone-700 h-full p-0 grid flex flex-column items-center">
-
-        <mat-toolbar color="primary" class="h-8">Set Property</mat-toolbar>
-
-        <mat-form-field appearance="outline" class="w-full p-4">
-            <mat-label>{{ text }}</mat-label>
-            <input matInput [(ngModel)]="value" (keyup)="handleKeyUp($event)">
-        </mat-form-field>
-
-        <div class="mb-4">
-            <button mat-raised-button color="accent" type="submit" class="mx-4 float-right" (click)="onOkClick()">OK
-            </button>
-            <button mat-raised-button color="accent" class="float-right" (click)="onCancelClick()">Cancel</button>
-        </div>
-    </mat-card>
-</mat-dialog-content>
+<div class="flex flex-col gap-3 p-1">
+  <label class="text-xs uppercase tracking-wide text-[var(--label)]">{{ text }}</label>
+  <input pInputText [(ngModel)]="value" (keyup)="handleKeyUp($event)" class="w-full" autofocus />
+  <div class="flex justify-end gap-2 pt-2">
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="onCancelClick()" />
+    <p-button label="OK" (onClick)="onOkClick()" />
+  </div>
+</div>

@@ -11,7 +11,7 @@ import {CategoryModel} from './CategoryModel';
 import {EventModel} from './EventModel';
 import {PropModel} from './PropModel';
 import {SetPropertyRequest} from './SetPropertyRequest';
-import {MatDialog} from '@angular/material/dialog';
+import {DialogService} from 'primeng/dynamicdialog';
 import {InfoDialogComponent} from '../info-dialog/info-dialog.component';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {plainToInstance} from 'class-transformer';
@@ -47,7 +47,7 @@ export class RealtimeModel {
 
     constructor(readonly hubService: DiagHubService,
                 readonly datePipe: DatePipe,
-                private dialog: MatDialog,
+                private dialog: DialogService,
                 readonly snackBar: MatSnackBar) {
         this.watchEnabled = true;
         this.hubService.connectionReady.subscribe(connection => {
@@ -310,10 +310,11 @@ export class RealtimeModel {
 
     private showError(title: string, message: string) {
         this.dialog.open(InfoDialogComponent, {
-            data: {
-                title: 'Error setting property',
-                message: message
-            }
+            header: title,
+            width: '400px',
+            modal: true,
+            closable: true,
+            data: { title, message },
         });
     }
 

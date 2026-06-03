@@ -5,7 +5,7 @@ import {MatSnackBarConfig} from '@angular/material/snack-bar';
 import {Clipboard} from '@angular/cdk/clipboard';
 import {PropModel} from '../Model/PropModel';
 import {SetPropertyDialogComponent} from '../set-property-dialog/set-property-dialog.component';
-import {MatDialog} from '@angular/material/dialog';
+import {DialogService} from 'primeng/dynamicdialog';
 import {PromptData, PromptResult} from '../util/PromptResult';
 import {SubCat} from '../Model/SubCat';
 import {ExecOperationsModel} from '../Model/ExecOperationsModel';
@@ -23,7 +23,7 @@ export class RealtimeCategoryComponent implements OnInit {
     @Input()
     category?: CategoryModel;
 
-    constructor(private _snackBar: MatSnackBar, private realtimeModel: RealtimeModel, private dialog: MatDialog) {
+    constructor(private _snackBar: MatSnackBar, private realtimeModel: RealtimeModel, private dialogService: DialogService) {
     }
 
     ngOnInit(): void {
@@ -53,15 +53,15 @@ export class RealtimeCategoryComponent implements OnInit {
         evt.cancelBubble = true;
         const model = new ExecOperationsModel(this.realtimeModel, subCat);
 
-        const dialogRef = this.dialog.open(ExecOperationsComponent, {
-            disableClose: true,
-            panelClass: 'operations-dialog-panel',
+        const ref = this.dialogService.open(ExecOperationsComponent, {
+            header: 'Execute Operation',
             width: '600px',
-            // height: '450px',
-            data: model
+            modal: true,
+            closable: true,
+            data: model,
         });
 
-        model.finished.subscribe(_ => dialogRef.close());
+        model.finished.subscribe(_ => ref?.close());
     }
 
     showSetPropertyDialog(prop: PropModel): void {
@@ -70,15 +70,16 @@ export class RealtimeCategoryComponent implements OnInit {
         // The full path is still used for the write itself via setPropertyValue(prop, ...).
         const data = new PromptData(prop.name, prop.value);
 
-        const dialogRef = this.dialog.open(SetPropertyDialogComponent, {
-            disableClose: true,
+        const ref = this.dialogService.open(SetPropertyDialogComponent, {
+            header: 'Set Property',
             width: '500px',
-            height: '250px',
-            data: data,
+            modal: true,
+            closable: true,
+            data,
         });
 
-        dialogRef.afterClosed().subscribe(async (result: PromptResult) => {
-            if (result.button === 'OK')
+        ref?.onClose.subscribe(async (result: PromptResult) => {
+            if (result?.button === 'OK')
                 await this.category!.realtimeModel.setPropertyValue(prop, result.value);
         });
     }

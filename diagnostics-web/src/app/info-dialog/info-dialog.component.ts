@@ -1,5 +1,5 @@
-import {Component, Inject, OnInit} from '@angular/core';
-import {MAT_DIALOG_DATA} from '@angular/material/dialog';
+import {Component} from '@angular/core';
+import {DynamicDialogRef, DynamicDialogConfig} from 'primeng/dynamicdialog';
 import {InfoDialogData} from '../Model/InfoDialogData';
 
 @Component({
@@ -8,12 +8,15 @@ import {InfoDialogData} from '../Model/InfoDialogData';
     styleUrls: ['./info-dialog.component.scss'],
     standalone: false
 })
-export class InfoDialogComponent implements OnInit {
+export class InfoDialogComponent {
 
-    constructor(@Inject(MAT_DIALOG_DATA) public data: InfoDialogData) {
+    data: InfoDialogData;
+
+    constructor(private dialogRef: DynamicDialogRef, config: DynamicDialogConfig) {
+        this.data = config.data as InfoDialogData;
     }
 
-    ngOnInit(): void {
+    close(): void {
+        this.dialogRef.close();
     }
-
 }

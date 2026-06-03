@@ -27,7 +27,7 @@ import {MatSnackBarModule} from '@angular/material/snack-bar';
 import {EventFilterComponent} from './event-filter/event-filter.component';
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import {SetPropertyDialogComponent} from './set-property-dialog/set-property-dialog.component';
-import {MatDialogModule} from '@angular/material/dialog';
+import {DynamicDialogModule, DialogService} from 'primeng/dynamicdialog';
 import {InfoDialogComponent} from './info-dialog/info-dialog.component';
 import {ExecOperationsComponent} from './exec-operations/exec-operations.component';
 import {MatMenuModule} from '@angular/material/menu';
@@ -83,7 +83,7 @@ import {ProgressBarModule} from 'primeng/progressbar';
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,
-        MatDialogModule,
+        DynamicDialogModule,
         MatTabsModule,
         MatSidenavModule,
         BrowserAnimationsModule,
@@ -125,6 +125,7 @@ import {ProgressBarModule} from 'primeng/progressbar';
         { provide: BASE_API_URL, useValue: environment.apiRoot },
         { provide: BASE_API_KEY, useValue: environment.apiKey },
         DatePipe,
+        DialogService,
         provideHttpClient(withInterceptorsFromDi()),
         providePrimeNG({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } })
     ] })

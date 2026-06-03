@@ -1,5 +1,5 @@
-import {Component, Inject, OnInit} from '@angular/core';
-import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog';
+import {Component} from '@angular/core';
+import {DynamicDialogRef, DynamicDialogConfig} from 'primeng/dynamicdialog';
 import {PromptData, PromptResult} from '../util/PromptResult';
 
 @Component({
@@ -8,21 +8,16 @@ import {PromptData, PromptResult} from '../util/PromptResult';
     styleUrls: ['./set-property-dialog.component.scss'],
     standalone: false
 })
-export class SetPropertyDialogComponent implements OnInit {
+export class SetPropertyDialogComponent {
 
-    text: string = '';
-    value: string = '';
+    text = '';
+    value = '';
 
-    constructor(public dialogRef: MatDialogRef<SetPropertyDialogComponent>,
-                @Inject(MAT_DIALOG_DATA) public prompt: PromptData) {
-
+    constructor(private dialogRef: DynamicDialogRef, config: DynamicDialogConfig) {
+        const prompt = config.data as PromptData;
         this.text = prompt.text;
         this.value = prompt.value;
     }
-
-    ngOnInit(): void {
-    }
-
 
     onCancelClick(): void {
         this.dialogRef.close(new PromptResult('Cancel', ''));

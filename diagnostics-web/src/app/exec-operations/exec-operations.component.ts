@@ -1,6 +1,6 @@
-import {Component, Inject, OnInit} from '@angular/core';
+import {Component} from '@angular/core';
 import {ExecOperationsModel} from '../Model/ExecOperationsModel';
-import {MAT_DIALOG_DATA} from '@angular/material/dialog';
+import {DynamicDialogConfig} from 'primeng/dynamicdialog';
 
 @Component({
     selector: 'app-exec-operations',
@@ -8,12 +8,11 @@ import {MAT_DIALOG_DATA} from '@angular/material/dialog';
     styleUrls: ['./exec-operations.component.scss'],
     standalone: false
 })
-export class ExecOperationsComponent implements OnInit {
+export class ExecOperationsComponent {
 
-    constructor(@Inject(MAT_DIALOG_DATA) readonly model: ExecOperationsModel) {
+    readonly model: ExecOperationsModel;
+
+    constructor(config: DynamicDialogConfig) {
+        this.model = config.data as ExecOperationsModel;
     }
-
-    ngOnInit(): void {
-    }
-
 }

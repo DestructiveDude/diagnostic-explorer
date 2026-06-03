@@ -1,69 +1,65 @@
-<mat-dialog-content class="mat-typography ">
-  <div class="p-0 grid grid-rows-auto-1fr ">
-    <mat-toolbar class="h-10 overflow-none">
-      <span>Execute Operation: </span>
-      <span class="flex-grow"></span>
-      <mat-icon class="text-sm m-0 p-0 cursor-pointer" (click)="model.closeClick()">close</mat-icon>
-    </mat-toolbar>
-
-    <div class="content m-2 ">
-      <fieldset>
-        <legend>Operation</legend>
-        <div class="container-operation flex flex-col items-start">
-          @for (op of model.operations; track op) {
-            <div class="grid mr-4 justify-items-start ">
-              <span class="active-operation noselect invisible col-start-1 row-start-1">{{ op.name }}</span>
-              <button class="col-start-1 row-start-1"
-                [class.active-operation]="op === model.activeOperation"
-                (mouseover)="model.handleMouseOver($event, op);"
-                (click)="model.selectOperation(op)">{{ op.name }}
-              </button>
-            </div>
-          }
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Arguments</legend>
-        <div class="container-parameters">
-          @if (model.activeOperation) {
-            <div class="grid grid-cols-auto-1fr gap-y-2 gap-x-4">
-              @if (model.activeOperation?.parameters?.length === 0) {
-                <p class="col-span-2">No arguments</p>
-              }
-              @for (param of model.activeOperation.parameters; track param) {
-                <label class="mr-4">{{ param.name }}</label>
-                <input matInput type="text" class="w-20 bg-neutral-700 w-full" [(ngModel)]="param.value">
-              }
-            </div>
-          }
-        </div>
-
-      </fieldset>
-
-      <div class="col-span-2 place-self-end ">
-        <button mat-raised-button type="flat" [disabled]="model.executing || !model.activeOperation"
-          (click)="model.execute()">{{ model.executing ? 'Executing' : 'Execute' }}
-        </button>
-      </div>
-
-      <fieldset class="col-span-2">
-        <legend>
-          <span>Results</span>
-          @if (model.executeDate) {
-            <span> at {{ model.executeDate | date:'HH:mm:ss' }}</span>
-          }
-          @if (model.executeDate) {
-            <button (click)="model.copyToClipboard()" matTooltip="Copy to clipboard"
-              matTooltipClass="tooltips">
-              <mat-icon class="text-xs">content_copy</mat-icon>
-            </button>
-          }
-        </legend>
-        <div class="w-inherit h-full">
-          <pre class="">{{ model.results }}</pre>
-        </div>
-      </fieldset>
-    </div>
+<div class="p-0 grid grid-rows-auto-1fr">
+  <div class="flex items-center px-1 pb-2">
+    <span>Execute Operation:</span>
+    <span class="flex-grow"></span>
+    <i class="pi pi-times cursor-pointer text-[var(--label)] hover:text-white" (click)="model.closeClick()"></i>
   </div>
-</mat-dialog-content>
+
+  <div class="content m-2">
+    <fieldset>
+      <legend>Operation</legend>
+      <div class="container-operation flex flex-col items-start">
+        @for (op of model.operations; track op) {
+          <div class="grid mr-4 justify-items-start">
+            <span class="active-operation noselect invisible col-start-1 row-start-1">{{ op.name }}</span>
+            <button class="col-start-1 row-start-1"
+              [class.active-operation]="op === model.activeOperation"
+              (mouseover)="model.handleMouseOver($event, op);"
+              (click)="model.selectOperation(op)">{{ op.name }}
+            </button>
+          </div>
+        }
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Arguments</legend>
+      <div class="container-parameters">
+        @if (model.activeOperation) {
+          <div class="grid grid-cols-auto-1fr gap-y-2 gap-x-4">
+            @if (model.activeOperation?.parameters?.length === 0) {
+              <p class="col-span-2">No arguments</p>
+            }
+            @for (param of model.activeOperation.parameters; track param) {
+              <label class="mr-4">{{ param.name }}</label>
+              <input pInputText type="text" class="w-full" [(ngModel)]="param.value" />
+            }
+          </div>
+        }
+      </div>
+    </fieldset>
+
+    <div class="col-span-2 place-self-end">
+      <p-button [disabled]="model.executing || !model.activeOperation"
+        (onClick)="model.execute()"
+        [label]="model.executing ? 'Executing' : 'Execute'" />
+    </div>
+
+    <fieldset class="col-span-2">
+      <legend>
+        <span>Results</span>
+        @if (model.executeDate) {
+          <span> at {{ model.executeDate | date:'HH:mm:ss' }}</span>
+        }
+        @if (model.executeDate) {
+          <button (click)="model.copyToClipboard()" pTooltip="Copy to clipboard" tooltipStyleClass="tooltips">
+            <i class="pi pi-copy text-xs"></i>
+          </button>
+        }
+      </legend>
+      <div class="w-inherit h-full">
+        <pre>{{ model.results }}</pre>
+      </div>
+    </fieldset>
+  </div>
+</div>
