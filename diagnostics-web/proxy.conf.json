@@ -1,0 +1,9 @@
+{
+  "/web-hub": {
+    "target": "http://localhost:2803",
+    "secure": false,
+    "ws": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}
