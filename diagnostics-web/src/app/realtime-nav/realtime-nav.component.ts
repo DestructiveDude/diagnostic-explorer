@@ -1,8 +1,8 @@
-import {Component, OnInit, ViewChild} from '@angular/core';
+import {Component} from '@angular/core';
 import {AppModel} from '../Model/AppModel';
 import {DiagProcess} from '../Model/DiagProcess';
 import {RealtimeModel} from '../Model/RealtimeModel';
-import {MatMenuTrigger} from '@angular/material/menu';
+import {MenuItem} from 'primeng/api';
 
 @Component({
     selector: 'app-realtime-nav',
@@ -10,31 +10,20 @@ import {MatMenuTrigger} from '@angular/material/menu';
     styleUrls: ['./realtime-nav.component.scss'],
     standalone: false
 })
-export class RealtimeNavComponent implements OnInit {
+export class RealtimeNavComponent {
 
-    columnNames = ['machineName', 'userName', 'processName'];
-    @ViewChild(MatMenuTrigger)
-    contextMenu?: MatMenuTrigger;
+    // Row the PrimeNG context menu currently targets (set via pContextMenuRow).
+    selectedProcess?: DiagProcess;
+
+    readonly contextMenuItems: MenuItem[] = [
+        {label: 'Retro', command: () => this.selectedProcess && this.app.showRetro(this.selectedProcess)},
+        {label: 'Delete', command: () => this.selectedProcess && this.model.deleteProcess(this.selectedProcess)},
+    ];
 
     constructor(readonly app: AppModel, readonly model: RealtimeModel) {
-
-    }
-
-    ngOnInit(): void {
     }
 
     getProcess(item: any): DiagProcess {
         return item as DiagProcess;
-    }
-
-    contextMenuPosition = {x: '0px', y: '0px'};
-
-    onContextMenu(event: MouseEvent, item: DiagProcess) {
-        event.preventDefault();
-        this.contextMenuPosition.x = event.clientX + 'px';
-        this.contextMenuPosition.y = event.clientY + 'px';
-        this.contextMenu!.menuData = {'item': item};
-        this.contextMenu!.menu?.focusFirstItem('mouse');
-        this.contextMenu!.openMenu();
     }
 }

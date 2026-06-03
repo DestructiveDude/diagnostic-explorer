@@ -1,65 +1,53 @@
 <div class="h-full w-full overflow-hidden flex flex-col retro-nav">
-  <div class="grid grid-cols-1fr-auto text-xxs">
+  <div class="grid grid-cols-1fr-auto text-xxs items-center">
 
-    <mat-form-field class="text-xs px-2" appearance="fill" color="warn" (keydown)="model.handleKeyDown($event)">
-      <mat-label>Filter</mat-label>
-      <input matInput type="text" [(ngModel)]="model.processSearch">
+    <p-iconfield class="px-2">
+      <input pInputText type="text" class="w-full text-xs" placeholder="Filter"
+             [(ngModel)]="model.processSearch"
+             (keydown)="model.handleKeyDown($event)">
       @if (model.processSearch) {
-        <button matSuffix mat-icon-button aria-label="Clear"
-          class="text-xs filter-clear"
-          (click)="model.processSearch=''">
-          <mat-icon>close</mat-icon>
-        </button>
+        <p-inputicon class="pi pi-times cursor-pointer filter-clear"
+                     (click)="model.processSearch=''" />
       }
-    </mat-form-field>
+    </p-iconfield>
 
-    <mat-checkbox [(ngModel)]="model.onlineOnly" class="text-xs mr-4 self-center"><span
-    class="opacity-50">Online</span></mat-checkbox>
+    <div class="flex items-center mr-4">
+      <p-checkbox [(ngModel)]="model.onlineOnly" [binary]="true" inputId="onlineOnly" size="small" />
+      <label for="onlineOnly" class="text-xs opacity-50 ml-1 cursor-pointer">Online</label>
+    </div>
   </div>
 
   <div class="flex-grow-0 overflow-auto w-full grid">
-    <table mat-table [dataSource]="model.filteredProcesses" class="w-full">
-
-      <ng-container matColumnDef="machineName">
-        <th mat-header-cell class="pl-2" *matHeaderCellDef>Host</th>
-        <td mat-cell class="pl-2" *matCellDef="let item" [title]="item.machineName">{{ item.machineName }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="userName">
-        <th mat-header-cell class="pl-2" *matHeaderCellDef>User</th>
-        <td mat-cell class="pl-2" *matCellDef="let item" [title]="item.userName">{{ item.userName }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="processName">
-        <th mat-header-cell class="pl-2" *matHeaderCellDef>Process</th>
-        <td mat-cell class="pl-2 pr-0" *matCellDef="let item">
-          <div class="grid grid-cols-1fr-auto w-full">
-            <span class="truncate" [title]="item.processName">{{ item.processName }}</span>
-            <span class="ml-1 mr-0 w-4 alert-pill {{item.labelClass}}"></span>
-          </div>
-        </td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="columnNames; sticky: true" class="h-8"></tr>
-      <tr mat-row *matRowDef="let item; columns: columnNames" (click)="model.selectProcess(item)"
-        class="cursor-pointer h-8"
-        (contextmenu)="onContextMenu($event, item)"
-        [class.text-neutral-200]="getProcess(item).state !== 'Online'"
-        [class.text-lime-600]="getProcess(item).state === 'Online'"
-      [class.bg-black]="item === model.activeProcess"></tr>
-    </table>
+    <p-table [value]="model.filteredProcesses"
+             [contextMenu]="cm"
+             [(contextMenuSelection)]="selectedProcess"
+             size="small" styleClass="w-full">
+      <ng-template #header>
+        <tr>
+          <th class="pl-2">Host</th>
+          <th class="pl-2">User</th>
+          <th class="pl-2">Process</th>
+        </tr>
+      </ng-template>
+      <ng-template #body let-item>
+        <tr class="cursor-pointer"
+            [pContextMenuRow]="item"
+            (click)="model.selectProcess(item)"
+            [class.text-neutral-200]="getProcess(item).state !== 'Online'"
+            [class.text-lime-600]="getProcess(item).state === 'Online'"
+            [class.bg-black]="item === model.activeProcess">
+          <td class="pl-2" [title]="item.machineName">{{ item.machineName }}</td>
+          <td class="pl-2" [title]="item.userName">{{ item.userName }}</td>
+          <td class="pl-2 pr-0">
+            <div class="grid grid-cols-1fr-auto w-full">
+              <span class="truncate" [title]="item.processName">{{ item.processName }}</span>
+              <span class="ml-1 mr-0 w-4 alert-pill {{item.labelClass}}"></span>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
   </div>
 </div>
 
-<div style="visibility: hidden; position: fixed"
-  [style.left]="contextMenuPosition.x"
-  [style.top]="contextMenuPosition.y"
-  [matMenuTriggerFor]="contextMenu">
-</div>
-<mat-menu #contextMenu="matMenu" class="bg-neutral-800">
-  <ng-template matMenuContent let-item="item">
-    <button mat-menu-item (click)="app.showRetro(item)">Retro</button>
-    <button mat-menu-item (click)="model.deleteProcess(item)">Delete</button>
-  </ng-template>
-</mat-menu>
-
+<p-contextMenu #cm [model]="contextMenuItems" />

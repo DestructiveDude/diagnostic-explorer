@@ -1,9 +1,3 @@
-td {
+:host ::ng-deep .p-datatable-tbody > tr > td {
   border-bottom-color: #444 !important;
-}
-
-::ng-deep .retro-nav .mat-mdc-row,
-::ng-deep .retro-nav .mat-row {
-  height: 25px !important;
-  min-height: 20px;
 }

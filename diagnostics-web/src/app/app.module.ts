@@ -45,6 +45,12 @@ import {BASE_API_URL, BASE_API_KEY} from "../injectionTokens";
 import {environment} from "../environments/environment";
 import {providePrimeNG} from 'primeng/config';
 import Aura from '@primeng/themes/aura';
+import {TableModule} from 'primeng/table';
+import {CheckboxModule} from 'primeng/checkbox';
+import {InputTextModule} from 'primeng/inputtext';
+import {IconFieldModule} from 'primeng/iconfield';
+import {InputIconModule} from 'primeng/inputicon';
+import {ContextMenuModule} from 'primeng/contextmenu';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -85,7 +91,13 @@ import Aura from '@primeng/themes/aura';
         MatNativeDateModule,
         MatProgressBarModule,
         AngularSplitModule,
-        MatListModule], providers: [
+        MatListModule,
+        TableModule,
+        CheckboxModule,
+        InputTextModule,
+        IconFieldModule,
+        InputIconModule,
+        ContextMenuModule], providers: [
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },
