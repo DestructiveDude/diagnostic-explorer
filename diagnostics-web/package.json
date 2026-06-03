@@ -24,7 +24,6 @@
     "@angular/router": "^21.2.15",
     "@microsoft/signalr": "^6.0.25",
     "@primeng/themes": "^21.0.4",
-    "angular-split": "^13.1.0",
     "class-transformer": "^0.5.1",
     "lodash": "^4.17.21",
     "pluralize": "^8.0.0",
