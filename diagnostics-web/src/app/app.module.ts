@@ -51,6 +51,8 @@ import {InputTextModule} from 'primeng/inputtext';
 import {IconFieldModule} from 'primeng/iconfield';
 import {InputIconModule} from 'primeng/inputicon';
 import {ContextMenuModule} from 'primeng/contextmenu';
+import {PanelModule} from 'primeng/panel';
+import {TooltipModule} from 'primeng/tooltip';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -97,7 +99,9 @@ import {ContextMenuModule} from 'primeng/contextmenu';
         InputTextModule,
         IconFieldModule,
         InputIconModule,
-        ContextMenuModule], providers: [
+        ContextMenuModule,
+        PanelModule,
+        TooltipModule], providers: [
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },

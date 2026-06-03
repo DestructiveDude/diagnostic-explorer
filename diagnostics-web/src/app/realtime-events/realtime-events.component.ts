@@ -10,9 +10,6 @@ import {RealtimeModel} from '../Model/RealtimeModel';
 })
 export class RealtimeEventsComponent implements OnInit {
 
-
-    columnNames = ['id', 'date', 'level', 'message'];
-
     @Input() sink?: EventSinkModel;
 
     constructor(readonly realtime: RealtimeModel) {

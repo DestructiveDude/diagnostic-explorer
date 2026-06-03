@@ -1,14 +1,13 @@
-<div class="mt-0 flex flex-row h-4">
+<div class="mt-0 flex flex-row h-4 items-center">
   @if (filterVisible) {
-    <mat-checkbox class="mr-1 check-info" [checked]="info" (change)="info = $event.checked"></mat-checkbox>
-    <mat-checkbox class="mr-1 check-notice" [checked]="notice" (change)="notice = $event.checked"></mat-checkbox>
-    <mat-checkbox class="mr-1 check-warn" [checked]="warn" (change)="warn = $event.checked"></mat-checkbox>
-    <mat-checkbox class="mr-1 check-error" [checked]="error" (change)="error = $event.checked"></mat-checkbox>
-    <input matInput type="text" placeholder="filter text" class="bg-neutral-600 h-4 text-xs m-0"
-      [(ngModel)]="searchText">
-    }
-    <button class="text-xs" (click)="filterVisible = !filterVisible">
-      <mat-icon class="w-4 h-4 pr-6 text-xs">{{ filterVisible ? 'keyboard_arrow_right' : 'keyboard_arrow_left' }}
-      </mat-icon>
-    </button>
-  </div>
+    <p-checkbox class="mr-1 check-info" [binary]="true" [(ngModel)]="info" size="small" />
+    <p-checkbox class="mr-1 check-notice" [binary]="true" [(ngModel)]="notice" size="small" />
+    <p-checkbox class="mr-1 check-warn" [binary]="true" [(ngModel)]="warn" size="small" />
+    <p-checkbox class="mr-1 check-error" [binary]="true" [(ngModel)]="error" size="small" />
+    <input pInputText type="text" placeholder="filter text" class="bg-neutral-600 h-4 text-xs m-0"
+           [(ngModel)]="searchText">
+  }
+  <button class="text-xs" (click)="filterVisible = !filterVisible">
+    <i class="pi text-xs" [class.pi-angle-right]="filterVisible" [class.pi-angle-left]="!filterVisible"></i>
+  </button>
+</div>

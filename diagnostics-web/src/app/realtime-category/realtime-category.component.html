@@ -1,23 +1,20 @@
 @if (category) {
-  <mat-accordion multi class="w-80 realtime-category">
+  <div class="w-80 realtime-category">
     @for (sub of category.subCats; track sub) {
-      <mat-expansion-panel
-        [(expanded)]="sub.isExpanded"
-        class="m-2 bg-neutral-800 p-0">
-        <mat-expansion-panel-header class="bg-neutral-700" (dblclick)="sub.handleDoubleClick($event)">
-          <mat-panel-title>
-            <div>
-              {{ sub.name ?? 'General' }}
-              @if (sub.operationSet) {
-                <button (click)="showOperationsDialog($event, sub)">
-                  <mat-icon class="text-xs text-yellow-500">settings</mat-icon>
-                </button>
-              }
-            </div>
-          </mat-panel-title>
-          <mat-panel-description>
-          </mat-panel-description>
-        </mat-expansion-panel-header>
+      <p-panel [toggleable]="true" toggler="header"
+               [collapsed]="!sub.isExpanded"
+               (collapsedChange)="sub.isExpanded = !$event"
+               styleClass="m-2 sub-panel">
+        <ng-template #header>
+          <div class="w-full" (dblclick)="sub.handleDoubleClick($event)">
+            {{ sub.name ?? 'General' }}
+            @if (sub.operationSet) {
+              <button (click)="showOperationsDialog($event, sub)">
+                <i class="pi pi-cog text-xs text-yellow-500"></i>
+              </button>
+            }
+          </div>
+        </ng-template>
         @for (propGroup of sub.groups; track propGroup) {
           <fieldset class="mb-2">
             <legend>{{ propGroup.name ?? 'General' }}</legend>
@@ -32,36 +29,33 @@
                   </button>
                 }
                 <span class="prop-value" (dblclick)="handleDoubleClick(prop, $event)"
-                  [matTooltip]="prop.value" [matTooltipShowDelay]="0" matTooltipPosition="below"
-                matTooltipClass="tooltips">{{ prop.value }}</span>
+                  [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
+                  tooltipStyleClass="tooltips">{{ prop.value }}</span>
               }
             </div>
           </fieldset>
         }
-      </mat-expansion-panel>
+      </p-panel>
     }
     @for (evt of category.eventSinks; track evt) {
-      <ng-container class="grid">
-        <mat-expansion-panel [(expanded)]="evt.isExpanded"
-          (dblclick)="evt.handleDoubleClick($event)"
-          class="grid m-2 bg-neutral-800 m-2 p-0 row-start-1 col-start-1">
-          <mat-expansion-panel-header class="bg-neutral-700">
-            <mat-panel-title>
-              <div class="w-full grid">
-                <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">{{ evt.name }}</span>
-                <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 flex-grow-0 whitespace-nowrap">{{ evt?.message }}</span>
-                <div class="col-start-1 row-start-1 justify-self-end self-center h-full text-xs flex items-center"
-                  (click)="handleClick($event)" (keydown)="$event.stopPropagation()"
-                  (dblclick)="handleClick($event)">
-                  <app-event-filter [(filterVisible)]="evt.filterVisible"
-                  [(criteria)]="evt.filterCriteria"></app-event-filter>
-                </div>
-              </div>
-            </mat-panel-title>
-          </mat-expansion-panel-header>
-          <app-realtime-events [sink]="evt"></app-realtime-events>
-        </mat-expansion-panel>
-      </ng-container>
+      <p-panel [toggleable]="true" toggler="header"
+               [collapsed]="!evt.isExpanded"
+               (collapsedChange)="evt.isExpanded = !$event"
+               styleClass="m-2 sub-panel">
+        <ng-template #header>
+          <div class="w-full grid" (dblclick)="evt.handleDoubleClick($event)">
+            <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">{{ evt.name }}</span>
+            <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 flex-grow-0 whitespace-nowrap">{{ evt?.message }}</span>
+            <div class="col-start-1 row-start-1 justify-self-end self-center h-full text-xs flex items-center"
+              (click)="handleClick($event)" (keydown)="$event.stopPropagation()"
+              (dblclick)="handleClick($event)">
+              <app-event-filter [(filterVisible)]="evt.filterVisible"
+              [(criteria)]="evt.filterCriteria"></app-event-filter>
+            </div>
+          </div>
+        </ng-template>
+        <app-realtime-events [sink]="evt"></app-realtime-events>
+      </p-panel>
     }
-  </mat-accordion>
+  </div>
 }
