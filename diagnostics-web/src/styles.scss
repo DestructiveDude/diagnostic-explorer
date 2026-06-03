@@ -210,7 +210,7 @@ fieldset {
 }
 .realtime-category .p-panel-content {
   padding: 9px !important;
-  background: var(--topbar);   /* GitHub box: grey header, black body */
+  background: transparent;   /* body matches the canvas; only the header is distinct */
 }
 .realtime-category .p-fieldset {
   border: 1px solid var(--border) !important;

@@ -2,13 +2,15 @@
   border-bottom-color: var(--border) !important;
 }
 
+/* Process-table text in the same green as the header's online process title
+   (.title-online = Tailwind green-500). */
 :host ::ng-deep .p-datatable-tbody > tr {
-  color: var(--label);
+  color: #22c55e;
   background: transparent !important;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.online {
-  color: var(--online);
+  color: #22c55e;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.active {

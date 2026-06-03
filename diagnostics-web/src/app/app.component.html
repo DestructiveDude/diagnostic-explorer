@@ -13,7 +13,7 @@
   </header>
 
   <!-- GitHub-style underline nav tabs (replaces the old toggle) -->
-  <nav class="bg-[var(--bg)] border-b border-[var(--border)] px-4 flex gap-2">
+  <nav class="bg-[var(--topbar)] border-b border-[var(--border)] px-4 flex gap-2">
     <button class="gh-tab" [class.active]="appModel.tabIndex === 0" (click)="appModel.viewRealtime()">Realtime</button>
     <button class="gh-tab" [class.active]="appModel.tabIndex === 1" (click)="appModel.viewRetro()">Retro</button>
   </nav>
