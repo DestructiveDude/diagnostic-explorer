@@ -1,49 +1,15 @@
 
-::ng-deep .realtime-category .mat-expansion-panel-body {
-  padding: 0.5em !important;
+.prop-name {
+  color: var(--label);
 }
 
-::ng-deep .realtime-category .mat-expansion-panel-header {
-  padding-left: 1em !important;
-  padding-right: 0 !important;
-  display: grid !important;
-}
-
-::ng-deep .realtime-category .mat-expansion-panel-header-title {
-  display: grid !important;
-  margin-right: 0 !important;
-}
-
-::ng-deep .realtime-category .mat-expansion-panel-header > span:first-child {
-  display: grid !important;
-}
-
-::ng-deep .realtime-category .mat-panel-title {
-  display: grid !important;
-}
-
-::ng-deep .realtime-category .mat-expansion-indicator {
-  display: none !important;
-}
-
-
-::ng-deep .realtime-category .mat-mdc-tab-group,
-::ng-deep .realtime-category .mat-tab-group {
-  overflow: hidden !important;
-}
-
-::ng-deep .realtime-category .mat-expansion-panel-header-description {
-  align-items: center !important;
-}
-
-::ng-deep .realtime-category .mat-mdc-tab-body-content,
-::ng-deep .realtime-category .mat-tab-body-content {
-  overflow: auto;
+.prop-name.settable {
+  color: var(--value-set);
 }
 
 .prop-value {
   white-space: nowrap;
   width: 100%;
   overflow: hidden;
-  @apply text-lime-500;
+  color: var(--value);
 }

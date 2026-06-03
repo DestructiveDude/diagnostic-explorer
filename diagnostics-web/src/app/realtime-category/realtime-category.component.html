@@ -23,12 +23,11 @@
               </ng-template>
               <div class="ml-4 grid grid-cols-[200px_1fr] lg:grid-cols-[200px_1fr_200px_1fr] gap-x-2 gap-y-2">
                 @for (prop of group.properties; track prop) {
-                  <span class="text-sm my-1"
-                        [class.text-stone-500]="!prop.canSet"
-                        [class.text-blue-400]="prop.canSet"
+                  <span class="text-sm my-1 prop-name"
+                        [class.settable]="prop.canSet"
                         [class.cursor-pointer]="prop.canSet"
                         (click)="prop.canSet && showSetPropertyDialog(prop)">{{ prop.name }}</span>
-                  <span class="text-lime-500 text-sm my-1 prop-value"
+                  <span class="text-sm my-1 prop-value"
                         (dblclick)="handleDoubleClick(prop, $event)"
                         [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
                         tooltipStyleClass="tooltips">{{ prop.value }}</span>
