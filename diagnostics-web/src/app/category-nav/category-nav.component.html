@@ -1,0 +1,8 @@
+<div class="cat-list h-full overflow-auto">
+  @for (cat of categories; track cat; let i = $index) {
+    <div class="cat" [class.active]="i === selectedIndex" (click)="select(i)">
+      <span class="dot {{ cat.labelClass || 'quiet' }}"></span>
+      <span class="name">{{ cat.name }}</span>
+    </div>
+  }
+</div>
