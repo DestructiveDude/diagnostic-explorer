@@ -1,56 +1,58 @@
 @if (category) {
-  <div class="w-80 realtime-category">
+  <div class="realtime-category">
+
     @for (sub of category.subCats; track sub) {
-      <p-panel [toggleable]="true" toggler="header"
-               [collapsed]="!sub.isExpanded"
-               (collapsedChange)="sub.isExpanded = !$event"
-               styleClass="m-2 sub-panel">
+      <p-panel [toggleable]="true" [collapsed]="!sub.isExpanded" class="no-toggle-panel block mb-4">
         <ng-template #header>
-          <div class="w-full" (dblclick)="sub.handleDoubleClick($event)">
+          <div class="flex-1 cursor-pointer select-none"
+               (click)="sub.isExpanded = !sub.isExpanded"
+               (dblclick)="sub.handleDoubleClick($event)">
             {{ sub.name ?? 'General' }}
             @if (sub.operationSet) {
-              <button (click)="showOperationsDialog($event, sub)">
-                <i class="pi pi-cog text-xs text-yellow-500"></i>
-              </button>
+              <span class="text-yellow-500 ml-1 cursor-pointer" title="Has executable operations"
+                    (click)="showOperationsDialog($event, sub); $event.stopPropagation()">&#9733;</span>
             }
           </div>
         </ng-template>
-        @for (propGroup of sub.groups; track propGroup) {
-          <fieldset class="mb-2">
-            <legend>{{ propGroup.name ?? 'General' }}</legend>
-            <div class="ml-4 grid grid-cols-props-sm lg:grid-cols-props-xl gap-x-2 gap-y-2 items-center">
-              @for (prop of propGroup.properties; track prop) {
-                @if (!prop.canSet) {
-                  <span class="text-stone-400 text-xs">{{ prop.name }}</span>
+
+        @for (group of sub.groups; track group) {
+          <div class="mb-4 last:mb-0">
+            <p-fieldset [toggleable]="false">
+              <ng-template #header>
+                <div>{{ group.name ?? 'General' }}</div>
+              </ng-template>
+              <div class="ml-4 grid grid-cols-[200px_1fr] lg:grid-cols-[200px_1fr_200px_1fr] gap-x-2 gap-y-2">
+                @for (prop of group.properties; track prop) {
+                  <span class="text-sm my-1"
+                        [class.text-stone-500]="!prop.canSet"
+                        [class.text-blue-400]="prop.canSet"
+                        [class.cursor-pointer]="prop.canSet"
+                        (click)="prop.canSet && showSetPropertyDialog(prop)">{{ prop.name }}</span>
+                  <span class="text-lime-500 text-sm my-1 prop-value"
+                        (dblclick)="handleDoubleClick(prop, $event)"
+                        [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
+                        tooltipStyleClass="tooltips">{{ prop.value }}</span>
                 }
-                @if (prop.canSet) {
-                  <button class="text-blue-500 text-xs text-left"
-                    (click)="showSetPropertyDialog(prop)">{{ prop.name }}
-                  </button>
-                }
-                <span class="prop-value" (dblclick)="handleDoubleClick(prop, $event)"
-                  [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
-                  tooltipStyleClass="tooltips">{{ prop.value }}</span>
-              }
-            </div>
-          </fieldset>
+              </div>
+            </p-fieldset>
+          </div>
         }
       </p-panel>
     }
+
     @for (evt of category.eventSinks; track evt) {
-      <p-panel [toggleable]="true" toggler="header"
-               [collapsed]="!evt.isExpanded"
-               (collapsedChange)="evt.isExpanded = !$event"
-               styleClass="m-2 sub-panel">
+      <p-panel [toggleable]="true" [collapsed]="!evt.isExpanded" class="no-toggle-panel block mb-4">
         <ng-template #header>
-          <div class="w-full grid" (dblclick)="evt.handleDoubleClick($event)">
-            <span class="col-start-1 row-start-1 justify-self-start whitespace-nowrap">{{ evt.name }}</span>
-            <span class="col-start-1 row-start-1 justify-self-center self-center text-xs opacity-50 h-4 flex-grow-0 whitespace-nowrap">{{ evt?.message }}</span>
-            <div class="col-start-1 row-start-1 justify-self-end self-center h-full text-xs flex items-center"
-              (click)="handleClick($event)" (keydown)="$event.stopPropagation()"
-              (dblclick)="handleClick($event)">
+          <div class="flex items-center w-full gap-2 min-w-0">
+            <div class="flex-1 cursor-pointer select-none truncate"
+                 (click)="evt.isExpanded = !evt.isExpanded"
+                 (dblclick)="evt.handleDoubleClick($event)">
+              {{ evt.name }}
+              <span class="text-xs opacity-50 ml-2">{{ evt.message }}</span>
+            </div>
+            <div class="flex items-center" (click)="handleClick($event)" (keydown)="$event.stopPropagation()">
               <app-event-filter [(filterVisible)]="evt.filterVisible"
-              [(criteria)]="evt.filterCriteria"></app-event-filter>
+                                [(criteria)]="evt.filterCriteria"></app-event-filter>
             </div>
           </div>
         </ng-template>

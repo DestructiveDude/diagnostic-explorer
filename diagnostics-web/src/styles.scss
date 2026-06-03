@@ -232,3 +232,70 @@ fieldset {
 .foobar {
   color: red;
 }
+
+/* --- PrimeNG presentation recipes lifted verbatim from Cameron's working app
+   (diag-azure-app/src/styles.css). These are the styles that make his realtime
+   view render correctly: the vertical "tabs on the right" category strip and
+   the no-toggle panel. Pure CSS, Tailwind-v3 safe. --- */
+
+.no-toggle-panel .p-panel-toggle-button {
+  display: none !important;
+}
+
+.tabs-right.p-tabs,
+.tabs-right .p-tabs {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  height: 100%;
+}
+
+.tabs-right {
+  .p-tablist-nav-button {
+    display: none;
+  }
+
+  .p-tab {
+    text-overflow: ellipsis;
+  }
+
+  .p-tablist {
+    border-bottom: none !important;
+    border-left: 1px solid var(--surface-border);
+    margin: 0;
+    padding: 0;
+    max-height: unset !important;
+    min-width: 150px !important;
+    max-width: 300px !important;
+    height: 100% !important;
+    overflow-y: hidden;
+  }
+
+  .p-tablist-content {
+    height: 100% !important;
+  }
+
+  .p-tablist-tab-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .p-tablist button[pTabPanelHeader] {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 1em 0.5em;
+    text-align: center;
+    white-space: nowrap;
+    border: none;
+    background: none;
+    cursor: pointer;
+    height: auto !important;
+    width: 100%;
+    display: block;
+  }
+
+  .p-tabpanels {
+    flex: 1;
+    padding-left: 1em !important;
+    overflow: auto;
+  }
+}

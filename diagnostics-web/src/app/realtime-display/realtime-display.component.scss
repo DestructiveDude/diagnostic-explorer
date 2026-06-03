@@ -1,48 +1,16 @@
-// Category tabs laid out vertically with the tab strip on the right and the
-// panel filling the remaining width (mirrors the old Material .vertical layout).
-:host ::ng-deep .vertical-tabs.p-tabs {
-  display: grid;
+:host {
+  display: block;
   height: 100%;
-  grid-template-columns: 1fr min-content;
 }
 
-:host ::ng-deep .vertical-tabs .p-tabpanels {
-  grid-column: 1;
-  grid-row: 1;
-  height: 100%;
-  overflow: auto;
+// Selected-event detail panel sits below the category tabs (fixed share of height).
+.detail-panel-row {
+  height: 33%;
+  min-height: 8rem;
+  overflow: hidden;
+  border-top: 1px solid var(--surface-border);
 }
 
-:host ::ng-deep .vertical-tabs .p-tablist {
-  grid-column: 2;
-  grid-row: 1;
-  border-bottom: none;
-  overflow: auto;
-}
-
-:host ::ng-deep .vertical-tabs .p-tablist-tab-list {
-  flex-direction: column;
-}
-
-:host ::ng-deep .vertical-tabs .p-tab {
-  width: 100%;
-  min-width: 100px;
-  justify-content: start;
-  padding: 0.5em 0.5em 0.5em 0;
-}
-
-:host ::ng-deep .vertical-tabs .p-tablist-active-bar,
-:host ::ng-deep .vertical-tabs .p-tablist-nav-button {
-  display: none;
-}
-
-:host ::ng-deep .vertical-tabs .p-tab-active {
-  border-right: 2px solid;
-  font-weight: bold;
-  @apply text-yellow-400;
-}
-
-// Detail / Trace Scope tabs fill the lower split area.
 :host ::ng-deep .scope-tabs.p-tabs {
   display: flex;
   flex-direction: column;

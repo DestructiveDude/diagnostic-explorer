@@ -55,6 +55,7 @@ import {PanelModule} from 'primeng/panel';
 import {TooltipModule} from 'primeng/tooltip';
 import {TabsModule} from 'primeng/tabs';
 import {ButtonModule} from 'primeng/button';
+import {FieldsetModule} from 'primeng/fieldset';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -105,7 +106,8 @@ import {ButtonModule} from 'primeng/button';
         PanelModule,
         TooltipModule,
         TabsModule,
-        ButtonModule], providers: [
+        ButtonModule,
+        FieldsetModule], providers: [
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },
