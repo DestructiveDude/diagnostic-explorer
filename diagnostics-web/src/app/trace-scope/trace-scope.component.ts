@@ -10,7 +10,10 @@ import { ScopeNode } from '../Model/ScopeNode';
 export class TraceScopeComponent {
   @Input() node?: ScopeNode;
 
-  // "[00.005] [00.028] BEGIN Persist" -> { start:'0.005', dur:28, label:'Persist' }
+  // First line is "[ss.mmm] [ss.mmm] BEGIN Label": the first bracket is the scope's
+  // start offset (seconds.milliseconds), the second is its own duration in the same
+  // seconds.milliseconds form. So "[00.005] [00.028] BEGIN Persist" -> start '0.005',
+  // dur 28 (ms); "[01.005] ... BEGIN X" -> dur 1005 (ms). Hence dur = seconds*1000 + ms.
   parse(firstLine: string): { start: string; dur: number; label: string } {
     const m = /^\[(\d{2})\.(\d{3})\]\s*\[(\d{2})\.(\d{3})\]\s*BEGIN\s*(.*)$/.exec(firstLine ?? '');
     if (!m) return { start: '', dur: 0, label: firstLine ?? '' };
@@ -20,4 +23,10 @@ export class TraceScopeComponent {
   }
 
   isBig(dur: number): boolean { return dur >= 20; }
+
+  // <details> toggles its own `open` state; mirror it back onto the node so the
+  // expanded/collapsed choice survives change detection and re-renders.
+  onToggle(node: ScopeNode, event: Event): void {
+    node.expanded = (event.target as HTMLDetailsElement).open;
+  }
 }

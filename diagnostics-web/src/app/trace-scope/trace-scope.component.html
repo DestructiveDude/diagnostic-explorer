@@ -1,6 +1,6 @@
 @if (node) {
   @if (node.isBegin) {
-    <details [open]="node.expanded || node.level === 1" (toggle)="node.expanded = $any($event.target).open">
+    <details [open]="node.expanded || node.level === 1" (toggle)="onToggle(node, $event)">
       <summary class="scope">
         @if (parse(node.firstLine); as p) {
           <span class="t0">{{ p.start }}</span>
