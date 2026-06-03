@@ -4,6 +4,7 @@
 
 :host ::ng-deep .p-datatable-tbody > tr {
   color: var(--label);
+  background: transparent !important;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.online {
@@ -17,7 +18,7 @@
 /* Process-table header — mockup .th: bold head text on a surface bar.
    Kill PrimeNG's default (light) header borders; keep only a dark bottom divider. */
 :host ::ng-deep .p-datatable,
-:host ::ng-deep .p-datatable-table { border: 0 !important; }
+:host ::ng-deep .p-datatable-table { border: 0 !important; background: transparent !important; }
 :host ::ng-deep .p-datatable-thead > tr > th {
   background: var(--surface) !important;
   color: var(--head) !important;

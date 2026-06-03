@@ -11,8 +11,8 @@
 /* ─── Palette tokens ──────────────────────────────────────────────────────── */
 :root,
 .app-dark {
-  --bg:        #010409;  /* rail / canvas / empty content pane */
-  --topbar:    #000000;  /* header + box body (black)          */
+  --bg:        #0d1117;  /* GitHub grey — rail / canvas / empty pane (contrast vs black) */
+  --topbar:    #000000;  /* header + box body (black)                                    */
   --surface:   #161b22;  /* GitHub subtle/box surface  */
   --border:    #30363d;  /* GitHub fine divider line   */
   --head:      #e6edf3;  /* GitHub primary text        */
@@ -72,6 +72,11 @@ input.p-inputtext:focus,
 /* Left rail never shrinks below the toggle's natural width (keeps Realtime/Retro
    from squashing when the sidebar gutter is dragged in). */
 .p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 250px; max-width: 500px; }
+
+/* PrimeNG paints its own theme surface on the splitter/panels — make them
+   transparent so the app canvas (--bg) shows through the rail + content area. */
+.p-splitter,
+.p-splitterpanel { background: transparent !important; }
 
 /* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
 .p-splitter-gutter { background: var(--border) !important; }
