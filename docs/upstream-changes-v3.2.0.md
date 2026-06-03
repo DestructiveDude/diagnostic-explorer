@@ -2,7 +2,7 @@
 
 **Baseline:** `da97212` (`Merge pull request #2 from DestructiveDude/main`) — the current tip of
 `upstream/main` (cell001nz/diagnostic-explorer) and the merge-base with this fork.
-**Head:** the `FixPortal/diagnostic-explorer` `main` at the time of this document (`16c34a4`),
+**Head:** the `FixPortal/diagnostic-explorer` `main` at the time of this document (`044c9f7`),
 including the post-`3.2.1` `TreatWarningsAsErrors` follow-up, the Code Quality pass + CI action
 currency (Part 3c), two further adversarial-review passes (Parts 3d–3e), and the public-API surface
 lock (Part 3f / v3.2.2).
