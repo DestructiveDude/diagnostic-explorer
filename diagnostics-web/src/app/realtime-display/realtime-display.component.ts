@@ -15,4 +15,12 @@ export class RealtimeDisplayComponent implements OnInit {
     ngOnInit(): void {
     }
 
+    // p-tabs emits its value as string | number | undefined; the category tabs
+    // use the numeric index, so coerce before driving the model.
+    onCategoryTab(value: string | number | undefined): void {
+        const index = Number(value);
+        this.model.selectedIndex = index;
+        this.model.handleSelectedTabChanged(index);
+    }
+
 }

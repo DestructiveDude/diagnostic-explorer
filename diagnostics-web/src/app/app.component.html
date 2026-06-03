@@ -1,7 +1,7 @@
 <div class="h-full w-full grid grid-rows-auto-1fr">
     <div class="h-12">
-        <mat-toolbar class="flex-grow-0 w-full h-12 bg-neutral-800 grid grid-cols-1 grid-rows-1 w-full">
-            <label class="mat-primary col-start-1 row-start-1 justify-self-start">Diagnostic Explorer</label>
+        <div class="flex-grow-0 w-full h-12 bg-neutral-800 grid grid-cols-1 grid-rows-1 items-center px-4">
+            <label class="col-start-1 row-start-1 justify-self-start font-medium">Diagnostic Explorer</label>
             <button [disabled]="!appModel.mainMessageCanClick"
                     [class.invisible]="!appModel.mainMessage"
                     (click)="appModel.mainMessageClick()"
@@ -10,7 +10,7 @@
 
             <span class="text-xs col-start-1 row-start-1 justify-self-end">{{ appModel.titleMessage }}</span>
 
-        </mat-toolbar>
+        </div>
     </div>
 
     <div class="w-full h-full overflow-hidden">
@@ -18,13 +18,13 @@
             <as-split-area [size]="25" [minSize]="10" [maxSize]="50">
                 <div class="w-full border-r-2 border-black grid grid-rows-auto-1fr h-full overflow-hidden">
 
-                    <div class="flex-grow-0 grid grid-cols-2">
-                        <button mat-raised-button [class.mat-accent]="appModel.tabIndex === 0"
-                                class="focus:outline-none" (click)="appModel.viewRealtime()" tabindex="-1">Realtime
-                        </button>
-                        <button mat-raised-button [class.mat-accent]="appModel.tabIndex === 1"
-                                class="ml-1 focus:outline-none" (click)="appModel.viewRetro()" tabindex="-1">Retro
-                        </button>
+                    <div class="flex-grow-0 grid grid-cols-2 gap-1 p-1">
+                        <p-button [outlined]="appModel.tabIndex !== 0"
+                                  severity="secondary" styleClass="w-full"
+                                  (onClick)="appModel.viewRealtime()" label="Realtime" [tabindex]="-1" />
+                        <p-button [outlined]="appModel.tabIndex !== 1"
+                                  severity="secondary" styleClass="w-full"
+                                  (onClick)="appModel.viewRetro()" label="Retro" [tabindex]="-1" />
                     </div>
 
                     <div class="flex-grow-1 h-full w-full overflow-hidden">

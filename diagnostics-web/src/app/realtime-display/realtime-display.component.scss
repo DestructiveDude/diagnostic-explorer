@@ -1,101 +1,59 @@
-::ng-deep .vertical.mat-mdc-tab-group,
-::ng-deep .vertical.mat-tab-group {
-  display: grid !important;
-  height: 100% !important;
-  grid-template-columns: 1fr min-content !important;
+// Category tabs laid out vertically with the tab strip on the right and the
+// panel filling the remaining width (mirrors the old Material .vertical layout).
+:host ::ng-deep .vertical-tabs.p-tabs {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 1fr min-content;
 }
 
-::ng-deep .vertical .mat-mdc-tab-list,
-::ng-deep .vertical .mat-tab-labels {
-  flex-direction: column !important;
+:host ::ng-deep .vertical-tabs .p-tabpanels {
+  grid-column: 1;
+  grid-row: 1;
+  height: 100%;
+  overflow: auto;
 }
 
-::ng-deep .mat-mdc-tab-header,
-::ng-deep .mat-tab-label-container {
-  overflow: auto !important;
+:host ::ng-deep .vertical-tabs .p-tablist {
+  grid-column: 2;
+  grid-row: 1;
+  border-bottom: none;
+  overflow: auto;
 }
 
-::ng-deep .mdc-tab__text-label,
-::ng-deep .mat-tab-label-content {
-  width: 100% !important;
-  padding: 0 !important;
+:host ::ng-deep .vertical-tabs .p-tablist-tab-list {
+  flex-direction: column;
 }
 
-.warn {
-  color: red !important;
+:host ::ng-deep .vertical-tabs .p-tab {
+  width: 100%;
+  min-width: 100px;
+  justify-content: start;
+  padding: 0.5em 0.5em 0.5em 0;
 }
 
-::ng-deep .detail-tabs .mat-mdc-tab-body-content,
-::ng-deep .detail-tabs .mat-tab-body-content {
-  height: 100% !important;
-  display: grid !important;
-}
-
-::ng-deep .detail-tabs .mat-mdc-tab-body-wrapper,
-::ng-deep .detail-tabs .mat-tab-body-wrapper {
-  height: 100% !important;
-  display: grid !important;
-}
-
-
-::ng-deep .vertical .mat-mdc-tab,
-::ng-deep .vertical .mat-tab-label {
-  padding: 0.5em 0 0.5em 0 !important;
-  min-width: 100px !important;
-  height: revert !important;
-  justify-content: start !important;
-  width: 100% !important;
-}
-
-::ng-deep .vertical .mdc-tab__text-label,
-::ng-deep .vertical .mat-tab-label-content {
-  display: grid !important;
-  justify-content: stretch !important;
-  padding-right: 1em !important;
-}
-
-::ng-deep .vertical .mat-mdc-tab-header-pagination,
-::ng-deep .vertical .mat-tab-header-pagination {
-  display: none !important;;
-
-}
-
-::ng-deep .vertical .mat-mdc-tab-header-pagination-after,
-::ng-deep .vertical .mat-tab-header-pagination-after {
-  width: 100px !important;
-}
-
-::ng-deep .vertical .mat-mdc-tab-list,
-::ng-deep .vertical .mat-tab-list {
-  width: revert !important;;
-}
-
-::ng-deep .vertical .mat-mdc-tab-header,
-::ng-deep .vertical .mat-tab-header {
-  grid-row-start: 1;
-  grid-column-start: 2 !important;
-}
-
-
-::ng-deep .vertical .mdc-tab--active,
-::ng-deep .vertical .mat-tab-label-active {
-  border-right: 2px solid !important;
-}
-
-::ng-deep .mdc-tab-indicator,
-::ng-deep .mat-ink-bar {
+:host ::ng-deep .vertical-tabs .p-tablist-active-bar,
+:host ::ng-deep .vertical-tabs .p-tablist-nav-button {
   display: none;
 }
 
-::ng-deep .mdc-tab--active,
-::ng-deep .mat-tab-label-active {
-  @apply text-yellow-400;
+:host ::ng-deep .vertical-tabs .p-tab-active {
+  border-right: 2px solid;
   font-weight: bold;
+  @apply text-yellow-400;
 }
 
-::ng-deep .scope-tabs .mat-mdc-tab-list,
-::ng-deep .scope-tabs .mat-tab-labels {
+// Detail / Trace Scope tabs fill the lower split area.
+:host ::ng-deep .scope-tabs.p-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+:host ::ng-deep .detail-tabs .p-tabpanels,
+:host ::ng-deep .detail-tabs .p-tabpanel {
+  height: 100%;
+}
+
+:host ::ng-deep .scope-tabs .p-tablist {
   @apply bg-neutral-700;
 }
-
-

@@ -2,45 +2,57 @@
   <as-split direction="vertical">
     <as-split-area [size]="75" [minSize]="10" [maxSize]="90">
 
-      <mat-tab-group class="vertical flex-grow" [(selectedIndex)]="model.selectedIndex"
-        (selectedIndexChange)="model.handleSelectedTabChanged($event)">
-        @for (cat of model.categories; track cat) {
-          <mat-tab mat-align-tabs="left">
-            <ng-template mat-tab-label>
+      <p-tabs [value]="model.selectedIndex"
+              (valueChange)="onCategoryTab($event)"
+              class="vertical-tabs flex-grow">
+        <p-tablist>
+          @for (cat of model.categories; track cat; let i = $index) {
+            <p-tab [value]="i">
               <div class="grid grid-cols-auto-1fr w-full">
                 <div class="alert-pill ml-1 mr-2 w-4 {{cat.labelClass}}"></div>
                 <span class="text-right">{{ cat.name }}</span>
               </div>
-            </ng-template>
-            <app-realtime-category [category]="cat"></app-realtime-category>
-          </mat-tab>
-        }
-      </mat-tab-group>
+            </p-tab>
+          }
+        </p-tablist>
+        <p-tabpanels>
+          @for (cat of model.categories; track cat; let i = $index) {
+            <p-tabpanel [value]="i">
+              <app-realtime-category [category]="cat"></app-realtime-category>
+            </p-tabpanel>
+          }
+        </p-tabpanels>
+      </p-tabs>
 
     </as-split-area>
 
     @if (model.traceScopeVisible) {
       <as-split-area [size]="25">
         <div class="grid h-full detail-tabs">
-          <mat-tab-group class="col-start-1 row-start-1 scope-tabs">
-            <mat-tab label="Detail">
-              <textarea class="w-full h-full bg-neutral-900 text-neutral-300 resize-none"
-                readonly
-                [value]="model.selectedEvent?.displayText ?? ''"></textarea>
-            </mat-tab>
-            <mat-tab label="Trace Scope">
-              @if (model?.selectedEvent?.region) {
-                <app-collapsible-region
-                [region]="model?.selectedEvent?.region"></app-collapsible-region>
-              } @else {
-                <div class="p-2 text-neutral-500 italic">No trace scope for this event.</div>
-              }
-            </mat-tab>
-          </mat-tab-group>
+          <p-tabs value="0" class="col-start-1 row-start-1 scope-tabs">
+            <p-tablist>
+              <p-tab value="0">Detail</p-tab>
+              <p-tab value="1">Trace Scope</p-tab>
+            </p-tablist>
+            <p-tabpanels class="h-full">
+              <p-tabpanel value="0">
+                <textarea class="w-full h-full bg-neutral-900 text-neutral-300 resize-none"
+                  readonly
+                  [value]="model.selectedEvent?.displayText ?? ''"></textarea>
+              </p-tabpanel>
+              <p-tabpanel value="1">
+                @if (model?.selectedEvent?.region) {
+                  <app-collapsible-region
+                  [region]="model?.selectedEvent?.region"></app-collapsible-region>
+                } @else {
+                  <div class="p-2 text-neutral-500 italic">No trace scope for this event.</div>
+                }
+              </p-tabpanel>
+            </p-tabpanels>
+          </p-tabs>
           <button (click)="model.hideTraceScope()"
-            class="col-start-1 row-start-1 align-self-start justify-self-end cursor-pointer z-50 opacity-50 hover:opacity-100"
-            mat-icon-button>
-            <mat-icon>close</mat-icon>
+            class="col-start-1 row-start-1 align-self-start justify-self-end cursor-pointer z-50 opacity-50 hover:opacity-100">
+            <i class="pi pi-times"></i>
           </button>
         </div>
       </as-split-area>

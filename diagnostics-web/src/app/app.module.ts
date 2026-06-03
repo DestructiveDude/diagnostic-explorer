@@ -53,6 +53,8 @@ import {InputIconModule} from 'primeng/inputicon';
 import {ContextMenuModule} from 'primeng/contextmenu';
 import {PanelModule} from 'primeng/panel';
 import {TooltipModule} from 'primeng/tooltip';
+import {TabsModule} from 'primeng/tabs';
+import {ButtonModule} from 'primeng/button';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -101,7 +103,9 @@ import {TooltipModule} from 'primeng/tooltip';
         InputIconModule,
         ContextMenuModule,
         PanelModule,
-        TooltipModule], providers: [
+        TooltipModule,
+        TabsModule,
+        ButtonModule], providers: [
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },
