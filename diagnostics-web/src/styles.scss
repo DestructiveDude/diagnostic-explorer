@@ -1,5 +1,4 @@
 /* You can add global styles to this file, and also import other style files */
-@use '@angular/material' as mat;
 
 @import "tailwindcss/base";
 @import "tailwindcss/components";
@@ -9,57 +8,51 @@
 // providePrimeNG() in app.module.ts; only the icon font needs a CSS import.
 @import 'primeicons/primeicons.css';
 
+/* ─── Palette tokens ──────────────────────────────────────────────────────── */
+:root,
+.app-dark {
+  --bg:        #0f141b;
+  --topbar:    #141b24;
+  --surface:   #1a212b;
+  --border:    #2a3340;
+  --head:      #e2e8f0;
+  --label:     #94a3b8;
+  --accent:    #6366f1;
+  --active:    #818cf8;
+  --value:     #86efac;
+  --value-set: #818cf8;
+  --online:    #86efac;
+  --resize:    #2dd4bf;
 
-// TODO(v15): As of v15 mat.core no longer includes default typography styles.
-//  The following line adds:
-//    1. Default typography styles for all components
-//    2. Styles for typography hierarchy classes (e.g. .mat-headline-1)
-//  If you specify typography styles for the components you use elsewhere, you should delete this line.
-//  If you don't need the default component typographies but still want the hierarchy styles,
-//  you can delete this line and instead use:
-//    `@include mat.typography-hierarchy(mat.define-legacy-typography-config());`
-@include mat.all-component-typographies();
-@include mat.elevation-classes();
-@include mat.app-background();
+  /* severity bands: bg tint / left slice / bold text */
+  --sev-error-bg:#2a1416;  --sev-error-slice:#ff5252;  --sev-error-text:#ff6b6b;
+  --sev-warn-bg:#2a2110;   --sev-warn-slice:#ffa31a;   --sev-warn-text:#ffc24d;
+  --sev-notice-bg:#1d1430; --sev-notice-slice:#b15cff; --sev-notice-text:#d8a2ff;
+  --sev-info-bg:#0f2418;   --sev-info-slice:#2ee06a;   --sev-info-text:#5cf08a;
 
-// The following mixins include base theme styles that are only needed once per application. These
-// theme styles do not depend on the color, typography, or density settings in your theme. However,
-// these styles may differ depending on the theme's design system. Currently all themes use the
-// Material 2 design system, but in the future it may be possible to create theme based on other
-// design systems, such as Material 3.
-//
-// Please note: you do not need to include the 'base' mixins, if you include the corresponding
-// 'theme' mixin elsewhere in your Sass. The full 'theme' mixins already include the base styles.
-//
-// To learn more about "base" theme styles visit our theming guide:
-// https://material.angular.io/guide/theming#theming-dimensions
-//
-// Base styles are already pulled in by the per-component *-theme mixins applied
-// below (mat.button-theme, mat.tabs-theme, etc.), so a separate
-// all-component-bases include is not required.
+  /* category severity dots */
+  --dot-quiet:#475569; --dot-ok:#34d399; --dot-warn:#fbbf24; --dot-err:#f87171;
+}
 
+body {
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  color: var(--label);
+}
 
-// Define a dark theme
-$dark-primary: mat.m2-define-palette(mat.$m2-blue-palette);
-$dark-accent: mat.m2-define-palette(mat.$m2-blue-grey-palette);
-$dark-theme: mat.m2-define-dark-theme((
-        color: (
-                primary: $dark-primary,
-                accent: $dark-accent,
-        )
-));
+/* ─── Indigo focus ring ───────────────────────────────────────────────────── */
+input.p-inputtext:focus,
+.p-inputtext:focus,
+.p-select.p-focus,
+.p-datepicker-input:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.32) !important;
+}
 
-// Apply the dark theme by default
-@include mat.elevation-classes();
-@include mat.app-background();
-@include mat.button-theme($dark-theme);
-@include mat.tabs-theme($dark-theme);
-@include mat.toolbar-theme($dark-theme);
-@include mat.select-theme($dark-theme);
-@include mat.datepicker-theme($dark-theme);
-@include mat.progress-bar-theme($dark-theme);
-@include mat.checkbox-theme($dark-theme);
-
+/* ─── Utility ─────────────────────────────────────────────────────────────── */
 .noselect {
   -webkit-touch-callout: none; /* iOS Safari */
   -webkit-user-select: none; /* Safari */
@@ -70,15 +63,6 @@ $dark-theme: mat.m2-define-dark-theme((
   /* Non-prefixed version, currently
                                    supported by Chrome, Edge, Opera and Firefox */
 }
-
-button.filter-clear span.mat-button-wrapper {
-  opacity: 0.2;
-}
-
-span.mat-checkbox-frame {
-  background: dimgray !important;
-}
-
 
 /* width */
 ::-webkit-scrollbar {
@@ -101,18 +85,8 @@ span.mat-checkbox-frame {
   background: #888;
 }
 
-.mat-form-field-empty {
-  color: #888 !important;
-}
-
 .default-value-label {
   color: #888 !important;
-}
-
-body {
-  height: 100vh;
-  padding: 0;
-  margin: 0;
 }
 
 .as-split-gutter {
@@ -126,57 +100,12 @@ body {
   grid-column-end: 3;
 }
 
-.event-level-unknown {
-  @apply bg-lime-700;
-}
-
-.event-level-verbose {
-  @apply bg-lime-700;
-}
-
-.event-level-trace {
-  @apply bg-lime-600;
-}
-
-.event-level-debug {
-  @apply bg-lime-500;
-}
-
-.event-level-info {
-  @apply bg-lime-400;
-}
-
-.event-level-notice {
-  @apply bg-purple-400;
-}
-
-.event-level-warn {
-  @apply bg-amber-400;
-}
-
-.event-level-error {
-  @apply bg-red-300;
-}
-
-.event-level-severe {
-  @apply bg-red-400;
-}
-
-.event-level-critical {
-  @apply bg-red-500;
-}
-
-.event-level-alert {
-  @apply bg-red-600;
-}
-
-.event-level-fatal {
-  @apply bg-red-700;
-}
-
-.event-level-emergency {
-  @apply bg-red-800;
-}
+/* ─── Category severity dot colour by worst level (CategoryModel.labelClass) ── */
+.event-level-verbose, .event-level-trace, .event-level-debug, .event-level-info { color: var(--dot-ok); }
+.event-level-notice { color: var(--dot-ok); }
+.event-level-warn   { color: var(--dot-warn); }
+.event-level-error, .event-level-severe, .event-level-critical,
+.event-level-alert, .event-level-fatal, .event-level-emergency { color: var(--dot-err); }
 
 .tooltips {
   color: #AAA !important;
@@ -227,10 +156,6 @@ fieldset {
   margin-right: 2px;
   padding: 0.35em 0.75em 0.625em;
   border: 2px groove #555;
-}
-
-.foobar {
-  color: red;
 }
 
 /* --- PrimeNG presentation recipes lifted verbatim from Cameron's working app
