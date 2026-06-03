@@ -23,7 +23,8 @@
              [(contextMenuSelection)]="selectedProcess"
              [resizableColumns]="true"
              columnResizeMode="expand"
-             size="small" styleClass="w-full">
+             size="small" styleClass="w-full"
+             stateKey="diag-process-table" stateStorage="local">
       <ng-template #header>
         <tr>
           <th pResizableColumn class="pl-2">Host</th>
