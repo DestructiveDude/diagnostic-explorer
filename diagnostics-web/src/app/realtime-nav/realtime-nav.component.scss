@@ -14,10 +14,14 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Process-table header — mockup .th: bold head text on a surface bar, border-bottom */
+/* Process-table header — mockup .th: bold head text on a surface bar.
+   Kill PrimeNG's default (light) header borders; keep only a dark bottom divider. */
+:host ::ng-deep .p-datatable,
+:host ::ng-deep .p-datatable-table { border: 0 !important; }
 :host ::ng-deep .p-datatable-thead > tr > th {
   background: var(--surface) !important;
   color: var(--head) !important;
+  border: 0 !important;
   border-bottom: 1px solid var(--border) !important;
   font-weight: 600;
   padding: 4px 8px;
