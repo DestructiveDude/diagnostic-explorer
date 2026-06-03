@@ -1,0 +1,20 @@
+@if (node) {
+  @if (node.isBegin) {
+    <details [open]="node.expanded || node.level === 1" (toggle)="node.expanded = $any($event.target).open">
+      <summary class="scope">
+        @if (parse(node.firstLine); as p) {
+          <span class="t0">{{ p.start }}</span>
+          <span class="dur" [class.big]="isBig(p.dur)">{{ p.dur }}ms</span>
+          <span class="lbl">{{ p.label }}</span>
+        }
+      </summary>
+      <div class="children">
+        @for (child of node.childRegions; track child) {
+          <app-trace-scope [node]="child" />
+        }
+      </div>
+    </details>
+  } @else {
+    <div class="leaf">{{ node.getDisplayText() }}</div>
+  }
+}
