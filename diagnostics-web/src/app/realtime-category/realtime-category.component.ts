@@ -1,7 +1,6 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {CategoryModel} from '../Model/CategoryModel';
-import {MatSnackBar} from '@angular/material/snack-bar';
-import {MatSnackBarConfig} from '@angular/material/snack-bar';
+import {MessageService} from 'primeng/api';
 import {Clipboard} from '@angular/cdk/clipboard';
 import {PropModel} from '../Model/PropModel';
 import {SetPropertyDialogComponent} from '../set-property-dialog/set-property-dialog.component';
@@ -23,7 +22,7 @@ export class RealtimeCategoryComponent implements OnInit {
     @Input()
     category?: CategoryModel;
 
-    constructor(private _snackBar: MatSnackBar, private realtimeModel: RealtimeModel, private dialogService: DialogService) {
+    constructor(private messages: MessageService, private realtimeModel: RealtimeModel, private dialogService: DialogService) {
     }
 
     ngOnInit(): void {
@@ -32,15 +31,7 @@ export class RealtimeCategoryComponent implements OnInit {
     handleDoubleClick(prop: PropModel, evt: MouseEvent) {
         if (evt.detail === 2) {
             new Clipboard(document).copy(prop.value);
-
-            const config: MatSnackBarConfig = {
-                horizontalPosition: 'center',
-                verticalPosition: 'top',
-                politeness: 'assertive',
-                panelClass: 'value-copied-snackbar',
-                duration: 1000,
-            };
-            this._snackBar.open('Value copied to clipboard!', '', config);
+            this.messages.add({ severity: 'success', detail: 'Value copied to clipboard!', life: 1000 });
         }
     }
 

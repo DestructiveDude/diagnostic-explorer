@@ -8,13 +8,13 @@ import * as _ from 'lodash';
 import {Watch} from '../util/Watch';
 import {DiagHubService} from '../services/diag-hub.service';
 import {plainToInstance} from 'class-transformer';
-import {MatSnackBar} from '@angular/material/snack-bar';
+import {MessageService} from 'primeng/api';
 import {DiagProcess} from './DiagProcess';
 
 @Injectable()
 export class RetroModel {
 
-    constructor(readonly datePipe: DatePipe, readonly hubService: DiagHubService, readonly snackBar: MatSnackBar) {
+    constructor(readonly datePipe: DatePipe, readonly hubService: DiagHubService, readonly messages: MessageService) {
         this.reset();
         this.watchEnabled = true;
 
@@ -35,7 +35,7 @@ export class RetroModel {
                     // and canDelete would never re-enable.
                     this.onSearchComplete(true, false);
                     this.titleMessage = `Search failed: ${error}`;
-                    this.snackBar.open(error, '', {duration: 2_000});
+                    this.messages.add({ severity: 'error', detail: error, life: 2000 });
                 }
             });
         });
@@ -139,25 +139,12 @@ export class RetroModel {
                 return;
 
             const deleted = await this.hubService.deleteRecords(toDelete);
-            this.snackBar.open(`${deleted} records deleted`, '',
-                {
-                    duration: 2_000,
-                    panelClass: 'message-snackbar',
-                    horizontalPosition: 'center',
-                    verticalPosition: 'top'
-                });
+            this.messages.add({ severity: 'success', detail: `${deleted} records deleted`, life: 2000 });
 
             await this.search();
         } catch (err) {
             console.log(err);
-            this.snackBar.open(getErrorMessage(err), '',
-                {
-                    duration: 2000,
-                    politeness: 'assertive',
-                    panelClass: 'message-snackbar',
-                    horizontalPosition: 'center',
-                    verticalPosition: 'top'
-                });
+            this.messages.add({ severity: 'error', detail: getErrorMessage(err), life: 2000 });
         }
     }
 

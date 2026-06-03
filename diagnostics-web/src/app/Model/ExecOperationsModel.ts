@@ -80,13 +80,7 @@ export class ExecOperationsModel {
     copyToClipboard() {
         new Clipboard(document).copy(this.results);
 
-        this.realtimeModel.snackBar.open('Result copied to clipboard', '', {
-            horizontalPosition: 'center',
-            verticalPosition: 'top',
-            politeness: 'assertive',
-            panelClass: 'value-copied-snackbar',
-            duration: 1_000,
-        });
+        this.realtimeModel.messages.add({ severity: 'success', detail: 'Result copied to clipboard', life: 2000 });
     }
 }
 

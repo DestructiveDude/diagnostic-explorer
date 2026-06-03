@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {RealtimeModel} from './RealtimeModel';
-import {MatSnackBar} from '@angular/material/snack-bar';
 import {RetroModel} from './RetroModel';
 import * as _ from 'lodash';
 import {DiagHubService} from '../services/diag-hub.service';
@@ -15,8 +14,7 @@ export class AppModel {
 
     constructor(readonly realtimeModel: RealtimeModel,
                 readonly hubService: DiagHubService,
-                readonly retroModel: RetroModel,
-                private _snackBar: MatSnackBar) {
+                readonly retroModel: RetroModel) {
         this.watchEnabled = true;
     }
 

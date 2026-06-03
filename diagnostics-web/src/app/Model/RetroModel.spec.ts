@@ -11,9 +11,9 @@ function makeHub() {
     };
 }
 
-function makeModel(hub = makeHub(), snackBar = {open: jest.fn()}) {
-    const model = new RetroModel(new DatePipe('en-US'), hub as any, snackBar as any);
-    return {model, hub, snackBar};
+function makeModel(hub = makeHub(), messages = {add: jest.fn()}) {
+    const model = new RetroModel(new DatePipe('en-US'), hub as any, messages as any);
+    return {model, hub, messages};
 }
 
 describe('RetroModel', () => {
@@ -81,28 +81,26 @@ describe('RetroModel', () => {
         it('deletes the displayed records and reports the count after confirmation', async () => {
             const hub = makeHub();
             hub.deleteRecords.mockResolvedValue(2);
-            const {model, snackBar} = makeModel(hub);
+            const {model, messages} = makeModel(hub);
             globalThis.confirm = jest.fn().mockReturnValue(true);
             model.results = [{msgId: '1'}, {msgId: '2'}] as any;
 
             await model.delete();
 
             expect(hub.deleteRecords).toHaveBeenCalledWith(['1', '2']);
-            expect(snackBar.open).toHaveBeenCalledWith(
-                expect.stringContaining('2 records deleted'), '', expect.any(Object),
-            );
+            expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({ detail: '2 records deleted' }));
         });
 
         it('does nothing when the user cancels the confirmation', async () => {
             const hub = makeHub();
-            const {model, snackBar} = makeModel(hub);
+            const {model, messages} = makeModel(hub);
             globalThis.confirm = jest.fn().mockReturnValue(false);
             model.results = [{msgId: '1'}] as any;
 
             await model.delete();
 
             expect(hub.deleteRecords).not.toHaveBeenCalled();
-            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(messages.add).not.toHaveBeenCalled();
         });
     });
 });

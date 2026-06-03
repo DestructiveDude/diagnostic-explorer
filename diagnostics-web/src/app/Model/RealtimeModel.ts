@@ -13,7 +13,7 @@ import {PropModel} from './PropModel';
 import {SetPropertyRequest} from './SetPropertyRequest';
 import {DialogService} from 'primeng/dynamicdialog';
 import {InfoDialogComponent} from '../info-dialog/info-dialog.component';
-import {MatSnackBar} from '@angular/material/snack-bar';
+import {MessageService} from 'primeng/api';
 import {plainToInstance} from 'class-transformer';
 import {DiagHubService} from '../services/diag-hub.service';
 import {DatePipe} from '@angular/common';
@@ -48,7 +48,7 @@ export class RealtimeModel {
     constructor(readonly hubService: DiagHubService,
                 readonly datePipe: DatePipe,
                 private dialog: DialogService,
-                readonly snackBar: MatSnackBar) {
+                readonly messages: MessageService) {
         this.watchEnabled = true;
         this.hubService.connectionReady.subscribe(connection => {
             connection.on('SetProcesses', (data: DiagProcess[]) => {
@@ -68,7 +68,7 @@ export class RealtimeModel {
             });
             connection.on('ShowDiagnosticsError', (id: string, message: string) => {
                 if (id === this.activeProcess?.id)
-                    this.snackBar.open(message, '', {duration: 2_000});
+                    this.messages.add({ severity: 'error', detail: message, life: 2000 });
             });
             connection.on('SetEvents', (id: string, events: SystemEvent[]) => {
                 if (id === this.activeProcess?.id)
@@ -294,13 +294,7 @@ export class RealtimeModel {
                 console.log(result);
                 this.showError('Error setting property', result.errorMessage);
             } else {
-                this.snackBar.open('Property set!', '', {
-                    horizontalPosition: 'center',
-                    verticalPosition: 'top',
-                    politeness: 'assertive',
-                    panelClass: 'value-copied-snackbar',
-                    duration: 1_000,
-                });
+                this.messages.add({ severity: 'success', detail: 'Property set!', life: 1000 });
             }
         } catch (err: any) {
             console.log(err);

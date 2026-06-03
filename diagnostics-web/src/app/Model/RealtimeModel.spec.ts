@@ -39,9 +39,9 @@ function makeHub() {
     };
 }
 
-function makeModel(hub = makeHub(), dialog = {open: jest.fn()}, snackBar = {open: jest.fn()}) {
-    const model = new RealtimeModel(hub as any, new DatePipe('en-US'), dialog as any, snackBar as any);
-    return {model, hub, dialog, snackBar};
+function makeModel(hub = makeHub(), dialog = {open: jest.fn()}, messages = {add: jest.fn()}) {
+    const model = new RealtimeModel(hub as any, new DatePipe('en-US'), dialog as any, messages as any);
+    return {model, hub, dialog, messages};
 }
 
 function proc(id: string, name: string, state = 'Online', machine = 'SRV', user = 'svc') {
@@ -169,14 +169,14 @@ describe('RealtimeModel', () => {
         });
 
         it('routes ShowDiagnosticsError to a snackbar', () => {
-            const {model, hub, snackBar} = makeModel();
+            const {model, hub, messages} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('p-1', 'Active');
 
             connection.handlers['ShowDiagnosticsError']('p-1', 'boom');
 
-            expect(snackBar.open).toHaveBeenCalledWith('boom', '', {duration: 2_000});
+            expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'boom' }));
         });
 
         it('subscribes the active process when the connection (re)starts', () => {
@@ -429,36 +429,36 @@ describe('RealtimeModel', () => {
         it('opens an error dialog when setPropertyValue returns an error message', async () => {
             const hub = makeHub();
             hub.setPropertyValue.mockResolvedValue({errorMessage: 'Denied'});
-            const {model, dialog, snackBar} = makeModel(hub);
+            const {model, dialog, messages} = makeModel(hub);
             model.activeProcess = proc('p-1', 'Worker');
 
             await model.setPropertyValue({getPropertyPath: () => 'Config.Timeout'} as any, '15');
 
             expect(dialog.open).toHaveBeenCalled();
-            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(messages.add).not.toHaveBeenCalled();
         });
 
         it('opens an error dialog when setPropertyValue throws', async () => {
             const hub = makeHub();
             hub.setPropertyValue.mockRejectedValue(new Error('network'));
-            const {model, dialog, snackBar} = makeModel(hub);
+            const {model, dialog, messages} = makeModel(hub);
             model.activeProcess = proc('p-1', 'Worker');
 
             await model.setPropertyValue({getPropertyPath: () => 'Config.Timeout'} as any, '15');
 
             expect(dialog.open).toHaveBeenCalled();
-            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(messages.add).not.toHaveBeenCalled();
         });
 
         it('confirms with a snackbar when setPropertyValue succeeds', async () => {
             const hub = makeHub();
             hub.setPropertyValue.mockResolvedValue({});
-            const {model, dialog, snackBar} = makeModel(hub);
+            const {model, dialog, messages} = makeModel(hub);
             model.activeProcess = proc('p-1', 'Worker');
 
             await model.setPropertyValue({getPropertyPath: () => 'Config.Timeout'} as any, '15');
 
-            expect(snackBar.open).toHaveBeenCalledWith('Property set!', '', expect.any(Object));
+            expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'Property set!' }));
             expect(dialog.open).not.toHaveBeenCalled();
         });
 

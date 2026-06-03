@@ -89,11 +89,6 @@ input.p-inputtext:focus,
   color: #888 !important;
 }
 
-.as-split-gutter {
-  background: #555 !important;
-  flex-basis: 9px !important;
-}
-
 .title {
   height: 50px;
   grid-column-start: 1;
@@ -124,31 +119,6 @@ input.p-inputtext:focus,
   @apply text-red-500;
 }
 
-.value-copied-snackbar {
-  @apply bg-neutral-600;
-}
-
-.message-snackbar {
-  @apply bg-neutral-600;
-}
-
-.operations-dialog-panel {
-  @apply bg-neutral-600;
-  padding: 0;
-}
-
-.mat-header-cell {
-  background: #444 !important;
-}
-
-.mat-header-row {
-  background: #444 !important;
-}
-
-::ng-deep .mat-dialog-container {
-  @apply bg-neutral-600;
-  padding: 0 !important;
-}
 
 fieldset {
   display: block;
