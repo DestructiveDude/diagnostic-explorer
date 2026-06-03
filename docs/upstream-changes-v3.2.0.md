@@ -2,15 +2,18 @@
 
 **Baseline:** `da97212` (`Merge pull request #2 from DestructiveDude/main`) — the current tip of
 `upstream/main` (cell001nz/diagnostic-explorer) and the merge-base with this fork.
-**Head:** the `FixPortal/diagnostic-explorer` `main` at the time of this document (`65261b4`),
-including the post-`3.2.1` `TreatWarningsAsErrors` follow-up and the later main-branch maintenance
-(CI action currency + a Code Quality pass — Part 3c).
-**Span:** 50 commits · 172 files · +22,064 / −11,410 (plus this documentation commit).
+**Head:** the `FixPortal/diagnostic-explorer` `main` at the time of this document (`16c34a4`),
+including the post-`3.2.1` `TreatWarningsAsErrors` follow-up, the Code Quality pass + CI action
+currency (Part 3c), two further adversarial-review passes (Parts 3d–3e), and the public-API surface
+lock (Part 3f / v3.2.2).
+**Span:** ~66 commits · 206 files · +23,944 / −12,016 (plus this documentation commit).
 **Package version:** `3.1.38` → **`3.2.0`** (NuGet `DiagnosticExplorer`). A minor bump: a new
 backward-compatible opt-in feature (hub auth/CORS), a major framework upgrade (Angular 13 → 21),
 and ~40 defect fixes. `3.1.38` was rebuilt during this work and is not reused. Pure defect fixes
 that landed *after* the `v3.2.0` tag (CodeQL triage + a dogfood pass — Part 3b) are repackaged for
-internal consumers as **`3.2.1`**; for upstream they are simply part of this body of work.
+internal consumers as **`3.2.1`**; further fixes from the follow-on review passes (Parts 3d–3e) and
+the API-lock tooling (Part 3f) are repackaged as **`3.2.2`**; for upstream they are simply part of
+this body of work.
 
 This document explains *what changed and why* for an upstream reviewer. The single most
 important property of this whole body of work:
@@ -250,6 +253,104 @@ behavioural change whose intent isn't established, so it was left as-is.
 ones, keeping the SHA-pin + version-comment convention, ahead of GitHub forcing Node-24 on
 2026-06-16 and removing Node-20 on 2026-09-16. No workflow inputs changed.
 
+### Part 3d — Adversarial review batches 15–17 (second multi-vendor pass)
+
+A second cross-vendor adversarial code review (Claude Opus + GitHub Copilot) was run over the full
+codebase after the auth-hardening work landed. Batches 15–17 carry the resulting remediation, with
+a regression-fix commit (`ff74e21`) that repaired service-side cancellation and UI stale-state issues
+surfaced by the review pass's verification run. Key changes by severity:
+
+**High:**
+- `EventSinkStream._eventSubject` wrapped with `Subject.Synchronize()` — the raw `Subject<T>` was
+  not thread-safe and `OnNext` was called concurrently from the hub and the write loop.
+- `DoScopeTimerCode` guarded with `IsHandleCreated` + `InvalidOperationException` catch — the scope
+  timer could fire after form destruction and crash the process.
+- `EventSinkStream` now throws `ArgumentOutOfRangeException` for `bufferSize ≤ 0` to prevent an
+  infinite loop in `WriteEvents`.
+- `WebClientHandler` per-process event stream: replaced the single-slot `EventStreamState` with a
+  `ConcurrentDictionary<string, EventStreamState>` so multiple concurrently-subscribed processes
+  each get a dedicated live stream.
+- API key now delivered via a short-lived HTTP-only cookie (60 s TTL, Secure flag) rather than the
+  query string; backend prefers cookie before header/query-string fallback.
+
+**Medium (selected):** SMTP `FailTimeout` single-host detection fixed (`hosts.Length <= 1`);
+`RetroSearchProcess` channel bounded (200 items, Wait mode) with query cancellation on delivery
+failure; `RetroManager.RunLoop` drain fixed (pass `CancellationToken.None` so drain completes before
+the `ApplicationStopping` token fires); `RegistrationHandler` log channel shrunk from 1 M to 10 k
+batches with correct drain ordering; snapshot serialisation for `Gadgets`/`Widgets`; `ReDoS` guard
+via `isSafeRegex()` in `FilterCriteria`; duplicate SignalR connect guard in `DiagHubService`;
+`PropertyChanged` marshalled to UI thread in `Form1`.
+
+**WidgetSample shutdown (batch 15):** timer/task cleanup in `OnFormClosed`; `StopDiagnostics`
+off-thread to avoid UI-thread deadlock; `_evtTimer` callback marshalled via `BeginInvoke`; `Gadget`
+made `IDisposable` for deterministic removal; shared `Random` replaced with `ThreadSafeRandom`.
+
+**CodeQL follow-up (`2e45844`):** `EventSinkStream` holds the inner concrete `Subject<SystemEvent>`
+so the wrapper's inner subject is disposed deterministically; two useless variable bindings in
+`Form1` `using` statements removed; one false-positive dismissed with rationale.
+
+---
+
+### Part 3e — Adversarial review batches 19–20 (third multi-vendor pass)
+
+A third adversarial review pass (batch 19, run 2026-06-02) covered the full codebase again,
+generating 5 High and 10 Medium findings. Batches 19–20 apply the remediation plus the resulting
+CodeQL and Sonar follow-up passes. Key changes:
+
+**High:**
+- `AppenderProxy` now rejects async appender targets at construction (previously async appenders
+  would silently misbehave when registered via `AppenderProxy`).
+- `FixFlags.All` applied before `Parallel.ForEach` in `ForwardingAppender` and `FallbackAppender` to
+  materialise lazy `LoggingEvent` fields single-threaded.
+- `_logChannel` no longer nulled until the drain task fully completes, closing a race where a late
+  `LogEvent` after channel-null would NRE.
+- `CancellationToken` threaded through `Register`/`LogEvents`/`Deregister` RPCs with a 5-second
+  shutdown time-box.
+- `_logSubject` wrapped with `Subject.Synchronize()` for thread safety in `RegistrationHandler`.
+
+**Medium (selected):** type-backed registrations now reflect static methods (`DE01-F10`);
+`DiagnosticClassAttribute` inheritance honoured in the property walk; `LoggerNotFoundFilter`
+resolves against the event's own log4net repository (not the root); `AsyncSmtpAppender` gains an
+`Append(LoggingEvent[])` override; `AppenderProxy` quarantine recovery uses a half-open probe
+pattern; `EventSinkRepo.Dispose` completes streams under lock before disposing; `EventSinkRepo.Clear`
+invalidates held `EventSink` references; `EventSink` enqueue and live broadcast made atomic under
+read lock; `GenericObjectCache` keys on `AssemblyQualifiedName`; `Process.GetCurrentProcess()`
+wrapped in `using` on the net48 path.
+
+**CodeQL/Sonar follow-up (batches 19–20, `ef840f6` + `137349b` + `16c34a4`):** `TraceScope`
+orphaned-timer disposal on concurrent `Dispose`; `RegistrationHandler` inner subject disposed in
+`Stop()`; `DiagnosticHostingService.StopHosting` always clears the logging action; `DiagnosticManager`
+query iteration conformed to CodeQL `.Where()`-before-foreach; seven Sonar readability findings
+(`S3267`, `S3358`, `S3442`); 7 fields marked `readonly`; `RetroSearchLifecycleTests` inner subject
+owned with `using`; `RetroModel` race-free cancel-before-search; `DiagHubService` `onreconnecting`
+handler registered.
+
+**Dead code removed:** `DiagnosticService.cs` and `Util/AsyncResultBucket.cs` (both were
+`<Compile Remove>`'d in the csproj) deleted along with the csproj exclusion lines.
+
+---
+
+### Part 3f — v3.2.2: public-API surface lock (PublicApiAnalyzers)
+
+Both published NuGet projects (`DiagnosticExplorer`, `DiagnosticExplorer.Hosting`) now include
+`Microsoft.CodeAnalysis.PublicApiAnalyzers` (v3.3.4, private analyzer asset) with fully-bootstrapped
+`PublicAPI.Shipped.txt` files that declare every public symbol in Roslyn's fully-qualified
+`ToDisplayString` format. Any future commit that adds, removes, or renames a public member will
+produce a **build error** (RS0016/RS0017) until the author either updates `PublicAPI.Shipped.txt`
+(shipped change) or `PublicAPI.Unshipped.txt` (pending-release addition), making the public-API
+contract visible in code review. RS0041 ("oblivious reference types") is held at warning level via
+`WarningsNotAsErrors` — the library targets `netstandard2.0` and pre-dates `#nullable enable`, so
+blanket annotation is out of scope here.
+
+`DiagnosticExplorer.Hosting` targets `net8.0;net6.0;net48`. The Hosting APIs (`IHostedService`,
+`IServiceCollection`, SignalR) are only compiled into the modern TFMs; the analyzer is conditioned to
+`$(TargetFramework) != 'net48'` so RS0017 is not raised for symbols that legitimately don't exist in
+the net48 build.
+
+This addition is build-tooling only — no runtime behaviour changes, no new public API, no removed
+API. It is internal infrastructure for the FixPortal fork; upstream can adopt or ignore it
+independently.
+
 ---
 
 ## Part 4 — Opt-in hub authentication & CORS (H1/H2), and its hardening
@@ -303,8 +404,9 @@ confirmed findings were hardened:
 - **Target frameworks unchanged:** core library `netstandard2.0`; hosting `net8.0;net6.0;net48`;
   service `net8.0`.
 - **Package version:** the headline release is **3.2.0** (git tag + Docker image). The internal
-  NuGet repackaged with the post-tag defect fixes (Part 3b) is **3.2.1**; the EMS consumer picks it
-  up via the existing local-feed nupkg flow. Neither `3.2.0` nor `3.1.38` is reused.
+  NuGet repackaged with the post-tag defect fixes (Part 3b) is **3.2.1**; the further review-pass
+  fixes and the PublicApiAnalyzers tooling (Parts 3d–3f) are **3.2.2**. The EMS consumer picks up
+  each version via the existing local-feed nupkg flow. Neither `3.2.0` nor `3.1.38` is reused.
 - **Deferred, with rationale (not regressions):** Tailwind `important: true` (a visual-specificity
   change that needs a running-app pass, not a blind edit; the deprecated `~` SCSS import and the
   content-glob/darkMode issues *were* fixed); a small set of contested/by-design Low items
@@ -370,6 +472,20 @@ above. So the proposal is **document-first, then PRs shaped to your appetite**:
 ## Appendix — commit inventory (newest first, since `da97212`)
 
 ```
+v3.2.2 — lock public API surface via PublicApiAnalyzers; update upstream change doc (Part 3f)
+fix: resolve batch20 CodeQL and Sonar findings (Part 3e — readonly fields, logic/dispose fixes)
+fix: resolve Sonar warnings and failing frontend tests for PR #39 CI (Part 3e — S3267, test race fixes)
+fix: resolve CodeQL findings on PR #39 batch19 diff (Part 3e — timer disposal, IDisposable subjects, .Where() in foreach)
+fix: adversarial-review batch19 — remediate all High and Medium findings (Part 3e)
+fix: resolve low-severity findings F-L03, F-L05, and F-L20 with unit tests (Part 3d — batch17 tail)
+fix: resolve batch17 low-severity findings (part 3) (Part 3d — batch17)
+Fix reviewer-findings-batch17: adversarial review remediation (part 2) (Part 3d — batch17)
+fix: resolve 3 CodeQL findings from PR #35 review (Part 3d — EventSinkStream inner subject, useless bindings)
+Fix reviewer-findings-batch16: adversarial review remediation (Part 3d — batch16)
+Awaited .Stop correctly (Part 3d — trivial async fix)
+Fix WidgetSample shutdown, threading and disposal findings (batch15) (Part 3d — batch15)
+Address batch15 review findings in backend and web (Part 3d — batch15)
+Fix realtime and retro lifecycle regressions (Part 3d — batch15 regression fixes)
 Re-pin Docker build actions to Node.js-24 releases (Part 3c — CI action currency, no input changes)
 AppenderProxy clarity tweaks from the AI-findings pass (Part 3c — non-behavioural)
 Address CodeQL Code Quality findings (Part 3c — nested-if, empty-catch comment, readonly, AppenderProxy state locking)

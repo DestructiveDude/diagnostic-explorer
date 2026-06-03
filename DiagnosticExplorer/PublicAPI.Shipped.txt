@@ -1,0 +1,639 @@
+#nullable enable
+const DiagnosticExplorer.DiagnosticManager.PublicInstancePropertyFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.GetProperty -> System.Reflection.BindingFlags
+const DiagnosticExplorer.EventSink.MaxMessages = 1000 -> int
+DiagnosticExplorer.Category
+DiagnosticExplorer.Category.Category() -> void
+DiagnosticExplorer.CategoryExtensions
+DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionMode.Categories = 3 -> DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionMode.Concatenate = 1 -> DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionMode.Count = 0 -> DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionMode.List = 2 -> DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionPropertyAttribute
+DiagnosticExplorer.CollectionPropertyAttribute.CollectionPropertyAttribute(DiagnosticExplorer.CollectionMode mode) -> void
+DiagnosticExplorer.CollectionPropertyAttribute.MaxItems.get -> int
+DiagnosticExplorer.CollectionPropertyAttribute.MaxItems.set -> void
+DiagnosticExplorer.CollectionPropertyAttribute.Mode.get -> DiagnosticExplorer.CollectionMode
+DiagnosticExplorer.CollectionPropertyAttribute.Mode.set -> void
+DiagnosticExplorer.DatePropertyAttribute
+DiagnosticExplorer.DatePropertyAttribute.DatePropertyAttribute() -> void
+DiagnosticExplorer.DatePropertyAttribute.ExposeDate.get -> bool
+DiagnosticExplorer.DatePropertyAttribute.ExposeDate.set -> void
+DiagnosticExplorer.DatePropertyAttribute.ExposeElapsed.get -> bool
+DiagnosticExplorer.DatePropertyAttribute.ExposeElapsed.set -> void
+DiagnosticExplorer.DatePropertyAttribute.ExposeTimeUntil.get -> bool
+DiagnosticExplorer.DatePropertyAttribute.ExposeTimeUntil.set -> void
+DiagnosticExplorer.DatePropertyAttribute.IsUTC.get -> bool
+DiagnosticExplorer.DatePropertyAttribute.IsUTC.set -> void
+DiagnosticExplorer.DiagnosticClassAttribute
+DiagnosticExplorer.DiagnosticClassAttribute.AllPropertiesSettable.get -> bool
+DiagnosticExplorer.DiagnosticClassAttribute.AllPropertiesSettable.set -> void
+DiagnosticExplorer.DiagnosticClassAttribute.AttributedPropertiesOnly.get -> bool
+DiagnosticExplorer.DiagnosticClassAttribute.AttributedPropertiesOnly.set -> void
+DiagnosticExplorer.DiagnosticClassAttribute.DeclaringTypeOnly.get -> bool
+DiagnosticExplorer.DiagnosticClassAttribute.DeclaringTypeOnly.set -> void
+DiagnosticExplorer.DiagnosticClassAttribute.DiagnosticClassAttribute() -> void
+DiagnosticExplorer.DiagnosticManager
+DiagnosticExplorer.DiagnosticMethodAttribute
+DiagnosticExplorer.DiagnosticMethodAttribute.DiagnosticMethodAttribute() -> void
+DiagnosticExplorer.DiagnosticMsg
+DiagnosticExplorer.DiagnosticMsg.Date.get -> System.DateTime
+DiagnosticExplorer.DiagnosticMsg.Date.set -> void
+DiagnosticExplorer.DiagnosticMsg.DiagnosticMsg() -> void
+DiagnosticExplorer.DiagnosticMsg.Level.get -> int
+DiagnosticExplorer.DiagnosticMsg.Level.set -> void
+DiagnosticExplorer.DiagnosticResponse
+DiagnosticExplorer.DiagnosticResponse.DiagnosticResponse() -> void
+DiagnosticExplorer.EventResponse
+DiagnosticExplorer.EventResponse.EventResponse() -> void
+DiagnosticExplorer.EventSeverity
+DiagnosticExplorer.EventSeverity.High = 3 -> DiagnosticExplorer.EventSeverity
+DiagnosticExplorer.EventSeverity.Low = 1 -> DiagnosticExplorer.EventSeverity
+DiagnosticExplorer.EventSeverity.Medium = 2 -> DiagnosticExplorer.EventSeverity
+DiagnosticExplorer.EventSink
+DiagnosticExplorer.EventSink.Clear() -> void
+DiagnosticExplorer.EventSinkRepo
+DiagnosticExplorer.EventSinkRepo.Clear() -> void
+DiagnosticExplorer.EventSinkRepo.Dispose() -> void
+DiagnosticExplorer.EventSinkRepo.EventSinkRepo() -> void
+DiagnosticExplorer.EventSinkStream
+DiagnosticExplorer.EventSinkStream.Dispose() -> void
+DiagnosticExplorer.EventSinkStream.Disposed -> System.EventHandler
+DiagnosticExplorer.ExtendedPropertyAttribute
+DiagnosticExplorer.ExtendedPropertyAttribute.ExtendedPropertyAttribute() -> void
+DiagnosticExplorer.IDiagnosticHubClient
+DiagnosticExplorer.IDiagnosticHubServer
+DiagnosticExplorer.ITraceItem
+DiagnosticExplorer.Log4Net.AppenderProxy
+DiagnosticExplorer.Log4Net.AppenderProxyBase
+DiagnosticExplorer.Log4Net.AppenderProxyBase.AppenderProxyBase(System.TimeSpan timeout) -> void
+DiagnosticExplorer.Log4Net.AppenderProxyBase.IsInError.get -> bool
+DiagnosticExplorer.Log4Net.AppenderProxyBase.LastError.get -> System.DateTime?
+DiagnosticExplorer.Log4Net.AppenderProxyBase.LastError.set -> void
+DiagnosticExplorer.Log4Net.AppenderProxyBase.LastMessageSent.get -> System.DateTime?
+DiagnosticExplorer.Log4Net.AppenderProxyBase.LastMessageSent.set -> void
+DiagnosticExplorer.Log4Net.AppenderProxyBase.Reactivate() -> void
+DiagnosticExplorer.Log4Net.AppenderProxyBase._timeout -> System.TimeSpan
+DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler
+DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.AppenderProxyErrorHandler() -> void
+DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.Disable() -> void
+DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.EnableForCurrentThread() -> void
+DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.HasError.get -> bool
+DiagnosticExplorer.Log4Net.AppendResult
+DiagnosticExplorer.Log4Net.AppendResult.AppendResult() -> void
+DiagnosticExplorer.Log4Net.AppendResult.AppendResult(bool success) -> void
+DiagnosticExplorer.Log4Net.AppendResult.Success.get -> bool
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.AsyncFallbackAppender() -> void
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.CurrentQueueSize.get -> int?
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Dispose() -> void
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Fix.get -> log4net.Core.FixFlags
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Fix.set -> void
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.MaxQueueSize.get -> int
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.MaxQueueSize.set -> void
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Overflow.get -> DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Overflow.set -> void
+DiagnosticExplorer.Log4Net.AsyncFallbackAppender.~AsyncFallbackAppender() -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.AsyncForwardingAppender() -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.CurrentQueueSize.get -> int?
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Dispose() -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Fix.get -> log4net.Core.FixFlags
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Fix.set -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.MaxQueueSize.get -> int
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.MaxQueueSize.set -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Overflow.get -> DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Overflow.set -> void
+DiagnosticExplorer.Log4Net.AsyncForwardingAppender.~AsyncForwardingAppender() -> void
+DiagnosticExplorer.Log4Net.AsyncProcessor
+DiagnosticExplorer.Log4Net.AsyncProcessor.Close() -> void
+DiagnosticExplorer.Log4Net.AsyncProcessor.Dispose() -> void
+DiagnosticExplorer.Log4Net.AsyncProcessor.Fix.get -> log4net.Core.FixFlags
+DiagnosticExplorer.Log4Net.AsyncProcessor.Fix.set -> void
+DiagnosticExplorer.Log4Net.AsyncProcessor.QueueSize.get -> int
+DiagnosticExplorer.Log4Net.AsyncProcessor.Start() -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.AsyncSmtpAppender() -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.CurrentQueueSize.get -> int?
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Dispose() -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Fix.get -> log4net.Core.FixFlags
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Fix.set -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.MaxQueueSize.get -> int
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.MaxQueueSize.set -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Overflow.get -> DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Overflow.set -> void
+DiagnosticExplorer.Log4Net.AsyncSmtpAppender.~AsyncSmtpAppender() -> void
+DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.BufferOverflowMode.Block = 1 -> DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.BufferOverflowMode.Discard = 0 -> DiagnosticExplorer.Log4Net.BufferOverflowMode
+DiagnosticExplorer.Log4Net.DiagnosticAppender
+DiagnosticExplorer.Log4Net.DiagnosticAppender.DiagnosticAppender() -> void
+DiagnosticExplorer.Log4Net.DiagnosticAppender.ExcludeAlreadyLogged.get -> bool
+DiagnosticExplorer.Log4Net.DiagnosticAppender.ExcludeAlreadyLogged.set -> void
+DiagnosticExplorer.Log4Net.DiagnosticRetroAppender
+DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.DiagnosticRetroAppender() -> void
+DiagnosticExplorer.Log4Net.FallbackAppender
+DiagnosticExplorer.Log4Net.FallbackAppender.FallbackAppender() -> void
+DiagnosticExplorer.Log4Net.ForwardingAppender
+DiagnosticExplorer.Log4Net.ForwardingAppender.ForwardingAppender() -> void
+DiagnosticExplorer.Log4Net.ForwardingAppenderBase
+DiagnosticExplorer.Log4Net.ForwardingAppenderBase.FailTimeout.get -> System.TimeSpan
+DiagnosticExplorer.Log4Net.ForwardingAppenderBase.FailTimeout.set -> void
+DiagnosticExplorer.Log4Net.ForwardingAppenderBase.ForwardingAppenderBase() -> void
+DiagnosticExplorer.Log4Net.LoggerNotFoundFilter
+DiagnosticExplorer.Log4Net.LoggerNotFoundFilter.LoggerNotFoundFilter() -> void
+DiagnosticExplorer.Log4Net.MultiErrorHandler
+DiagnosticExplorer.Log4Net.MultiErrorHandler.MultiErrorHandler() -> void
+DiagnosticExplorer.Log4Net.SmtpAppender
+DiagnosticExplorer.Log4Net.SmtpAppender.Authentication.get -> log4net.Appender.SmtpAppender.SmtpAuthentication
+DiagnosticExplorer.Log4Net.SmtpAppender.Authentication.set -> void
+DiagnosticExplorer.Log4Net.SmtpAppender.EnableSsl.get -> bool
+DiagnosticExplorer.Log4Net.SmtpAppender.EnableSsl.set -> void
+DiagnosticExplorer.Log4Net.SmtpAppender.FailTimeout.get -> System.TimeSpan
+DiagnosticExplorer.Log4Net.SmtpAppender.FailTimeout.set -> void
+DiagnosticExplorer.Log4Net.SmtpAppender.Port.get -> int
+DiagnosticExplorer.Log4Net.SmtpAppender.Port.set -> void
+DiagnosticExplorer.Log4Net.SmtpAppender.Priority.get -> System.Net.Mail.MailPriority
+DiagnosticExplorer.Log4Net.SmtpAppender.Priority.set -> void
+DiagnosticExplorer.Log4Net.SmtpAppender.SmtpAppender() -> void
+DiagnosticExplorer.Log4Net.SmtpAppenderProxy
+DiagnosticExplorer.Log4Net.SystemDateTime
+DiagnosticExplorer.Operation
+DiagnosticExplorer.Operation.Operation() -> void
+DiagnosticExplorer.OperationParameter
+DiagnosticExplorer.OperationParameter.OperationParameter() -> void
+DiagnosticExplorer.OperationResponse
+DiagnosticExplorer.OperationResponse.IsSuccess.get -> bool
+DiagnosticExplorer.OperationResponse.IsSuccess.set -> void
+DiagnosticExplorer.OperationResponse.OperationResponse() -> void
+DiagnosticExplorer.OperationSet
+DiagnosticExplorer.OperationSet.OperationSet() -> void
+DiagnosticExplorer.Property
+DiagnosticExplorer.Property.CanSet.get -> bool
+DiagnosticExplorer.Property.CanSet.set -> void
+DiagnosticExplorer.Property.Property() -> void
+DiagnosticExplorer.PropertyAttribute
+DiagnosticExplorer.PropertyAttribute.AllowSet.get -> bool
+DiagnosticExplorer.PropertyAttribute.AllowSet.set -> void
+DiagnosticExplorer.PropertyAttribute.Ignore.get -> bool
+DiagnosticExplorer.PropertyAttribute.Ignore.set -> void
+DiagnosticExplorer.PropertyAttribute.PropertyAttribute() -> void
+DiagnosticExplorer.PropertyBag
+DiagnosticExplorer.PropertyBag.PropertyBag() -> void
+DiagnosticExplorer.PropertyBagNotFoundException
+DiagnosticExplorer.PropertyBagNotFoundException.PropertyBagNotFoundException() -> void
+DiagnosticExplorer.PropertyExtensions
+DiagnosticExplorer.Props.KpiAttribute
+DiagnosticExplorer.Props.KpiAttribute.Exclude.get -> bool
+DiagnosticExplorer.Props.KpiAttribute.Exclude.set -> void
+DiagnosticExplorer.Props.KpiAttribute.KpiAttribute() -> void
+DiagnosticExplorer.Props.KpiAttribute.KpiAttribute(DiagnosticExplorer.Props.KpiTargetProperty target) -> void
+DiagnosticExplorer.Props.KpiAttribute.SampleMaxInterval.get -> System.TimeSpan?
+DiagnosticExplorer.Props.KpiAttribute.SampleMaxInterval.set -> void
+DiagnosticExplorer.Props.KpiAttribute.SampleMinInterval.get -> System.TimeSpan?
+DiagnosticExplorer.Props.KpiAttribute.SampleMinInterval.set -> void
+DiagnosticExplorer.Props.KpiAttribute.Target.get -> DiagnosticExplorer.Props.KpiTargetProperty?
+DiagnosticExplorer.Props.KpiAttribute.Target.set -> void
+DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.Props.KpiTargetProperty.Date = 0 -> DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.Props.KpiTargetProperty.DateElapsed = 1 -> DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.Props.KpiTargetProperty.DateTimeUntil = 2 -> DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.Props.KpiTargetProperty.Rate = 3 -> DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.Props.KpiTargetProperty.RateTotal = 4 -> DiagnosticExplorer.Props.KpiTargetProperty
+DiagnosticExplorer.RateCounter
+DiagnosticExplorer.RateCounter.Rate.get -> double
+DiagnosticExplorer.RateCounter.RateCounter(int secondsAverage) -> void
+DiagnosticExplorer.RateCounter.Register(int count) -> void
+DiagnosticExplorer.RateCounter.SampleCollected -> System.EventHandler<DiagnosticExplorer.RateSampleEventArgs>
+DiagnosticExplorer.RateCounter.Total.get -> ulong
+DiagnosticExplorer.RatePropertyAttribute
+DiagnosticExplorer.RatePropertyAttribute.ExposeRate.get -> bool
+DiagnosticExplorer.RatePropertyAttribute.ExposeRate.set -> void
+DiagnosticExplorer.RatePropertyAttribute.ExposeTotal.get -> bool
+DiagnosticExplorer.RatePropertyAttribute.ExposeTotal.set -> void
+DiagnosticExplorer.RatePropertyAttribute.RatePropertyAttribute() -> void
+DiagnosticExplorer.RateSampleEventArgs
+DiagnosticExplorer.RateSampleEventArgs.Rate.get -> double
+DiagnosticExplorer.RegisteredObject
+DiagnosticExplorer.RegisteredObjectExtensions
+DiagnosticExplorer.Registration
+DiagnosticExplorer.Registration.ProcessId.get -> int
+DiagnosticExplorer.Registration.ProcessId.set -> void
+DiagnosticExplorer.Registration.Registration() -> void
+DiagnosticExplorer.RegistrationResponse
+DiagnosticExplorer.RegistrationResponse.RegistrationResponse() -> void
+DiagnosticExplorer.RegistrationResponse.RegistrationResponse(System.TimeSpan renewTime) -> void
+DiagnosticExplorer.RegistrationResponse.RenewTime.get -> System.TimeSpan
+DiagnosticExplorer.RegistrationResponse.RenewTimeSeconds.get -> int
+DiagnosticExplorer.RegistrationResponse.RenewTimeSeconds.set -> void
+DiagnosticExplorer.RpcResult
+DiagnosticExplorer.RpcResult.IsSuccess.get -> bool
+DiagnosticExplorer.RpcResult.IsSuccess.set -> void
+DiagnosticExplorer.RpcResult.RpcResult() -> void
+DiagnosticExplorer.RpcResult<T>
+DiagnosticExplorer.RpcResult<T>.Response.get -> T
+DiagnosticExplorer.RpcResult<T>.Response.set -> void
+DiagnosticExplorer.RpcResult<T>.RpcResult() -> void
+DiagnosticExplorer.SystemEvent
+DiagnosticExplorer.SystemEvent.Date.get -> System.DateTime
+DiagnosticExplorer.SystemEvent.Date.set -> void
+DiagnosticExplorer.SystemEvent.Id.get -> long
+DiagnosticExplorer.SystemEvent.Id.set -> void
+DiagnosticExplorer.SystemEvent.Level.get -> int
+DiagnosticExplorer.SystemEvent.Level.set -> void
+DiagnosticExplorer.SystemEvent.SystemEvent() -> void
+DiagnosticExplorer.SystemEventArgs
+DiagnosticExplorer.SystemEventArgs.Severity.get -> DiagnosticExplorer.EventSeverity
+DiagnosticExplorer.SystemEventArgs.Severity.set -> void
+DiagnosticExplorer.SystemEventHandler
+DiagnosticExplorer.TraceScope
+DiagnosticExplorer.TraceScope.Age.get -> System.TimeSpan
+DiagnosticExplorer.TraceScope.Dispose() -> void
+DiagnosticExplorer.TraceScope.IsHidden.get -> bool
+DiagnosticExplorer.TraceScope.IsHidden.set -> void
+DiagnosticExplorer.TraceScope.StartAutoTraceTimer(System.TimeSpan time) -> void
+DiagnosticExplorer.TraceScope.SuppressDetailThreshold.get -> System.TimeSpan?
+DiagnosticExplorer.TraceScope.SuppressDetailThreshold.set -> void
+DiagnosticExplorer.Util.AttributeUtil
+DiagnosticExplorer.Util.JsonEnumConverter<T>.JsonEnumConverter() -> void
+DiagnosticExplorer.Util.JsonTimeSpanConverter
+DiagnosticExplorer.Util.JsonTimeSpanConverter.JsonTimeSpanConverter() -> void
+DiagnosticExplorer.Util.ProtobufUtil
+DiagnosticExplorer.Util.WeakReferenceHash<T>.WeakReferenceHash() -> void
+override DiagnosticExplorer.Log4Net.AsyncFallbackAppender.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.AsyncFallbackAppender.OnClose() -> void
+override DiagnosticExplorer.Log4Net.AsyncForwardingAppender.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.AsyncForwardingAppender.OnClose() -> void
+override DiagnosticExplorer.Log4Net.AsyncSmtpAppender.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.AsyncSmtpAppender.OnClose() -> void
+override DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.OnClose() -> void
+override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.OnClose() -> void
+override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.RemoveAllAppenders() -> void
+override DiagnosticExplorer.Log4Net.SmtpAppender.ActivateOptions() -> void
+override DiagnosticExplorer.Log4Net.SmtpAppender.OnClose() -> void
+override DiagnosticExplorer.Log4Net.SmtpAppender.RequiresLayout.get -> bool
+static DiagnosticExplorer.DiagnosticManager.Enabled.get -> bool
+static DiagnosticExplorer.DiagnosticManager.Enabled.set -> void
+virtual DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Dispose(bool disposing) -> void
+virtual DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Dispose(bool disposing) -> void
+virtual DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Dispose(bool disposing) -> void
+~DiagnosticExplorer.Category.Category(string name) -> void
+~DiagnosticExplorer.Category.Name.get -> string
+~DiagnosticExplorer.Category.Name.set -> void
+~DiagnosticExplorer.Category.OperationSet.get -> string
+~DiagnosticExplorer.Category.OperationSet.set -> void
+~DiagnosticExplorer.Category.Properties.get -> System.Collections.Generic.List<DiagnosticExplorer.Property>
+~DiagnosticExplorer.Category.Properties.set -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.CategoryProperty.get -> string
+~DiagnosticExplorer.CollectionPropertyAttribute.CategoryProperty.set -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.CollectionPropertyAttribute(DiagnosticExplorer.CollectionMode mode, string displayName) -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.CollectionPropertyAttribute(DiagnosticExplorer.CollectionMode mode, string displayName, string category) -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.DescriptionProperty.get -> string
+~DiagnosticExplorer.CollectionPropertyAttribute.DescriptionProperty.set -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.NameProperty.get -> string
+~DiagnosticExplorer.CollectionPropertyAttribute.NameProperty.set -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.Separator.get -> string
+~DiagnosticExplorer.CollectionPropertyAttribute.Separator.set -> void
+~DiagnosticExplorer.CollectionPropertyAttribute.ValueProperty.get -> string
+~DiagnosticExplorer.CollectionPropertyAttribute.ValueProperty.set -> void
+~DiagnosticExplorer.DatePropertyAttribute.DatePropertyAttribute(string name) -> void
+~DiagnosticExplorer.DatePropertyAttribute.DatePropertyAttribute(string name, string category) -> void
+~DiagnosticExplorer.DiagnosticMsg.Category.get -> string
+~DiagnosticExplorer.DiagnosticMsg.Category.set -> void
+~DiagnosticExplorer.DiagnosticMsg.Environment.get -> string
+~DiagnosticExplorer.DiagnosticMsg.Environment.set -> void
+~DiagnosticExplorer.DiagnosticMsg.Machine.get -> string
+~DiagnosticExplorer.DiagnosticMsg.Machine.set -> void
+~DiagnosticExplorer.DiagnosticMsg.Message.get -> string
+~DiagnosticExplorer.DiagnosticMsg.Message.set -> void
+~DiagnosticExplorer.DiagnosticMsg.Process.get -> string
+~DiagnosticExplorer.DiagnosticMsg.Process.set -> void
+~DiagnosticExplorer.DiagnosticMsg.User.get -> string
+~DiagnosticExplorer.DiagnosticMsg.User.set -> void
+~DiagnosticExplorer.DiagnosticResponse.Context.get -> string
+~DiagnosticExplorer.DiagnosticResponse.Context.set -> void
+~DiagnosticExplorer.DiagnosticResponse.Events.get -> System.Collections.Generic.List<DiagnosticExplorer.EventResponse>
+~DiagnosticExplorer.DiagnosticResponse.Events.set -> void
+~DiagnosticExplorer.DiagnosticResponse.ExceptionDetail.get -> string
+~DiagnosticExplorer.DiagnosticResponse.ExceptionDetail.set -> void
+~DiagnosticExplorer.DiagnosticResponse.ExceptionMessage.get -> string
+~DiagnosticExplorer.DiagnosticResponse.ExceptionMessage.set -> void
+~DiagnosticExplorer.DiagnosticResponse.OperationSets.get -> System.Collections.Generic.List<DiagnosticExplorer.OperationSet>
+~DiagnosticExplorer.DiagnosticResponse.OperationSets.set -> void
+~DiagnosticExplorer.DiagnosticResponse.PropertyBags.get -> System.Collections.Generic.List<DiagnosticExplorer.PropertyBag>
+~DiagnosticExplorer.DiagnosticResponse.PropertyBags.set -> void
+~DiagnosticExplorer.EventResponse.Category.get -> string
+~DiagnosticExplorer.EventResponse.Category.set -> void
+~DiagnosticExplorer.EventResponse.EventResponse(string name, string category) -> void
+~DiagnosticExplorer.EventResponse.Events.get -> System.Collections.Generic.List<DiagnosticExplorer.SystemEvent>
+~DiagnosticExplorer.EventResponse.Events.set -> void
+~DiagnosticExplorer.EventResponse.Name.get -> string
+~DiagnosticExplorer.EventResponse.Name.set -> void
+~DiagnosticExplorer.EventSink.Category.get -> string
+~DiagnosticExplorer.EventSink.Error(string message, string detail = null) -> void
+~DiagnosticExplorer.EventSink.Events.get -> System.Collections.Concurrent.ConcurrentQueue<DiagnosticExplorer.SystemEvent>
+~DiagnosticExplorer.EventSink.Fatal(string message, string detail = null) -> void
+~DiagnosticExplorer.EventSink.Info(string message, string detail = null) -> void
+~DiagnosticExplorer.EventSink.LogEvent(DiagnosticExplorer.SystemEvent evt) -> void
+~DiagnosticExplorer.EventSink.LogEvent(int level, string message, string detail) -> void
+~DiagnosticExplorer.EventSink.Name.get -> string
+~DiagnosticExplorer.EventSink.Notice(string message, string detail = null) -> void
+~DiagnosticExplorer.EventSink.Warn(string message, string detail = null) -> void
+~DiagnosticExplorer.EventSinkRepo.CreateSinkStream(System.TimeSpan buffer, int bufferSize) -> DiagnosticExplorer.EventSinkStream
+~DiagnosticExplorer.EventSinkRepo.GetEvents() -> DiagnosticExplorer.SystemEvent[]
+~DiagnosticExplorer.EventSinkRepo.GetSink(string name, string category) -> DiagnosticExplorer.EventSink
+~DiagnosticExplorer.EventSinkRepo.LogEvent(DiagnosticExplorer.SystemEvent evt) -> void
+~DiagnosticExplorer.EventSinkRepo.LogEvents(DiagnosticExplorer.SystemEvent[] evts) -> void
+~DiagnosticExplorer.EventSinkStream.EventChannel.get -> System.Threading.Channels.Channel<System.Collections.Generic.IList<DiagnosticExplorer.SystemEvent>>
+~DiagnosticExplorer.EventSinkStream.EventSinkStream(DiagnosticExplorer.SystemEvent[] initialEvents, System.TimeSpan buffer, int bufferSize) -> void
+~DiagnosticExplorer.EventSinkStream.InitialEvents.get -> DiagnosticExplorer.SystemEvent[]
+~DiagnosticExplorer.EventSinkStream.StreamEvent(DiagnosticExplorer.SystemEvent evt) -> void
+~DiagnosticExplorer.ExtendedPropertyAttribute.ExtendedPropertyAttribute(string name) -> void
+~DiagnosticExplorer.IDiagnosticHubClient.ExecuteOperation(string requestId, string path, string operation, string[] arguments) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubClient.GetDiagnostics(string requestId) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubClient.SetProperty(string requestId, string path, string value) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubClient.SubscribeEvents() -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubClient.UnsubscribeEvents() -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubServer.Deregister(DiagnosticExplorer.Registration registration) -> System.Threading.Tasks.Task<DiagnosticExplorer.RpcResult>
+~DiagnosticExplorer.IDiagnosticHubServer.ExecuteOperationReturn(DiagnosticExplorer.RpcResult<DiagnosticExplorer.OperationResponse> response) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubServer.GetDiagnosticsReturn(DiagnosticExplorer.RpcResult<byte[]> response) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubServer.LogEvents(byte[] eventData) -> System.Threading.Tasks.Task<DiagnosticExplorer.RpcResult>
+~DiagnosticExplorer.IDiagnosticHubServer.Register(DiagnosticExplorer.Registration registration) -> System.Threading.Tasks.Task<DiagnosticExplorer.RpcResult<DiagnosticExplorer.RegistrationResponse>>
+~DiagnosticExplorer.IDiagnosticHubServer.SetEvents(DiagnosticExplorer.SystemEvent[] events) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubServer.SetPropertyReturn(DiagnosticExplorer.RpcResult<DiagnosticExplorer.OperationResponse> response) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.IDiagnosticHubServer.StreamEvents(DiagnosticExplorer.SystemEvent[] evt) -> System.Threading.Tasks.Task
+~DiagnosticExplorer.ITraceItem.Message.get -> string
+~DiagnosticExplorer.ITraceItem.Message.set -> void
+~DiagnosticExplorer.Log4Net.AppenderProxy.Appender.get -> log4net.Appender.AppenderSkeleton
+~DiagnosticExplorer.Log4Net.AppenderProxy.AppenderProxy(log4net.Appender.IAppender appenderToWrap, System.TimeSpan timeout) -> void
+~DiagnosticExplorer.Log4Net.AppenderProxy.Name.get -> string
+~DiagnosticExplorer.Log4Net.AppenderProxy.RawAppender.get -> log4net.Appender.IAppender
+~DiagnosticExplorer.Log4Net.AppenderProxy.TryAppend(log4net.Core.LoggingEvent loggingEvent) -> bool
+~DiagnosticExplorer.Log4Net.AppenderProxy.TryAppend(log4net.Core.LoggingEvent[] loggingEvents) -> bool
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.DoAppend(System.Func<DiagnosticExplorer.Log4Net.AppendResult> appendAction) -> bool
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.Errors.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.LastErrorMessage.get -> string
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.LastErrorMessage.set -> void
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.MessagesSent.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.AppenderProxyBase.StatusMessage.get -> string
+~DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.Error(string message) -> void
+~DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.Error(string message, System.Exception exception) -> void
+~DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.Error(string message, System.Exception exception, log4net.Core.ErrorCode errorCode) -> void
+~DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler.Message.get -> string
+~DiagnosticExplorer.Log4Net.AppendResult.AppendResult(bool success, string message) -> void
+~DiagnosticExplorer.Log4Net.AppendResult.Message.get -> string
+~DiagnosticExplorer.Log4Net.AsyncProcessor.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~DiagnosticExplorer.Log4Net.AsyncProcessor.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~DiagnosticExplorer.Log4Net.AsyncProcessor.AsyncProcessor(DiagnosticExplorer.Log4Net.BufferOverflowMode overflow, int bufferSize, System.Action<log4net.Core.LoggingEvent> forwardLoggingEvent) -> void
+~DiagnosticExplorer.Log4Net.AsyncProcessor.ForwardInternalError(string message, System.Exception exception) -> void
+~DiagnosticExplorer.Log4Net.DiagnosticAppender.SinkCategory.get -> string
+~DiagnosticExplorer.Log4Net.DiagnosticAppender.SinkCategory.set -> void
+~DiagnosticExplorer.Log4Net.DiagnosticAppender.SinkName.get -> string
+~DiagnosticExplorer.Log4Net.DiagnosticAppender.SinkName.set -> void
+~DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.Environment.get -> string
+~DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.Environment.set -> void
+~DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.EventsIn.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.EventsIn.set -> void
+~DiagnosticExplorer.Log4Net.FallbackAppender.PerformAppend(log4net.Core.LoggingEvent loggingEvent) -> void
+~DiagnosticExplorer.Log4Net.FallbackAppender.PerformAppend(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppender.PerformAppend(DiagnosticExplorer.Log4Net.AppenderProxy appender, log4net.Core.LoggingEvent loggingEvent) -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppender.PerformAppend(log4net.Core.LoggingEvent loggingEvent) -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppender.PerformAppend(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsErrored.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsErrored.set -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsIn.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsIn.set -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsOut.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.EventsOut.set -> void
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.Proxies.get -> System.Collections.Generic.List<DiagnosticExplorer.Log4Net.AppenderProxy>
+~DiagnosticExplorer.Log4Net.ForwardingAppenderBase.Type.get -> string
+~DiagnosticExplorer.Log4Net.MultiErrorHandler.AddHandler(log4net.Core.IErrorHandler handler) -> void
+~DiagnosticExplorer.Log4Net.MultiErrorHandler.Error(string message) -> void
+~DiagnosticExplorer.Log4Net.MultiErrorHandler.Error(string message, System.Exception exception) -> void
+~DiagnosticExplorer.Log4Net.MultiErrorHandler.Error(string message, System.Exception exception, log4net.Core.ErrorCode errorCode) -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsErrored.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsErrored.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsIn.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsIn.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsOut.get -> DiagnosticExplorer.RateCounter
+~DiagnosticExplorer.Log4Net.SmtpAppender.EventsOut.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.From.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppender.From.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.Password.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppender.Password.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.PerformSend(log4net.Core.LoggingEvent loggingEvent) -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.Proxies.get -> System.Collections.Generic.List<DiagnosticExplorer.Log4Net.SmtpAppenderProxy>
+~DiagnosticExplorer.Log4Net.SmtpAppender.SendToProxies(string body, string subject) -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.SmtpHost.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppender.SmtpHost.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.Subject.get -> log4net.Layout.ILayout
+~DiagnosticExplorer.Log4Net.SmtpAppender.Subject.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.To.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppender.To.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppender.Username.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppender.Username.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppenderProxy.SmtpAppenderProxy(DiagnosticExplorer.Log4Net.SmtpAppender appender, string smtpHost, System.TimeSpan timeout) -> void
+~DiagnosticExplorer.Log4Net.SmtpAppenderProxy.SmtpHost.get -> string
+~DiagnosticExplorer.Log4Net.SmtpAppenderProxy.SmtpHost.set -> void
+~DiagnosticExplorer.Log4Net.SmtpAppenderProxy.TrySend(System.Net.Mail.MailMessage message) -> bool
+~DiagnosticExplorer.Operation.Description.get -> string
+~DiagnosticExplorer.Operation.Description.set -> void
+~DiagnosticExplorer.Operation.Operation(System.Reflection.MethodInfo methodInfo) -> void
+~DiagnosticExplorer.Operation.Parameters.get -> System.Collections.Generic.List<DiagnosticExplorer.OperationParameter>
+~DiagnosticExplorer.Operation.Parameters.set -> void
+~DiagnosticExplorer.Operation.ReturnType.get -> string
+~DiagnosticExplorer.Operation.ReturnType.set -> void
+~DiagnosticExplorer.Operation.Signature.get -> string
+~DiagnosticExplorer.Operation.Signature.set -> void
+~DiagnosticExplorer.OperationParameter.Name.get -> string
+~DiagnosticExplorer.OperationParameter.Name.set -> void
+~DiagnosticExplorer.OperationParameter.OperationParameter(string name, string type) -> void
+~DiagnosticExplorer.OperationParameter.Type.get -> string
+~DiagnosticExplorer.OperationParameter.Type.set -> void
+~DiagnosticExplorer.OperationResponse.ErrorDetail.get -> string
+~DiagnosticExplorer.OperationResponse.ErrorDetail.set -> void
+~DiagnosticExplorer.OperationResponse.ErrorMessage.get -> string
+~DiagnosticExplorer.OperationResponse.ErrorMessage.set -> void
+~DiagnosticExplorer.OperationResponse.Result.get -> string
+~DiagnosticExplorer.OperationResponse.Result.set -> void
+~DiagnosticExplorer.OperationSet.Id.get -> string
+~DiagnosticExplorer.OperationSet.Id.set -> void
+~DiagnosticExplorer.OperationSet.Operations.get -> System.Collections.Generic.List<DiagnosticExplorer.Operation>
+~DiagnosticExplorer.OperationSet.Operations.set -> void
+~DiagnosticExplorer.Property.Description.get -> string
+~DiagnosticExplorer.Property.Description.set -> void
+~DiagnosticExplorer.Property.Name.get -> string
+~DiagnosticExplorer.Property.Name.set -> void
+~DiagnosticExplorer.Property.OperationSet.get -> string
+~DiagnosticExplorer.Property.OperationSet.set -> void
+~DiagnosticExplorer.Property.Property(string name) -> void
+~DiagnosticExplorer.Property.Property(string name, string value) -> void
+~DiagnosticExplorer.Property.Property(string name, string value, string description) -> void
+~DiagnosticExplorer.Property.Value.get -> string
+~DiagnosticExplorer.Property.Value.set -> void
+~DiagnosticExplorer.PropertyAttribute.Category.get -> string
+~DiagnosticExplorer.PropertyAttribute.Category.set -> void
+~DiagnosticExplorer.PropertyAttribute.Description.get -> string
+~DiagnosticExplorer.PropertyAttribute.Description.set -> void
+~DiagnosticExplorer.PropertyAttribute.FormatString.get -> string
+~DiagnosticExplorer.PropertyAttribute.FormatString.set -> void
+~DiagnosticExplorer.PropertyAttribute.Name.get -> string
+~DiagnosticExplorer.PropertyAttribute.Name.set -> void
+~DiagnosticExplorer.PropertyAttribute.PropertyAttribute(string name) -> void
+~DiagnosticExplorer.PropertyAttribute.PropertyAttribute(string name, string category) -> void
+~DiagnosticExplorer.PropertyAttribute.PropertyAttribute(string name, string category, string description) -> void
+~DiagnosticExplorer.PropertyBag.AddProperty(DiagnosticExplorer.Property property, string category) -> void
+~DiagnosticExplorer.PropertyBag.Categories.get -> System.Collections.Generic.List<DiagnosticExplorer.Category>
+~DiagnosticExplorer.PropertyBag.Categories.set -> void
+~DiagnosticExplorer.PropertyBag.Category.get -> string
+~DiagnosticExplorer.PropertyBag.Category.set -> void
+~DiagnosticExplorer.PropertyBag.FindOrCreateCategory(string category) -> DiagnosticExplorer.Category
+~DiagnosticExplorer.PropertyBag.GetProperty(string name, string category = null) -> DiagnosticExplorer.Property
+~DiagnosticExplorer.PropertyBag.Name.get -> string
+~DiagnosticExplorer.PropertyBag.Name.set -> void
+~DiagnosticExplorer.PropertyBag.OperationSet.get -> string
+~DiagnosticExplorer.PropertyBag.OperationSet.set -> void
+~DiagnosticExplorer.PropertyBag.PropertyBag(string name) -> void
+~DiagnosticExplorer.PropertyBag.PropertyBag(string name, string category) -> void
+~DiagnosticExplorer.PropertyBag.SourceObject.get -> object
+~DiagnosticExplorer.PropertyBag.SourceObject.set -> void
+~DiagnosticExplorer.PropertyBagNotFoundException.PropertyBagNotFoundException(string bagName) -> void
+~DiagnosticExplorer.PropertyBagNotFoundException.PropertyBagNotFoundException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) -> void
+~DiagnosticExplorer.Props.KpiAttribute.KpiAttribute(DiagnosticExplorer.Props.KpiTargetProperty target, string minSample, string maxSample) -> void
+~DiagnosticExplorer.Props.KpiAttribute.KpiAttribute(string minSample, string maxSample) -> void
+~DiagnosticExplorer.RateCounter.GetRates(int seconds) -> int[]
+~DiagnosticExplorer.RatePropertyAttribute.RatePropertyAttribute(string name) -> void
+~DiagnosticExplorer.RatePropertyAttribute.RatePropertyAttribute(string name, string category) -> void
+~DiagnosticExplorer.RateSampleEventArgs.RateSampleEventArgs(double rate, int[] allSamples) -> void
+~DiagnosticExplorer.RateSampleEventArgs.Samples.get -> int[]
+~DiagnosticExplorer.RegisteredObject.BagCategory.get -> string
+~DiagnosticExplorer.RegisteredObject.BagCategory.set -> void
+~DiagnosticExplorer.RegisteredObject.BagName.get -> string
+~DiagnosticExplorer.RegisteredObject.BagName.set -> void
+~DiagnosticExplorer.RegisteredObject.Object.get -> object
+~DiagnosticExplorer.RegisteredObject.RegisteredObject(object obj, string bagCategory, string bagName) -> void
+~DiagnosticExplorer.Registration.InstanceId.get -> string
+~DiagnosticExplorer.Registration.InstanceId.set -> void
+~DiagnosticExplorer.Registration.MachineName.get -> string
+~DiagnosticExplorer.Registration.MachineName.set -> void
+~DiagnosticExplorer.Registration.ProcessName.get -> string
+~DiagnosticExplorer.Registration.ProcessName.set -> void
+~DiagnosticExplorer.Registration.Uri.get -> string
+~DiagnosticExplorer.Registration.Uri.set -> void
+~DiagnosticExplorer.Registration.UserDomain.get -> string
+~DiagnosticExplorer.Registration.UserDomain.set -> void
+~DiagnosticExplorer.Registration.UserName.get -> string
+~DiagnosticExplorer.Registration.UserName.set -> void
+~DiagnosticExplorer.RpcResult.Detail.get -> string
+~DiagnosticExplorer.RpcResult.Detail.set -> void
+~DiagnosticExplorer.RpcResult.Message.get -> string
+~DiagnosticExplorer.RpcResult.Message.set -> void
+~DiagnosticExplorer.RpcResult.RequestId.get -> string
+~DiagnosticExplorer.RpcResult.RequestId.set -> void
+~DiagnosticExplorer.SystemEvent.Detail.get -> string
+~DiagnosticExplorer.SystemEvent.Detail.set -> void
+~DiagnosticExplorer.SystemEvent.Message.get -> string
+~DiagnosticExplorer.SystemEvent.Message.set -> void
+~DiagnosticExplorer.SystemEvent.SinkCategory.get -> string
+~DiagnosticExplorer.SystemEvent.SinkCategory.set -> void
+~DiagnosticExplorer.SystemEvent.SinkName.get -> string
+~DiagnosticExplorer.SystemEvent.SinkName.set -> void
+~DiagnosticExplorer.SystemEventArgs.Exception.get -> System.Exception
+~DiagnosticExplorer.SystemEventArgs.Exception.set -> void
+~DiagnosticExplorer.SystemEventArgs.Message.get -> string
+~DiagnosticExplorer.SystemEventArgs.Message.set -> void
+~DiagnosticExplorer.SystemEventArgs.Source.get -> string
+~DiagnosticExplorer.SystemEventArgs.Source.set -> void
+~DiagnosticExplorer.SystemEventArgs.SystemEventArgs(DiagnosticExplorer.EventSeverity severity, string source, string message) -> void
+~DiagnosticExplorer.SystemEventArgs.SystemEventArgs(DiagnosticExplorer.EventSeverity severity, string source, string message, System.Exception exception) -> void
+~DiagnosticExplorer.SystemEventArgs.SystemEventArgs(DiagnosticExplorer.EventSeverity severity, string source, System.Exception exception) -> void
+~DiagnosticExplorer.TraceScope.Name.get -> string
+~DiagnosticExplorer.TraceScope.Name.set -> void
+~DiagnosticExplorer.TraceScope.SetTraceAction(int timeMillis, System.Action<string> traceMethod) -> void
+~DiagnosticExplorer.TraceScope.SetTraceAction(System.Action<string> traceMethod) -> void
+~DiagnosticExplorer.TraceScope.ToString(System.CodeDom.Compiler.IndentedTextWriter writer, System.DateTime scopeStart, ref System.DateTime lastMessage, int indent) -> void
+~DiagnosticExplorer.TraceScope.TraceScope(string name = null) -> void
+~DiagnosticExplorer.TraceScope.TraceScope(string name, System.Action<string> traceMethod) -> void
+~DiagnosticExplorer.TraceScope.TraceScope(string name, System.Action<string> traceMethod, bool forceTrace) -> void
+~DiagnosticExplorer.TraceScope.TraceScope(System.Action<string> traceMethod, bool forceTrace, string name = null) -> void
+~DiagnosticExplorer.TraceScope.TraceScope(System.Action<string> traceMethod, string name = null) -> void
+~DiagnosticExplorer.Util.JsonEnumConverter<T>
+~DiagnosticExplorer.Util.WeakReferenceHash<T>
+~DiagnosticExplorer.Util.WeakReferenceHash<T>.Add(string name, T obj) -> void
+~DiagnosticExplorer.Util.WeakReferenceHash<T>.ContainsName(string name) -> bool
+~DiagnosticExplorer.Util.WeakReferenceHash<T>.GetItem(string name, System.Func<T> create = null) -> T
+~DiagnosticExplorer.Util.WeakReferenceHash<T>.GetItems() -> System.Collections.Generic.List<T>
+~DiagnosticExplorer.Util.WeakReferenceHash<T>.Remove(string name) -> void
+~override DiagnosticExplorer.Log4Net.AsyncFallbackAppender.AddAppender(log4net.Appender.IAppender newAppender) -> void
+~override DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.AsyncFallbackAppender.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~override DiagnosticExplorer.Log4Net.AsyncForwardingAppender.AddAppender(log4net.Appender.IAppender newAppender) -> void
+~override DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.AsyncForwardingAppender.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~override DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.AsyncSmtpAppender.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~override DiagnosticExplorer.Log4Net.DiagnosticAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.FallbackAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.FallbackAppender.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~override DiagnosticExplorer.Log4Net.ForwardingAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Log4Net.ForwardingAppender.Append(log4net.Core.LoggingEvent[] loggingEvents) -> void
+~override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.AddAppender(log4net.Appender.IAppender newAppender) -> void
+~override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.RemoveAppender(log4net.Appender.IAppender appender) -> log4net.Appender.IAppender
+~override DiagnosticExplorer.Log4Net.ForwardingAppenderBase.RemoveAppender(string name) -> log4net.Appender.IAppender
+~override DiagnosticExplorer.Log4Net.LoggerNotFoundFilter.Decide(log4net.Core.LoggingEvent loggingEvent) -> log4net.Filter.FilterDecision
+~override DiagnosticExplorer.Log4Net.SmtpAppender.Append(log4net.Core.LoggingEvent loggingEvent) -> void
+~override DiagnosticExplorer.Property.ToString() -> string
+~override DiagnosticExplorer.Registration.ToString() -> string
+~override DiagnosticExplorer.SystemEvent.ToString() -> string
+~override DiagnosticExplorer.TraceScope.ToString() -> string
+~override DiagnosticExplorer.Util.JsonEnumConverter<T>.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) -> T
+~override DiagnosticExplorer.Util.JsonEnumConverter<T>.Write(System.Text.Json.Utf8JsonWriter writer, T value, System.Text.Json.JsonSerializerOptions options) -> void
+~override DiagnosticExplorer.Util.JsonTimeSpanConverter.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options) -> System.TimeSpan
+~override DiagnosticExplorer.Util.JsonTimeSpanConverter.Write(System.Text.Json.Utf8JsonWriter writer, System.TimeSpan value, System.Text.Json.JsonSerializerOptions options) -> void
+~readonly DiagnosticExplorer.Log4Net.ForwardingAppenderBase._lock -> object
+~static DiagnosticExplorer.CategoryExtensions.FindByName(this System.Collections.Generic.IEnumerable<DiagnosticExplorer.Category> list, string name) -> DiagnosticExplorer.Category
+~static DiagnosticExplorer.DiagnosticManager.ExecuteOperation(string path, string operation, string[] arguments) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.DiagnosticManager.ExecuteOperation(System.Collections.Generic.IEnumerable<DiagnosticExplorer.RegisteredObject> registeredObjects, string path, string operation, string[] arguments) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.DiagnosticManager.GetDiagnostics() -> DiagnosticExplorer.DiagnosticResponse
+~static DiagnosticExplorer.DiagnosticManager.GetDiagnostics(System.Collections.Generic.IEnumerable<DiagnosticExplorer.RegisteredObject> registeredObjects) -> DiagnosticExplorer.DiagnosticResponse
+~static DiagnosticExplorer.DiagnosticManager.GetRegisteredObjects() -> DiagnosticExplorer.RegisteredObject[]
+~static DiagnosticExplorer.DiagnosticManager.GetUnderlyingType(System.Type t) -> System.Type
+~static DiagnosticExplorer.DiagnosticManager.ObjectToPropertyBag(object obj, string bagName, string bagCategory) -> DiagnosticExplorer.PropertyBag
+~static DiagnosticExplorer.DiagnosticManager.Register(object o, string bagName, string bagCategory) -> void
+~static DiagnosticExplorer.DiagnosticManager.SetProperty(string path, string value) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.DiagnosticManager.SetProperty(System.Collections.Generic.IEnumerable<DiagnosticExplorer.RegisteredObject> registeredObjects, string path, string value) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.DiagnosticManager.Unregister(object obj) -> void
+~static DiagnosticExplorer.EventSinkRepo.Default.get -> DiagnosticExplorer.EventSinkRepo
+~static DiagnosticExplorer.Log4Net.DiagnosticRetroAppender.SetLoggingAction(System.Action<DiagnosticExplorer.DiagnosticMsg> action) -> void
+~static DiagnosticExplorer.Log4Net.ForwardingAppenderBase.LogLogError(System.Type type, string msg, System.Exception exception = null) -> void
+~static DiagnosticExplorer.Log4Net.MultiErrorHandler.SetErrorHandler(log4net.Appender.AppenderSkeleton appender, DiagnosticExplorer.Log4Net.AppenderProxyErrorHandler handler) -> void
+~static DiagnosticExplorer.Log4Net.SystemDateTime.Now.get -> System.Func<System.DateTime>
+~static DiagnosticExplorer.Log4Net.SystemDateTime.UtcNow.get -> System.Func<System.DateTime>
+~static DiagnosticExplorer.OperationResponse.Error(string message) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.OperationResponse.Error(string message, string detail) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.OperationResponse.Success() -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.OperationResponse.Success(string result) -> DiagnosticExplorer.OperationResponse
+~static DiagnosticExplorer.PropertyExtensions.FindByName(this System.Collections.Generic.IEnumerable<DiagnosticExplorer.Property> list, string name) -> DiagnosticExplorer.Property
+~static DiagnosticExplorer.RateCounter.GetRates(int seconds, int currentIndex, int[] values) -> int[]
+~static DiagnosticExplorer.RegisteredObjectExtensions.FindByCategoryAndName(this System.Collections.Generic.IEnumerable<DiagnosticExplorer.RegisteredObject> list, string category, string name) -> DiagnosticExplorer.RegisteredObject
+~static DiagnosticExplorer.RpcResult.Fail(string requestId, string message, string detail) -> DiagnosticExplorer.RpcResult
+~static DiagnosticExplorer.RpcResult.Fail(string requestId, System.Exception ex) -> DiagnosticExplorer.RpcResult
+~static DiagnosticExplorer.RpcResult.Success(string requestId = null) -> DiagnosticExplorer.RpcResult
+~static DiagnosticExplorer.RpcResult<T>.Fail(string requestId, string message, string detail) -> DiagnosticExplorer.RpcResult<T>
+~static DiagnosticExplorer.RpcResult<T>.Fail(string requestId, System.Exception ex) -> DiagnosticExplorer.RpcResult<T>
+~static DiagnosticExplorer.RpcResult<T>.Success(string requestId, T result) -> DiagnosticExplorer.RpcResult<T>
+~static DiagnosticExplorer.RpcResult<T>.Success(T result) -> DiagnosticExplorer.RpcResult<T>
+~static DiagnosticExplorer.TraceScope.Current.get -> DiagnosticExplorer.TraceScope
+~static DiagnosticExplorer.TraceScope.Trace(object o) -> DiagnosticExplorer.ITraceItem
+~static DiagnosticExplorer.TraceScope.Trace(string message) -> DiagnosticExplorer.ITraceItem
+~static DiagnosticExplorer.TraceScope.Trace(System.Diagnostics.StackTrace trace) -> DiagnosticExplorer.ITraceItem
+~static DiagnosticExplorer.TraceScope.TraceIf(bool condition, object o) -> void
+~static DiagnosticExplorer.TraceScope.TraceIf(bool condition, string message) -> void
+~static DiagnosticExplorer.Util.AttributeUtil.GetAttribute<T>(System.Reflection.MethodInfo method) -> T
+~static DiagnosticExplorer.Util.AttributeUtil.GetAttribute<T>(System.Reflection.PropertyInfo info) -> T
+~static DiagnosticExplorer.Util.AttributeUtil.GetAttribute<T>(System.Type type) -> T
+~static DiagnosticExplorer.Util.ProtobufUtil.Compress<T>(T obj, int compressThreshold) -> byte[]
+~static DiagnosticExplorer.Util.ProtobufUtil.Decompress<T>(byte[] body) -> T
