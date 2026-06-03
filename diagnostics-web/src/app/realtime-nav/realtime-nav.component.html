@@ -21,21 +21,22 @@
     <p-table [value]="model.filteredProcesses"
              [contextMenu]="cm"
              [(contextMenuSelection)]="selectedProcess"
+             [resizableColumns]="true"
+             columnResizeMode="expand"
              size="small" styleClass="w-full">
       <ng-template #header>
         <tr>
-          <th class="pl-2">Host</th>
-          <th class="pl-2">User</th>
-          <th class="pl-2">Process</th>
+          <th pResizableColumn class="pl-2">Host</th>
+          <th pResizableColumn class="pl-2">User</th>
+          <th pResizableColumn class="pl-2">Process</th>
         </tr>
       </ng-template>
       <ng-template #body let-item>
         <tr class="cursor-pointer"
             [pContextMenuRow]="item"
             (click)="model.selectProcess(item)"
-            [class.text-neutral-200]="getProcess(item).state !== 'Online'"
-            [class.text-lime-600]="getProcess(item).state === 'Online'"
-            [class.bg-black]="item === model.activeProcess">
+            [class.online]="getProcess(item).state === 'Online'"
+            [class.active]="item === model.activeProcess">
           <td class="pl-2" [title]="item.machineName">{{ item.machineName }}</td>
           <td class="pl-2" [title]="item.userName">{{ item.userName }}</td>
           <td class="pl-2 pr-0">

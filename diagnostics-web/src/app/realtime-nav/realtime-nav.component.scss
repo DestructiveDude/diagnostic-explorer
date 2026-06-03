@@ -1,3 +1,23 @@
 :host ::ng-deep .p-datatable-tbody > tr > td {
-  border-bottom-color: #444 !important;
+  border-bottom-color: var(--border) !important;
+}
+
+:host ::ng-deep .p-datatable-tbody > tr {
+  color: var(--label);
+}
+
+:host ::ng-deep .p-datatable-tbody > tr.online {
+  color: var(--online);
+}
+
+:host ::ng-deep .p-datatable-tbody > tr.active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.alert-pill {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
 }
