@@ -1,5 +1,14 @@
-::ng-deep .mat-form-field-wrapper {
-  padding: 0 !important;
-  margin: 0 !important;
+:host { display: block; height: 100%; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
+.lbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--label);
+}

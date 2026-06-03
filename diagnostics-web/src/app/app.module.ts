@@ -60,6 +60,9 @@ import {ButtonModule} from 'primeng/button';
 import {FieldsetModule} from 'primeng/fieldset';
 import {SplitterModule} from 'primeng/splitter';
 import {SelectButtonModule} from 'primeng/selectbutton';
+import {SelectModule} from 'primeng/select';
+import {DatePickerModule} from 'primeng/datepicker';
+import {ProgressBarModule} from 'primeng/progressbar';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -115,7 +118,10 @@ import {SelectButtonModule} from 'primeng/selectbutton';
         ButtonModule,
         FieldsetModule,
         SplitterModule,
-        SelectButtonModule], providers: [
+        SelectButtonModule,
+        SelectModule,
+        DatePickerModule,
+        ProgressBarModule], providers: [
         { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },

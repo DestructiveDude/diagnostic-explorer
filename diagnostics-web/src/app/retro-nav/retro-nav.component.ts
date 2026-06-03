@@ -28,6 +28,30 @@ export class RetroNavComponent implements OnInit {
         {hours: 30 * 24, text: "30 Days"},
     ];
 
+    maxRecordOptions = [
+        { label: '1,000', value: 1000 },
+        { label: '5,000', value: 5000 },
+        { label: '10,000', value: 10000 },
+        { label: '20,000', value: 20000 },
+    ];
+    minLevelOptions = [
+        { label: 'All', value: 0 },
+        { label: 'Verbose', value: 10000 },
+        { label: 'Trace', value: 20000 },
+        { label: 'Debug', value: 30000 },
+        { label: 'Info', value: 40000 },
+        { label: 'Notice', value: 50000 },
+        { label: 'Warn', value: 60000 },
+        { label: 'Error', value: 70000 },
+        { label: 'Severe', value: 80000 },
+        { label: 'Critical', value: 90000 },
+        { label: 'Alert', value: 100000 },
+        { label: 'Fatal', value: 110000 },
+        { label: 'Emergency', value: 120000 },
+    ];
+    timeOptions = this.times.map(h => ({ label: `${h.toString().padStart(2, '0')}:00`, value: h }));
+    hourOptions = this.hours.map(h => ({ label: h.text, value: h.hours }));
+
     ngOnInit(): void {
     }
 
