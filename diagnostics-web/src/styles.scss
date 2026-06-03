@@ -57,10 +57,10 @@ input.p-inputtext:focus,
   background: var(--accent) !important;
   border-color: var(--accent) !important;
 }
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-label,
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-content { color: #fff !important; }
-/* PrimeNG draws a sliding highlight pane behind the checked button — tint it indigo */
-.p-togglebutton.p-togglebutton-checked::before { background: var(--accent) !important; }
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-label { color: #fff !important; }
+/* The inner content wrapper paints its own dark bg (#27272a) over the button,
+   leaving only the edge showing — make it transparent so the indigo fills solid. */
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-content { background: transparent !important; color: #fff !important; }
 
 /* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
 .p-splitter-gutter { background: var(--border) !important; }
