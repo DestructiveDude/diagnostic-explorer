@@ -59,5 +59,8 @@ packages
 # Claude Code per-developer settings
 .claude/
 
+# Superpowers runtime (brainstorm mockups etc.); docs/superpowers/ stays tracked
+.superpowers/
+
 # Generated NuGet packages
 nupkg/
