@@ -1,7 +1,7 @@
 <div class="grid grid-rows-[1fr_auto] h-full overflow-hidden">
 
-  <div class="tabs-right overflow-hidden">
-    @if (model.categories.length) {
+  @if (model.categories.length) {
+    <div class="tabs-right overflow-hidden">
       <p-tabs [value]="model.selectedIndex" (valueChange)="onCategoryTab($event)" class="h-full">
         <p-tablist>
           @for (cat of model.categories; track cat; let i = $index) {
@@ -18,8 +18,12 @@
           }
         </p-tabpanels>
       </p-tabs>
-    }
-  </div>
+    </div>
+  } @else {
+    <div class="h-full w-full flex items-center justify-center text-neutral-500 italic px-4 text-center">
+      {{ model.activeProcess ? 'Waiting for diagnostics…' : 'Select a process from the list to view diagnostics.' }}
+    </div>
+  }
 
   @if (model.traceScopeVisible) {
     <div class="detail-panel-row grid detail-tabs">
