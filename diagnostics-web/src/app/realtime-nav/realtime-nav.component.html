@@ -1,8 +1,8 @@
 <div class="h-full w-full overflow-hidden flex flex-col retro-nav">
-  <div class="flex flex-col gap-2 p-2">
+  <div class="flex flex-col gap-4 px-2 pt-2 pb-4 border-b border-[var(--border)]">
 
     <p-iconfield class="w-full">
-      <input pInputText type="text" class="w-full text-xs" placeholder="Filter"
+      <input pInputText type="text" class="w-full text-sm" placeholder="Filter"
              [(ngModel)]="model.processSearch"
              (keydown)="model.handleKeyDown($event)">
       @if (model.processSearch) {
@@ -13,7 +13,7 @@
 
     <div class="flex items-center">
       <p-checkbox [(ngModel)]="model.onlineOnly" [binary]="true" inputId="onlineOnly" size="small" />
-      <label for="onlineOnly" class="text-xs opacity-50 ml-1 cursor-pointer">Online only</label>
+      <label for="onlineOnly" class="text-sm opacity-50 ml-3 cursor-pointer">Online only</label>
     </div>
   </div>
 

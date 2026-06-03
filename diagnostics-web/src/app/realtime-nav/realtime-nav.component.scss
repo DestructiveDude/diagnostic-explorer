@@ -22,3 +22,15 @@
   font-weight: 600;
   padding: 4px 8px;
 }
+
+/* Filter fills its container; the tools block's horizontal padding (p-2 = 8px)
+   then sits symmetrically on both sides of the input. */
+:host ::ng-deep .p-iconfield {
+  display: block;
+  width: 100%;
+}
+:host ::ng-deep .p-iconfield > input,
+:host ::ng-deep .p-iconfield .p-inputtext {
+  width: 100%;
+  box-sizing: border-box;
+}

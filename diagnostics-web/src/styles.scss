@@ -52,15 +52,22 @@ input.p-inputtext:focus,
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.32) !important;
 }
 
-/* ─── Mode toggle: indigo active segment ──────────────────────────────────── */
+/* ─── Mode toggle (Realtime/Retro) ────────────────────────────────────────────
+   Two equal-width buttons with a gap between them, teal when active. */
+.p-selectbutton { display: flex; gap: 8px; width: 100%; }
+.p-selectbutton .p-togglebutton { flex: 1 1 0; border-radius: 6px !important; }
 .p-togglebutton.p-togglebutton-checked {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
+  background: var(--resize) !important;
+  border-color: var(--resize) !important;
 }
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-label { color: #fff !important; }
-/* The inner content wrapper paints its own dark bg (#27272a) over the button,
-   leaving only the edge showing — make it transparent so the indigo fills solid. */
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-content { background: transparent !important; color: #fff !important; }
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-label { color: #0f141b !important; font-weight: 600; }
+/* The inner content wrapper paints its own dark bg over the button — make it
+   transparent so the teal fills solid. */
+.p-togglebutton.p-togglebutton-checked .p-togglebutton-content { background: transparent !important; }
+
+/* Left rail never shrinks below the toggle's natural width (keeps Realtime/Retro
+   from squashing when the sidebar gutter is dragged in). */
+.p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 180px; }
 
 /* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
 .p-splitter-gutter { background: var(--border) !important; }
