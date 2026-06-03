@@ -11,18 +11,18 @@
 /* ─── Palette tokens ──────────────────────────────────────────────────────── */
 :root,
 .app-dark {
-  --bg:        #0f141b;
-  --topbar:    #141b24;
-  --surface:   #1a212b;
-  --border:    #2a3340;
-  --head:      #e2e8f0;
-  --label:     #94a3b8;
+  --bg:        #0d1117;  /* GitHub canvas (the grey)  */
+  --topbar:    #010409;  /* GitHub header (near-black) */
+  --surface:   #161b22;  /* GitHub subtle/box surface  */
+  --border:    #30363d;  /* GitHub fine divider line   */
+  --head:      #e6edf3;  /* GitHub primary text        */
+  --label:     #7d8590;  /* GitHub muted text          */
   --accent:    #6366f1;
   --active:    #818cf8;
   --value:     #86efac;
   --value-set: #818cf8;
   --online:    #86efac;
-  --resize:    #2dd4bf;
+  --resize:    #6e7681;  /* neutral grey grips (no more teal) */
 
   /* severity bands: bg tint / left slice / bold text */
   --sev-error-bg:#2a1416;  --sev-error-slice:#ff5252;  --sev-error-text:#ff6b6b;
@@ -52,18 +52,22 @@ input.p-inputtext:focus,
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.32) !important;
 }
 
-/* ─── Mode toggle (Realtime/Retro) ────────────────────────────────────────────
-   Two equal-width buttons with a gap between them, teal when active. */
-.p-selectbutton { display: flex; gap: 8px; width: 100%; }
-.p-selectbutton .p-togglebutton { flex: 1 1 0; border-radius: 6px !important; }
-.p-togglebutton.p-togglebutton-checked {
-  background: var(--resize) !important;
-  border-color: var(--resize) !important;
+/* ─── GitHub-style underline nav tabs (Realtime/Retro) ──────────────────────── */
+.gh-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;            /* overlap the nav's bottom border */
+  padding: 10px 12px;
+  color: var(--label);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
 }
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-label { color: #0f141b !important; font-weight: 600; }
-/* The inner content wrapper paints its own dark bg over the button — make it
-   transparent so the teal fills solid. */
-.p-togglebutton.p-togglebutton-checked .p-togglebutton-content { background: transparent !important; }
+.gh-tab:hover { color: var(--head); border-bottom-color: var(--border); }
+.gh-tab.active { color: var(--head); font-weight: 600; border-bottom-color: #fd8c73; }
 
 /* Left rail never shrinks below the toggle's natural width (keeps Realtime/Retro
    from squashing when the sidebar gutter is dragged in). */
@@ -200,8 +204,8 @@ fieldset {
   font-weight: 600;
 }
 .realtime-category .p-panel-content {
-  padding: 7px !important;
-  background: var(--bg);
+  padding: 9px !important;
+  background: var(--topbar);   /* GitHub box: grey header, black body */
 }
 .realtime-category .p-fieldset {
   border: 1px solid var(--border) !important;
