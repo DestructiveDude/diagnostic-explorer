@@ -1,68 +1,28 @@
-<div class="grid grid-rows-[1fr_auto] h-full overflow-hidden">
-
+<div class="h-full">
   @if (model.categories.length) {
-    <div class="tabs-right overflow-hidden">
-      <p-tabs [value]="model.selectedIndex" (valueChange)="onCategoryTab($event)" class="h-full">
-        <p-tablist>
-          @for (cat of model.categories; track cat; let i = $index) {
-            <p-tab [value]="i">
-              <span class="{{ cat.labelClass ? 'text-black px-1 rounded ' + cat.labelClass : '' }}">{{ cat.name }}</span>
-            </p-tab>
-          }
-        </p-tablist>
-        <p-tabpanels>
-          @for (cat of model.categories; track cat; let i = $index) {
-            <p-tabpanel [value]="i">
-              <app-realtime-category [category]="cat"></app-realtime-category>
-            </p-tabpanel>
-          }
-        </p-tabpanels>
-      </p-tabs>
-    </div>
-  } @else {
-    <div class="h-full w-full flex items-center justify-center text-neutral-500 italic px-4 text-center">
-      {{ model.activeProcess ? 'Waiting for diagnostics…' : 'Select a process from the list to view diagnostics.' }}
-    </div>
-  }
-
-  @if (model.traceScopeVisible && model.selectedEvent) {
-    <div class="detail-panel-row">
-      <div class="event-detail-panel">
-        <div class="event-detail-header">
-          <div class="event-detail-meta">
-            <span class="event-detail-meta-item">
-              <span class="event-detail-label">Date</span>
-              <span class="event-detail-value">{{ model.selectedEvent.date | date:'yyyy-MM-dd HH:mm:ss' }}</span>
-            </span>
-            <span class="event-detail-meta-item">
-              <span class="event-detail-label">Level</span>
-              <span class="event-detail-value event-detail-level">{{ model.selectedEvent.level | levelName }}</span>
-            </span>
-            @if (model.selectedEvent.machine) {
-              <span class="event-detail-meta-item">
-                <span class="event-detail-label">Machine</span>
-                <span class="event-detail-value">{{ model.selectedEvent.machine }}</span>
-              </span>
-            }
-            @if (model.selectedEvent.user) {
-              <span class="event-detail-meta-item">
-                <span class="event-detail-label">User</span>
-                <span class="event-detail-value">{{ model.selectedEvent.user }}</span>
-              </span>
-            }
-            <span class="event-detail-meta-item flex-1">
-              <span class="event-detail-label">Message</span>
-              <span class="event-detail-value text-white">{{ model.selectedEvent.message }}</span>
-            </span>
+    <p-splitter layout="vertical" [panelSizes]="[72, 28]" [minSizes]="[0, 0]"
+                styleClass="h-full border-0" stateKey="diag-detail-split" stateStorage="local">
+      <ng-template #panel>
+        <div class="h-full flex overflow-hidden">
+          <div class="flex-1 overflow-auto p-2">
+            <app-realtime-category [category]="model.categories[model.selectedIndex]" />
           </div>
-
-          <button class="event-detail-close" title="Close" (click)="model.hideTraceScope()">
-            <i class="pi pi-times"></i>
-          </button>
+          <app-category-nav class="flex-none" [categories]="model.categories"
+                            [selectedIndex]="model.selectedIndex"
+                            (selectedIndexChange)="onCategoryTab($event)" />
         </div>
-
-        <textarea class="event-detail-body" readonly [value]="model.selectedEvent.displayText"></textarea>
-      </div>
+      </ng-template>
+      <ng-template #panel>
+        @if (model.traceScopeVisible && model.selectedEvent) {
+          <app-event-detail [event]="model.selectedEvent" (closed)="model.hideTraceScope()" />
+        } @else {
+          <div class="h-full flex items-center justify-center text-[var(--label)] italic text-sm">No event selected</div>
+        }
+      </ng-template>
+    </p-splitter>
+  } @else {
+    <div class="h-full flex items-center justify-center text-[var(--label)] italic px-4 text-center">
+      {{ model.activeProcess ? 'Waiting for diagnostics…' : 'Select a process from the list to view diagnostics.' }}
     </div>
   }
 </div>
