@@ -1,5 +1,5 @@
 <div class="h-full w-full grid grid-rows-[auto_1fr] bg-[var(--bg)]">
-  <div class="h-11 bg-[var(--topbar)] border-b border-[var(--border)] grid grid-cols-3 items-center px-3">
+  <div class="h-11 bg-[var(--topbar)] grid grid-cols-3 items-center px-3">
     <label class="text-[var(--head)] font-medium">Diagnostic Explorer</label>
     <button [class.invisible]="!appModel.mainMessage" (click)="appModel.mainMessageClick()"
             class="{{appModel.mainMessageClass}} justify-self-center">{{ appModel.mainMessage }}</button>
