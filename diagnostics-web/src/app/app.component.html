@@ -19,11 +19,13 @@
                 <div class="w-full border-r-2 border-black grid grid-rows-auto-1fr h-full overflow-hidden">
 
                     <div class="flex-grow-0 grid grid-cols-2 gap-1 p-1">
-                        <p-button [outlined]="appModel.tabIndex !== 0"
-                                  severity="secondary" styleClass="w-full"
+                        <p-button class="w-full" styleClass="w-full justify-center"
+                                  [outlined]="appModel.tabIndex !== 0"
+                                  severity="secondary"
                                   (onClick)="appModel.viewRealtime()" label="Realtime" [tabindex]="-1" />
-                        <p-button [outlined]="appModel.tabIndex !== 1"
-                                  severity="secondary" styleClass="w-full"
+                        <p-button class="w-full" styleClass="w-full justify-center"
+                                  [outlined]="appModel.tabIndex !== 1"
+                                  severity="secondary"
                                   (onClick)="appModel.viewRetro()" label="Retro" [tabindex]="-1" />
                     </div>
 

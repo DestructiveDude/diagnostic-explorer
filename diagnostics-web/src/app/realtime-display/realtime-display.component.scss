@@ -3,25 +3,96 @@
   height: 100%;
 }
 
-// Selected-event detail panel sits below the category tabs (fixed share of height).
+// --- Selected-event detail panel: lifted verbatim from Cameron's
+//     event-detail-panel.component.scss (+ his diagnostics-view .detail-panel-row). ---
 .detail-panel-row {
-  height: 33%;
-  min-height: 8rem;
-  overflow: hidden;
-  border-top: 1px solid var(--surface-border);
+  height: 200px;
+  flex-shrink: 0;
 }
 
-:host ::ng-deep .scope-tabs.p-tabs {
+.event-detail-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: #111827;
+  border-top: 2px solid #4f46e5;
 }
 
-:host ::ng-deep .detail-tabs .p-tabpanels,
-:host ::ng-deep .detail-tabs .p-tabpanel {
-  height: 100%;
+.event-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+  flex-shrink: 0;
 }
 
-:host ::ng-deep .scope-tabs .p-tablist {
-  @apply bg-neutral-700;
+.event-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.event-detail-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.event-detail-label {
+  font-size: 0.65rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.event-detail-value {
+  font-size: 0.8rem;
+  color: #d1d5db;
+}
+
+.event-detail-level {
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+.event-detail-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: #f9fafb;
+    background: #374151;
+  }
+}
+
+.event-detail-body {
+  flex: 1;
+  width: 100%;
+  background: #0f172a;
+  color: #86efac;
+  font-family: 'Consolas', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: none;
+  resize: none;
+  outline: none;
+  overflow: auto;
 }

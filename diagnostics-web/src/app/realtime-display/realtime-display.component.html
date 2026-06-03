@@ -25,33 +25,44 @@
     </div>
   }
 
-  @if (model.traceScopeVisible) {
-    <div class="detail-panel-row grid detail-tabs">
-      <p-tabs value="0" class="col-start-1 row-start-1 scope-tabs">
-        <p-tablist>
-          <p-tab value="0">Detail</p-tab>
-          <p-tab value="1">Trace Scope</p-tab>
-        </p-tablist>
-        <p-tabpanels class="h-full">
-          <p-tabpanel value="0">
-            <textarea class="w-full h-full bg-neutral-900 text-neutral-300 resize-none"
-              readonly
-              [value]="model.selectedEvent?.displayText ?? ''"></textarea>
-          </p-tabpanel>
-          <p-tabpanel value="1">
-            @if (model.selectedEvent?.region) {
-              <app-collapsible-region
-              [region]="model.selectedEvent?.region"></app-collapsible-region>
-            } @else {
-              <div class="p-2 text-neutral-500 italic">No trace scope for this event.</div>
+  @if (model.traceScopeVisible && model.selectedEvent) {
+    <div class="detail-panel-row">
+      <div class="event-detail-panel">
+        <div class="event-detail-header">
+          <div class="event-detail-meta">
+            <span class="event-detail-meta-item">
+              <span class="event-detail-label">Date</span>
+              <span class="event-detail-value">{{ model.selectedEvent.date | date:'yyyy-MM-dd HH:mm:ss' }}</span>
+            </span>
+            <span class="event-detail-meta-item">
+              <span class="event-detail-label">Level</span>
+              <span class="event-detail-value event-detail-level">{{ model.selectedEvent.level | levelName }}</span>
+            </span>
+            @if (model.selectedEvent.machine) {
+              <span class="event-detail-meta-item">
+                <span class="event-detail-label">Machine</span>
+                <span class="event-detail-value">{{ model.selectedEvent.machine }}</span>
+              </span>
             }
-          </p-tabpanel>
-        </p-tabpanels>
-      </p-tabs>
-      <button (click)="model.hideTraceScope()"
-        class="col-start-1 row-start-1 align-self-start justify-self-end cursor-pointer z-50 opacity-50 hover:opacity-100">
-        <i class="pi pi-times"></i>
-      </button>
+            @if (model.selectedEvent.user) {
+              <span class="event-detail-meta-item">
+                <span class="event-detail-label">User</span>
+                <span class="event-detail-value">{{ model.selectedEvent.user }}</span>
+              </span>
+            }
+            <span class="event-detail-meta-item flex-1">
+              <span class="event-detail-label">Message</span>
+              <span class="event-detail-value text-white">{{ model.selectedEvent.message }}</span>
+            </span>
+          </div>
+
+          <button class="event-detail-close" title="Close" (click)="model.hideTraceScope()">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <textarea class="event-detail-body" readonly [value]="model.selectedEvent.displayText"></textarea>
+      </div>
     </div>
   }
 </div>
