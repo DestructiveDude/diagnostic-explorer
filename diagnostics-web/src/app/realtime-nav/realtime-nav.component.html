@@ -17,13 +17,14 @@
     </div>
   </div>
 
-  <div class="flex-grow-0 overflow-auto w-full grid">
+  <div class="flex-1 min-h-0 overflow-auto w-full">
     <p-table [value]="model.filteredProcesses"
              [contextMenu]="cm"
              [(contextMenuSelection)]="selectedProcess"
              [resizableColumns]="true"
-             columnResizeMode="expand"
+             columnResizeMode="fit"
              size="small" styleClass="w-full"
+             [tableStyle]="{ 'width': '100%', 'table-layout': 'fixed' }"
              stateKey="diag-process-table" stateStorage="local">
       <ng-template #header>
         <tr>
