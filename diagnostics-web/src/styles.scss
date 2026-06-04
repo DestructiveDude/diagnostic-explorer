@@ -111,6 +111,13 @@ input.p-inputtext:focus,
 }
 .p-datatable-thead > tr > th:hover::after { opacity: 1; }
 
+/* ─── Column drag resize indicator — orange line while dragging ───────────── */
+.p-datatable-column-resize-indicator {
+  background: #fd8c73 !important;
+  box-shadow: 0 0 6px #fd8c73;
+  width: 2px !important;
+}
+
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
 .noselect {
   -webkit-touch-callout: none; /* iOS Safari */

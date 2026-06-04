@@ -1,4 +1,5 @@
-import {Component, ElementRef} from '@angular/core';
+import {Component, ElementRef, HostListener, ViewChild} from '@angular/core';
+import {Table} from 'primeng/table';
 import {AppModel} from '../Model/AppModel';
 import {DiagProcess} from '../Model/DiagProcess';
 import {RealtimeModel} from '../Model/RealtimeModel';
@@ -11,6 +12,8 @@ import {MenuItem} from 'primeng/api';
     standalone: false
 })
 export class RealtimeNavComponent {
+
+    @ViewChild(Table) primeTable!: Table;
 
     selectedProcess?: DiagProcess;
 
@@ -25,34 +28,52 @@ export class RealtimeNavComponent {
         return item as DiagProcess;
     }
 
+    // Use bounding rects instead of event.target — PrimeNG retargets target to <p-table>.
+    @HostListener('dblclick', ['$event'])
+    onDblClick(event: MouseEvent): void {
+        const el = this.hostRef.nativeElement as HTMLElement;
+        const thead = el.querySelector<HTMLElement>('thead');
+        if (!thead) return;
+        const tr = thead.getBoundingClientRect();
+        if (event.clientY < tr.top || event.clientY > tr.bottom) return;
+        const ths = Array.from(el.querySelectorAll<HTMLElement>('thead tr th'));
+        const idx = ths.findIndex(th => {
+            const r = th.getBoundingClientRect();
+            return event.clientX >= r.left && event.clientX <= r.right;
+        });
+        if (idx >= 0) this.fitColumn(idx, ths);
+    }
+
     onOnlineOnlyChange(val: boolean): void {
         this.model.onlineOnly = val;
-        // requestAnimationFrame fires after Angular re-renders the new row set
         requestAnimationFrame(() => this.fitAllIfRoom());
     }
 
-    fitColumn(colIndex: number): void {
+    private fitColumn(colIndex: number, ths: HTMLElement[]): void {
         const el = this.hostRef.nativeElement as HTMLElement;
-        const ths = el.querySelectorAll<HTMLElement>('thead tr th');
-        const th = ths[colIndex];
-        if (!th) return;
-        let maxW = this.measureCell(th);
+        let maxW = this.measureCell(ths[colIndex]);
         el.querySelectorAll<HTMLElement>('tbody tr').forEach(row => {
             const td = row.querySelectorAll<HTMLElement>('td')[colIndex];
             if (td) maxW = Math.max(maxW, this.measureCell(td));
         });
-        th.style.width = `${maxW}px`;
-        // also update any matching <col> PrimeNG may use for fixed layout
-        const cols = el.querySelectorAll<HTMLElement>('colgroup col');
-        if (cols[colIndex]) cols[colIndex].style.width = `${maxW}px`;
+        // Keep current widths for other columns, only update this one
+        const widths = ths.map((th, i) =>
+            i === colIndex ? maxW : (parseFloat(th.style.width) || th.offsetWidth)
+        );
+        this.applyWidths(widths);
     }
 
-    fitAllIfRoom(): void {
+    private fitAllIfRoom(): void {
         const el = this.hostRef.nativeElement as HTMLElement;
         const tableEl = el.querySelector<HTMLElement>('table');
-        if (!tableEl) return;
         const ths = Array.from(el.querySelectorAll<HTMLElement>('thead tr th'));
-        if (!ths.length) return;
+        if (!tableEl || !ths.length) return;
+
+        // Only auto-fit if at least one column is currently overflowing its content
+        const cells = Array.from(el.querySelectorAll<HTMLElement>('thead tr th, tbody tr td'));
+        const hasOverflow = cells.some(c => c.scrollWidth > c.offsetWidth + 1);
+        if (!hasOverflow) return;
+
         const colWidths = ths.map((th, i) => {
             let maxW = this.measureCell(th);
             el.querySelectorAll<HTMLElement>('tbody tr').forEach(row => {
@@ -61,11 +82,23 @@ export class RealtimeNavComponent {
             });
             return maxW;
         });
-        const totalNeeded = colWidths.reduce((a, b) => a + b, 0);
-        if (totalNeeded <= tableEl.offsetWidth) {
-            ths.forEach((th, i) => th.style.width = `${colWidths[i]}px`);
-            const cols = el.querySelectorAll<HTMLElement>('colgroup col');
-            colWidths.forEach((w, i) => { if (cols[i]) cols[i].style.width = `${w}px`; });
+        if (colWidths.reduce((a, b) => a + b, 0) <= tableEl.offsetWidth) {
+            this.applyWidths(colWidths);
+        }
+    }
+
+    private applyWidths(widths: number[]): void {
+        if (!this.primeTable) return;
+        const pt = this.primeTable as any;
+        pt.columnWidthsState = widths.join(',');
+        pt.restoreColumnWidths();
+        if (pt.stateKey) {
+            try {
+                const raw = localStorage.getItem(pt.stateKey);
+                const state = raw ? JSON.parse(raw) : {};
+                state.columnWidths = widths.join(',');
+                localStorage.setItem(pt.stateKey, JSON.stringify(state));
+            } catch {}
         }
     }
 
