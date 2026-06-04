@@ -1,19 +1,19 @@
-<div class="h-full w-full grid grid-rows-[auto_auto_1fr] bg-[var(--bg)]">
+<div class="h-full w-full grid grid-rows-[auto_auto_1fr] bg-[color:var(--bg)]">
 
   <!-- Black header (GitHub-style). Avatar is a placeholder to be designed. -->
-  <header class="h-16 bg-[var(--topbar)] flex items-center gap-3 px-4">
-    <div class="w-8 h-8 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[var(--label)] shrink-0">
+  <header class="h-16 bg-[color:var(--topbar)] flex items-center gap-3 px-4">
+    <div class="w-8 h-8 rounded-full bg-[color:var(--surface)] border border-[color:var(--border)] flex items-center justify-center text-[color:var(--label)] shrink-0">
       <i class="pi pi-chart-bar"></i>
     </div>
     <span class="text-white font-semibold">Diagnostic Explorer</span>
     <span class="flex-1"></span>
     <button [class.invisible]="!appModel.mainMessage" (click)="appModel.mainMessageClick()"
             class="{{appModel.mainMessageClass}} text-sm">{{ appModel.mainMessage }}</button>
-    <span class="text-xs text-[var(--label)]">{{ appModel.titleMessage }}</span>
+    <span class="text-xs text-[color:var(--label)]">{{ appModel.titleMessage }}</span>
   </header>
 
   <!-- GitHub-style underline nav tabs (replaces the old toggle) -->
-  <nav class="bg-[var(--topbar)] border-b border-[var(--border)] px-4 flex gap-2">
+  <nav class="bg-[color:var(--topbar)] border-b border-[color:var(--border)] px-4 flex gap-2">
     <button class="gh-tab" [class.active]="appModel.tabIndex === 0" (click)="appModel.viewRealtime()">Realtime</button>
     <button class="gh-tab" [class.active]="appModel.tabIndex === 1" (click)="appModel.viewRetro()">Retro</button>
   </nav>

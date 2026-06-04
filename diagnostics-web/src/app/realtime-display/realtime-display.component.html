@@ -16,12 +16,12 @@
         @if (model.traceScopeVisible && model.selectedEvent) {
           <app-event-detail [event]="model.selectedEvent" (closed)="model.hideTraceScope()" />
         } @else {
-          <div class="h-full flex items-center justify-center text-[var(--label)] italic text-sm">No event selected</div>
+          <div class="h-full flex items-center justify-center text-[color:var(--label)] italic text-sm">No event selected</div>
         }
       </ng-template>
     </p-splitter>
   } @else {
-    <div class="h-full flex items-center justify-center text-[var(--label)] italic px-4 text-center">
+    <div class="h-full flex items-center justify-center text-[color:var(--label)] italic px-4 text-center">
       {{ model.activeProcess ? 'Waiting for diagnostics…' : 'Select a process from the list to view diagnostics.' }}
     </div>
   }

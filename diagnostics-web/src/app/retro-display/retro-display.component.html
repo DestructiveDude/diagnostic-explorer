@@ -7,9 +7,9 @@
       <div class="h-full flex flex-col">
 
         <!-- Header row -->
-        <div class="flex items-center gap-3 px-3 py-1 bg-[var(--surface)] border-b border-[var(--border)] shrink-0">
-          <span class="text-[var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
-          <span class="text-[var(--label)] text-xs opacity-70 whitespace-nowrap">{{ model.resultsMessage }}</span>
+        <div class="flex items-center gap-3 px-3 py-1 bg-[color:var(--surface)] border-b border-[color:var(--border)] shrink-0">
+          <span class="text-[color:var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
+          <span class="text-[color:var(--label)] text-xs opacity-70 whitespace-nowrap">{{ model.resultsMessage }}</span>
           <div class="ml-auto" (keydown)="$event.stopPropagation()">
             <app-event-filter [(filterVisible)]="model.filterVisible" [(criteria)]="model.filterCriteria" />
           </div>
@@ -52,7 +52,7 @@
 
             <ng-template #emptymessage>
               <tr>
-                <td colspan="6" class="text-center text-[var(--label)] italic p-4">No events</td>
+                <td colspan="6" class="text-center text-[color:var(--label)] italic p-4">No events</td>
               </tr>
             </ng-template>
 
@@ -67,7 +67,7 @@
       @if (model.traceScopeVisible && model.selectedEvent) {
         <app-event-detail [event]="selectedAsEventModel" (closed)="model.hideTraceScope()" />
       } @else {
-        <div class="h-full flex items-center justify-center text-[var(--label)] italic text-sm">No event selected</div>
+        <div class="h-full flex items-center justify-center text-[color:var(--label)] italic text-sm">No event selected</div>
       }
     </ng-template>
 
