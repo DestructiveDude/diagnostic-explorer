@@ -6,6 +6,8 @@
 
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
 
 // PrimeNG icon font (pi pi-*). The Aura theme itself is provided in code via
 // providePrimeNG() in app.module.ts; only the icon font needs a CSS import.
@@ -33,8 +35,9 @@
   --sev-notice-bg:#1d1430; --sev-notice-slice:#b15cff; --sev-notice-text:#d8a2ff;
   --sev-info-bg:#0f2418;   --sev-info-slice:#2ee06a;   --sev-info-text:#5cf08a;
 
-  /* font — override PrimeNG Aura's injected font-family token */
-  --p-font-family: 'IBM Plex Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* fonts */
+  --p-font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans:     'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* category severity dots */
   --dot-quiet:#475569; --dot-ok:#34d399; --dot-warn:#fbbf24; --dot-err:#f87171;
@@ -302,3 +305,10 @@ fieldset {
 .sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(2),
 .sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(3) { font-weight: 700; }
 .sev-table.p-datatable .p-datatable-tbody > tr > td:last-child { color: #fff; font-size: 12.5px; font-weight: 600; }
+
+/* ─── IBM Plex Sans on Process + Message columns ──────────────────────────
+   Retro p-table: col 5 = Process, col 6 = Message.
+   Realtime native table: col 4 = Message. */
+.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(5),
+.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(6) { font-family: var(--font-sans) !important; }
+.sev-table tbody tr td:nth-child(4) { font-family: var(--font-sans); }

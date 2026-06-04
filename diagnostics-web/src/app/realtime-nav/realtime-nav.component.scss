@@ -1,6 +1,9 @@
 :host ::ng-deep .p-datatable-tbody > tr > td {
   border-bottom-color: var(--border) !important;
 }
+:host ::ng-deep .p-datatable-tbody > tr > td:nth-child(1) {
+  font-family: var(--font-sans) !important;
+}
 
 :host ::ng-deep .p-datatable-tbody > tr {
   color: #ffffff;
