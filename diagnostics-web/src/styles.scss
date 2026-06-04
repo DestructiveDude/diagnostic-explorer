@@ -33,6 +33,9 @@
   --sev-notice-bg:#1d1430; --sev-notice-slice:#b15cff; --sev-notice-text:#d8a2ff;
   --sev-info-bg:#0f2418;   --sev-info-slice:#2ee06a;   --sev-info-text:#5cf08a;
 
+  /* font — override PrimeNG Aura's injected font-family token */
+  --p-font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
   /* category severity dots */
   --dot-quiet:#475569; --dot-ok:#34d399; --dot-warn:#fbbf24; --dot-err:#f87171;
 }
