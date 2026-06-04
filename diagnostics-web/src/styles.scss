@@ -83,6 +83,17 @@ input.p-inputtext:focus,
    from squashing when the sidebar gutter is dragged in). */
 .p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 250px; max-width: 500px; }
 
+/* Nested splitters must shrink below their content. A splitter (and each panel)
+   is a grid/flex item with the default min-height:auto, so it refuses to shrink
+   past its intrinsic content height. When a tall panel — e.g. a full retro
+   results table — loads, that inflates the whole splitter past the viewport and
+   shoves sibling panels (the detail/trace-scope pane) off the bottom of the
+   screen. Forcing min-height:0 lets the splitter honour its allotted track/flex
+   size and clip+scroll internally instead. (Tailwind 3.0.2's min-h-0 utility
+   doesn't apply reliably here, hence the explicit rule.) */
+.p-splitter,
+.p-splitterpanel { min-height: 0 !important; }
+
 /* PrimeNG paints its own theme surface on the splitter/panels — make them
    transparent so the app canvas (--bg) shows through the rail + content area. */
 .p-splitter,
@@ -218,6 +229,14 @@ fieldset {
   overflow: hidden;
   background: var(--bg);
 }
+/* Property / sub-category panels (no event table) carry their own resize grip.
+   Event-sink panels are sized by the inner events table instead (its drag grip
+   grows the visible rows), so we don't double up resize handles there — and we
+   avoid fighting PrimeNG's collapse animation, which drives panel height. */
+.realtime-category .p-panel:not(:has(app-realtime-events)) {
+  resize: vertical;
+  min-height: 48px;
+}
 .realtime-category .p-panel-header {
   background: var(--surface) !important;
   border-bottom: 1px solid var(--border) !important;
@@ -241,7 +260,7 @@ fieldset {
   border: 0 !important;
   padding: 0 4px !important;
   color: var(--head) !important;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
 }
 .realtime-category .p-fieldset-content { padding: 2px 4px !important; }
@@ -251,13 +270,13 @@ fieldset {
    retro p-table (styleClass="sev-table ..."). The PrimeNG p-datatable markup
    needs extra-specific selectors — see the second mixin block below.
    ─────────────────────────────────────────────────────────────────────────── */
-.sev-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.sev-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .sev-table th { text-align: left; background: var(--surface); color: var(--head); padding: 3px 8px; position: sticky; top: 0; }
 .sev-table td { padding: 3px 8px; color: #cbd5e1; }
 .sev-table td:first-child,
 .sev-table td:nth-child(2),
 .sev-table td:nth-child(3) { font-weight: 700; }
-.sev-table td:last-child { color: #fff; font-size: 12.5px; font-weight: 600; }
+.sev-table td:last-child { color: #fff; font-size: 14.5px; font-weight: 600; }
 .sev-table tr.event-row-selected { outline: 2px solid var(--accent); outline-offset: -1px; filter: brightness(1.15); }
 .sev-table tbody tr { user-select: none; }
 
@@ -299,12 +318,47 @@ fieldset {
 
 /* PrimeNG p-datatable: selected row, header, and cell base styles */
 .sev-table.p-datatable .p-datatable-tbody > tr.event-row-selected { outline: 2px solid var(--accent); outline-offset: -1px; filter: brightness(1.15); }
-.sev-table.p-datatable .p-datatable-thead > tr > th { background: var(--surface); color: var(--head); padding: 3px 8px; font-size: 11px; }
-.sev-table.p-datatable .p-datatable-tbody > tr > td { padding: 3px 8px; font-size: 11px; color: #cbd5e1; }
+.sev-table.p-datatable .p-datatable-thead > tr > th { background: var(--surface); color: var(--head); padding: 3px 8px; font-size: 13px; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td { padding: 3px 8px; font-size: 13px; color: #cbd5e1; }
 .sev-table.p-datatable .p-datatable-tbody > tr > td:first-child,
 .sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(2),
 .sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(3) { font-weight: 700; }
-.sev-table.p-datatable .p-datatable-tbody > tr > td:last-child { color: #fff; font-size: 12.5px; font-weight: 600; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td:last-child { color: #fff; font-size: 14.5px; font-weight: 600; }
+
+/* ─── Event detail rail — global to sidestep p-tabpanel projection boundary ── */
+app-event-detail .detail-body { height:100%; display:flex; flex-direction:column; min-height:0; }
+app-event-detail .meta {
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;
+  padding:6px 12px; border-bottom:1px solid var(--border); flex:0 0 auto;
+}
+app-event-detail .meta-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+app-event-detail .dk { color:var(--label); text-transform:uppercase; font-size:10px; letter-spacing:.05em; }
+app-event-detail .dv { color:var(--head); font-size:13px; }
+app-event-detail .dv.lvl { color:var(--active); font-weight:600; }
+app-event-detail .bd {
+  flex:1 1 auto; min-height:0; margin:0; overflow:auto;
+  padding:8px 12px; background: var(--bg); color: var(--head);
+  font-family: var(--font-sans); font-size:13px; line-height:1.5;
+  white-space:pre-wrap; word-break:break-word;
+}
+
+/* ─── Collapse/expand chevron on content + retro panel headers ────────────── */
+.panel-chevron {
+  font-size: 11px;
+  color: var(--label);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.panel-chevron.expanded { transform: rotate(90deg); }
+
+/* ─── Trace scope presence indicator on event rows ───────────────────────── */
+.scope-indicator {
+  color: var(--accent);
+  font-size: 11px;
+  opacity: 0.75;
+  vertical-align: middle;
+  margin-left: 5px;
+}
 
 /* ─── IBM Plex Sans on Process + Message columns ──────────────────────────
    Retro p-table: col 5 = Process, col 6 = Message.

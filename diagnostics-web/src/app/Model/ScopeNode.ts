@@ -44,6 +44,15 @@ export class ScopeNode {
         reg.parentRegion = this;
     }
 
+    // Cheap presence check (no full parse) used by the "has trace scope" row filter
+    // and the row indicator. Non-global so .test() is stateless — do NOT reuse the
+    // /gs/ parse pattern here, whose lastIndex would carry between calls.
+    private static readonly TRACE_SCOPE_MARKER = /\[\d{2}\.\d{3}] \[\d{2}\.\d{3}] BEGIN/;
+
+    public static hasTraceScope(text: string | null | undefined): boolean {
+        return !!text && ScopeNode.TRACE_SCOPE_MARKER.test(text);
+    }
+
     public static parseTraceScope(displayText: string): ScopeNode | undefined {
         let regions: ScopeNode[] = [];
         let scopePattern = /\[\d{2}\.\d{3}] \[\d{2}\.\d{3}] BEGIN.*/gs;

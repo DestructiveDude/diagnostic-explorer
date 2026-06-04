@@ -1,2 +1,8 @@
-/* Base table styles and severity-band rules live in src/styles.scss under .sev-table.
-   No component-specific overrides needed. */
+/* Base table styles and severity-band rules live in src/styles.scss under .sev-table. */
+
+.realtime-events {
+  height: 260px;
+  resize: vertical;
+  min-height: 100px;
+  overflow-y: auto !important;
+}

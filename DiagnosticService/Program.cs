@@ -16,6 +16,10 @@ public static class Program
         });
 
         builder.Configuration.AddJsonFile(Expand(Path.Combine("Config", "settings.json"))!);
+        // Re-add env vars after the JSON file so they take priority.
+        // WebApplication.CreateBuilder loads env vars before AddJsonFile above,
+        // which means the JSON file would otherwise win — breaking Docker overrides.
+        builder.Configuration.AddEnvironmentVariables();
 
         builder.Services.Configure<DiagServiceSettings>(builder.Configuration.GetSection(nameof(DiagServiceSettings)));
         builder.Services.AddDiagnosticExplorer(builder.Configuration);

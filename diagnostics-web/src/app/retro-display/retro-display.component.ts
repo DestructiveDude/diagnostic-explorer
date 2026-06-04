@@ -2,6 +2,7 @@ import {Component} from '@angular/core';
 import {RetroModel} from '../Model/RetroModel';
 import {EventModel} from '../Model/EventModel';
 import {DiagnosticMsg} from '../Model/DiagnosticMsg';
+import {ScopeNode} from '../Model/ScopeNode';
 
 @Component({
     selector: 'app-retro-display',
@@ -10,6 +11,8 @@ import {DiagnosticMsg} from '../Model/DiagnosticMsg';
     standalone: false
 })
 export class RetroDisplayComponent {
+
+    resultsCollapsed = false;
 
     constructor(readonly model: RetroModel) {
     }
@@ -26,6 +29,10 @@ export class RetroDisplayComponent {
     // Only read by the template while model.selectedEvent is truthy (the @if
     // guards the app-event-detail binding), so there is no need to clear the
     // cache back to undefined.
+    hasTraceScope(msg: DiagnosticMsg): boolean {
+        return ScopeNode.hasTraceScope(msg.detail || msg.message);
+    }
+
     get selectedAsEventModel(): EventModel | undefined {
         const src = this.model.selectedEvent;
         if (src && src !== this.cachedSrc) {

@@ -1,4 +1,4 @@
-<div class="overflow-y-auto border border-[color:var(--border)] rounded realtime-events" style="max-height: 300px;">
+<div class="overflow-y-auto border border-[color:var(--border)] rounded realtime-events">
   @if (!sink?.filteredEvents?.length) {
     <div class="p-4 text-center text-[color:var(--label)]">No events</div>
   } @else {
@@ -20,7 +20,12 @@
             <td>{{ event.id }}</td>
             <td class="whitespace-nowrap">{{ event.date | date:'yyyy-MM-dd HH:mm:ss' }}</td>
             <td>{{ event.level | levelName }}</td>
-            <td>{{ event.message }}</td>
+            <td>
+              {{ event.message }}
+              @if (event.region) {
+                <i class="pi pi-info-circle scope-indicator" title="Has trace scope"></i>
+              }
+            </td>
           </tr>
         }
       </tbody>

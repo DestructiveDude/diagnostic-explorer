@@ -4,12 +4,13 @@
     @for (sub of category.subCats; track sub) {
       <p-panel [toggleable]="true" [collapsed]="!sub.isExpanded" class="no-toggle-panel block">
         <ng-template #header>
-          <div class="flex-1 cursor-pointer select-none"
+          <div class="flex items-center gap-2 flex-1 cursor-pointer select-none"
                (click)="sub.isExpanded = !sub.isExpanded"
                (dblclick)="sub.handleDoubleClick($event)">
-            {{ sub.name ?? 'General' }}
+            <i class="pi pi-chevron-right panel-chevron" [class.expanded]="sub.isExpanded"></i>
+            <span>{{ sub.name ?? 'General' }}</span>
             @if (sub.operationSet) {
-              <span class="text-yellow-500 ml-1 cursor-pointer" title="Has executable operations"
+              <span class="text-yellow-500 cursor-pointer" title="Has executable operations"
                     (click)="showOperationsDialog($event, sub); $event.stopPropagation()">&#9733;</span>
             }
           </div>
@@ -23,11 +24,11 @@
               </ng-template>
               <div class="prop-grid grid grid-cols-[max-content_1fr] lg:grid-cols-[max-content_1fr_max-content_1fr] gap-x-3 gap-y-0.5 px-1 py-1">
                 @for (prop of group.properties; track prop) {
-                  <span class="text-xs prop-name"
+                  <span class="prop-name"
                         [class.settable]="prop.canSet"
                         [class.cursor-pointer]="prop.canSet"
                         (click)="prop.canSet && showSetPropertyDialog(prop)">{{ prop.name }}</span>
-                  <span class="text-xs prop-value"
+                  <span class="prop-value"
                         (dblclick)="handleDoubleClick(prop, $event)"
                         [pTooltip]="prop.value" [showDelay]="0" tooltipPosition="bottom"
                         tooltipStyleClass="tooltips">{{ prop.value }}</span>
@@ -43,11 +44,12 @@
       <p-panel [toggleable]="true" [collapsed]="!evt.isExpanded" class="no-toggle-panel block">
         <ng-template #header>
           <div class="flex items-center w-full gap-2 min-w-0">
-            <div class="flex-1 cursor-pointer select-none truncate"
+            <div class="flex items-center gap-2 flex-1 cursor-pointer select-none min-w-0"
                  (click)="evt.isExpanded = !evt.isExpanded"
                  (dblclick)="evt.handleDoubleClick($event)">
-              {{ evt.name }}
-              <span class="text-xs opacity-50 ml-2">{{ evt.message }}</span>
+              <i class="pi pi-chevron-right panel-chevron flex-shrink-0" [class.expanded]="evt.isExpanded"></i>
+              <span class="truncate">{{ evt.name }}</span>
+              <span class="text-xs opacity-50 flex-shrink-0">{{ evt.message }}</span>
             </div>
             <div class="flex items-center" (click)="handleClick($event)" (keydown)="$event.stopPropagation()">
               <app-event-filter [(filterVisible)]="evt.filterVisible"

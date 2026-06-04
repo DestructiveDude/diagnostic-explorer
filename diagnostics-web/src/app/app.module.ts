@@ -28,6 +28,20 @@ import {BASE_API_URL, BASE_API_KEY} from "../injectionTokens";
 import {environment} from "../environments/environment";
 import {providePrimeNG} from 'primeng/config';
 import Aura from '@primeng/themes/aura';
+import {definePreset} from '@primeng/themes';
+
+// Rebrand Aura's default (teal/emerald) primary to the app's salmon accent (#fd8c73)
+// so PrimeNG highlight states — select selected-option, datepicker selected date —
+// match the rest of the UI instead of showing teal.
+const SalmonAura = definePreset(Aura, {
+    semantic: {
+        primary: {
+            50: '#fff4f1', 100: '#ffe4dc', 200: '#ffc9b9', 300: '#ffa893',
+            400: '#fd9379', 500: '#fd8c73', 600: '#e07060', 700: '#bd5a4d',
+            800: '#9a4940', 900: '#7e3e37', 950: '#451d19'
+        }
+    }
+});
 import {TableModule} from 'primeng/table';
 import {CheckboxModule} from 'primeng/checkbox';
 import {InputTextModule} from 'primeng/inputtext';
@@ -94,7 +108,7 @@ import {MessageService} from 'primeng/api';
         DialogService,
         MessageService,
         provideHttpClient(withInterceptorsFromDi()),
-        providePrimeNG({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } })
+        providePrimeNG({ theme: { preset: SalmonAura, options: { darkModeSelector: '.app-dark' } } })
     ] })
 export class AppModule {
 }

@@ -2,20 +2,40 @@
   border-bottom-color: var(--border) !important;
 }
 :host ::ng-deep .p-datatable-tbody > tr > td:nth-child(1) {
-  font-family: var(--font-sans) !important;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
+  color: #86efac !important;
+  font-size: 14px !important;
+}
+
+:host ::ng-deep .p-datatable-tbody > tr > td:nth-child(2),
+:host ::ng-deep .p-datatable-tbody > tr > td:nth-child(3) {
+  font-size: 13px !important;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr {
   color: #ffffff;
   background: transparent !important;
+  cursor: pointer;
+  transition: background 0.1s ease;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.online {
   color: #ffffff;
 }
 
+/* Hover affordance — subtle lift so it's clear rows are clickable. */
+:host ::ng-deep .p-datatable-tbody > tr:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Selected process — salmon tint + salmon left marker so the active row is
+   unmistakable against the rest of the list. */
 :host ::ng-deep .p-datatable-tbody > tr.active {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(253, 140, 115, 0.16) !important;
+  box-shadow: inset 3px 0 0 0 #fd8c73;
+}
+:host ::ng-deep .p-datatable-tbody > tr.active:hover {
+  background: rgba(253, 140, 115, 0.22) !important;
 }
 
 /* Process-table header — mockup .th: bold head text on a surface bar.

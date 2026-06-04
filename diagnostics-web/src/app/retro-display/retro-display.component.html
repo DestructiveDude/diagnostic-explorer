@@ -1,14 +1,18 @@
 <div class="h-full">
-  <p-splitter layout="vertical" [panelSizes]="[75, 25]" [minSizes]="[0, 0]"
+  <p-splitter layout="vertical" [panelSizes]="[75, 25]" [minSizes]="[0, 15]"
               styleClass="h-full border-0" stateKey="diag-retro-split" stateStorage="local">
 
     <!-- Top panel: header + results table -->
     <ng-template #panel>
-      <div class="h-full flex flex-col">
+      <div class="h-full flex flex-col overflow-hidden">
 
         <!-- Header row -->
         <div class="flex items-center gap-3 px-3 py-1 bg-[color:var(--surface)] border-b border-[color:var(--border)] shrink-0">
-          <span class="text-[color:var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
+          <div class="flex items-center gap-2 cursor-pointer select-none"
+               (click)="resultsCollapsed = !resultsCollapsed">
+            <i class="pi pi-chevron-right panel-chevron" [class.expanded]="!resultsCollapsed"></i>
+            <span class="text-[color:var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
+          </div>
           <span class="text-[color:var(--label)] text-xs opacity-70 whitespace-nowrap">{{ model.resultsMessage }}</span>
           <div (keydown)="$event.stopPropagation()">
             <app-event-filter [(filterVisible)]="model.filterVisible" [(criteria)]="model.filterCriteria" />
@@ -16,7 +20,7 @@
         </div>
 
         <!-- Results table -->
-        <div class="flex-1 overflow-auto">
+        <div class="flex-1 min-h-0 overflow-auto" [class.hidden]="resultsCollapsed">
           <p-table [value]="model.displayResults"
                    [resizableColumns]="true"
                    columnResizeMode="expand"
@@ -46,7 +50,12 @@
                 <td>{{ item.machine }}</td>
                 <td>{{ item.user }}</td>
                 <td>{{ item.process }}</td>
-                <td>{{ item.message | summaryLine:100 }}</td>
+                <td>
+                  {{ item.message | summaryLine:100 }}
+                  @if (hasTraceScope(item)) {
+                    <i class="pi pi-info-circle scope-indicator" title="Has trace scope"></i>
+                  }
+                </td>
               </tr>
             </ng-template>
 

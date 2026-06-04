@@ -57,6 +57,9 @@ export class EventFilterComponent implements OnInit {
     @Watch((_this: EventFilterComponent) => _this.onCriteriaChanged())
     error = false;
 
+    @Watch((_this: EventFilterComponent) => _this.onCriteriaChanged())
+    hasScope = false;
+
 
     private onCriteriaChanged(): void {
         const criteria = new FilterCriteria();
@@ -65,6 +68,7 @@ export class EventFilterComponent implements OnInit {
         criteria.notice = this.notice;
         criteria.warn = this.warn;
         criteria.error = this.error;
+        criteria.hasScope = this.hasScope;
         this._criteria = criteria;
         this.criteriaChange.emit(criteria);
     }
@@ -86,6 +90,7 @@ export class EventFilterComponent implements OnInit {
             this.notice = criteria.notice;
             this.warn = criteria.warn;
             this.error = criteria.error;
+            this.hasScope = criteria.hasScope;
         } finally {
             this.watchEnabled = wasWatching;
         }

@@ -5,8 +5,9 @@
 **Head:** `FixPortal/diagnostic-explorer` `main` at the time of this document (`353aecf`),
 including the post-`3.2.1` `TreatWarningsAsErrors` follow-up, the Code Quality pass + CI action
 currency (Part 3c), two further adversarial-review passes (Parts 3d–3e), the public-API surface
-lock (Part 3f / v3.2.2), and the diagnostics-web Angular Material → PrimeNG migration plus
-GitHub dark re-skin (Parts 1.6–1.7).
+lock (Part 3f / v3.2.2), the diagnostics-web Angular Material → PrimeNG migration plus
+GitHub dark re-skin (Parts 1.6–1.7), and a follow-on UI-polish pass that also adds a
+trace-scope row filter and restores Docker config precedence (Part 1.8).
 **Span:** ~130 commits · 234 files · +26,913 / −13,143 (plus this documentation commit).
 **Package version:** `3.1.38` → **`3.2.0`** (NuGet `DiagnosticExplorer`). A minor bump: a new
 backward-compatible opt-in feature (hub auth/CORS), a major framework upgrade (Angular 13 → 21),
@@ -141,6 +142,49 @@ purely visual / CSS.
   white pill Search.
 - **Event detail:** black tab header, grey content, white text; trace scope displayed inline in
   the retro event-detail view (with a stub fallback when no scope data is present).
+
+### 1.8 diagnostics-web: UI-polish pass, trace-scope filter, Docker config fix
+
+A follow-on round of UI refinements on top of the re-skin, plus one additive feature and one
+config-precedence fix. Everything here is either visual/CSS or additive; no existing runtime
+behaviour changes.
+
+- **Type scale:** larger, more legible sizing for process names (IBM Plex Mono, green), Host/User
+  columns, the category rail, property name/value grids, the severity-band tables, and the event
+  detail body. Several rules had to move from component `:host ::ng-deep` / Tailwind `text-*`
+  classes to globally-scoped selectors in `styles.scss` because the values were being lost across
+  PrimeNG's `p-tabpanel` content-projection boundary or out-competed by Tailwind utilities.
+- **Collapsible content panels:** every System-view sub-category and event-sink panel is now
+  collapsible with a left-aligned chevron that rotates on expand; the Retro Results panel gained the
+  same chevron + collapse.
+- **Trace-scope row indicator:** rows whose detail carries a `BEGIN/END` trace scope show an inline
+  `pi-info-circle` marker (realtime and retro), so a scope is discoverable without opening each row.
+  Detection is centralised in a single `ScopeNode.hasTraceScope()` helper.
+- **Trace-scope filter (new):** a 5th option on the shared event filter — an `pi-info-circle` toggle
+  that keeps only rows carrying a trace scope. It is orthogonal to the four severity flags and the
+  text matcher (all ANDed) and, because the filter lives in `FilterCriteria`, applies to both the
+  realtime event-sink filters and the retro results filter. Covered by new `FilterCriteria` unit
+  tests.
+- **Salmon accent:** PrimeNG's Aura `primary` palette is rebranded to the app's salmon accent via
+  `definePreset`, so theme highlight states (select selected-option, datepicker selected date) match
+  the rest of the UI instead of Aura's default teal.
+- **Process list affordances:** hover lift and an unmistakable salmon-tinted selected row with a
+  salmon left marker in the realtime process list (previously a near-invisible 4%-white background
+  and no hover state).
+- **Resizable panels / tables:** property panels carry a vertical resize grip; event-sink panels are
+  sized by the inner events table's own resize grip (drag to reveal more rows) — kept separate to
+  avoid fighting PrimeNG's collapse animation, which drives panel height.
+- **Nested-splitter fix:** a vertical `p-splitter` (and each `.p-splitterpanel`) is a grid/flex item
+  with the default `min-height:auto`, so a tall panel — e.g. a full Retro results table — inflated
+  the whole splitter past the viewport and pushed the detail/trace-scope pane off-screen. Forcing
+  `min-height:0` on splitters/panels lets them honour their allotted track and clip+scroll
+  internally.
+- **Docker config precedence (fix):** `Program.cs` added `Config/settings.json` to configuration
+  *after* `WebApplication.CreateBuilder` had already loaded environment variables, inverting ASP.NET
+  Core's conventional precedence and causing container env overrides (e.g.
+  `DiagServiceSettings__RetroConnection`) to be silently ignored — so the Mongo/Retro connection
+  string fell back to `localhost`. Re-adding `AddEnvironmentVariables()` after the JSON file restores
+  the expected "env wins" ordering.
 
 ---
 

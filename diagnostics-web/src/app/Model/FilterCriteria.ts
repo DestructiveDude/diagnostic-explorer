@@ -3,6 +3,7 @@ import * as _ from 'lodash';
 import {Watch} from '../util/Watch';
 import {IFilterableEvent} from './IFilterableEvent';
 import {Level} from './Level';
+import {ScopeNode} from './ScopeNode';
 
 export class FilterCriteria {
 
@@ -25,6 +26,11 @@ export class FilterCriteria {
     @Watch((_this: FilterCriteria) => _this.initFilterFunc())
     error = false;
 
+    // When true, keep only rows that carry a trace scope (a BEGIN/END region in
+    // their detail). Orthogonal to the severity flags and text — ANDed with them.
+    @Watch((_this: FilterCriteria) => _this.initFilterFunc())
+    hasScope = false;
+
     @Watch((_this: FilterCriteria) => _this.initFilterFunc())
     searchText = '';
 
@@ -32,6 +38,7 @@ export class FilterCriteria {
 
     get isBlank(): boolean {
         return !this.searchText
+            && !this.hasScope
             && this.info === this.warn
             && this.info === this.notice
             && this.info === this.error;
@@ -50,6 +57,7 @@ export class FilterCriteria {
         let notice = this.notice;
         let warn = this.warn;
         let error = this.error;
+        const requireScope = this.hasScope;
 
         let matcher: Null<RegExp> = null;
 
@@ -80,6 +88,9 @@ export class FilterCriteria {
                 return false;
 
             if (!error && evt.level >= Level.ERROR)
+                return false;
+
+            if (requireScope && !ScopeNode.hasTraceScope(evt.detail || evt.message))
                 return false;
 
             if (evt.user && matcher?.test(evt.user)) return true;

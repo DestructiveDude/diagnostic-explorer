@@ -11,20 +11,5 @@
 :host ::ng-deep .evt-tabs .p-tab.p-tab-active { color: var(--head) !important; }
 :host ::ng-deep .evt-tabs .p-tablist-active-bar { background: #fd8c73 !important; }
 
-.detail-body { height:100%; display:flex; flex-direction:column; min-height:0; }
-
-.meta {
-  display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px;
-  padding:6px 12px; border-bottom:1px solid var(--border); flex:0 0 auto;
-}
-.meta-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
-.dk { color:var(--label); text-transform:uppercase; font-size:10px; letter-spacing:.05em; }
-.dv { color:var(--head); font-size:13px; }
-.dv.lvl { color:var(--active); font-weight:600; }
-
-.bd {
-  flex:1 1 auto; min-height:0; margin:0; overflow:auto;
-  padding:8px 12px; background: var(--bg); color: var(--head);
-  font-family: var(--font-sans); font-size:13px; line-height:1.5;
-  white-space:pre-wrap; word-break:break-word;
-}
+/* Layout and text styles live in styles.scss under the app-event-detail selector
+   to avoid Angular encapsulation issues with p-tabpanel content projection. */

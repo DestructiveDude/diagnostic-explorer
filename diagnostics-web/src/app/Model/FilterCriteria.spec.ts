@@ -48,4 +48,24 @@ describe('FilterCriteria', () => {
         expect(criteria.filter(event({level: Level.INFO}))).toBe(false);
         expect(criteria.filter(event({level: Level.ERROR}))).toBe(false);
     });
+
+    it('keeps only rows carrying a trace scope when hasScope is set', () => {
+        const criteria = new FilterCriteria();
+        criteria.hasScope = true;
+
+        expect(criteria.isBlank).toBe(false);
+        expect(criteria.filter(event({detail: '[01.234] [00.567] BEGIN DoWork'}))).toBe(true);
+        expect(criteria.filter(event({message: 'no scope here'}))).toBe(false);
+    });
+
+    it('ANDs the trace-scope flag with the text matcher', () => {
+        const criteria = new FilterCriteria();
+        criteria.hasScope = true;
+        criteria.searchText = 'timeout';
+
+        const scope = '[01.234] [00.567] BEGIN Op';
+        expect(criteria.filter(event({message: 'timeout', detail: scope}))).toBe(true);
+        expect(criteria.filter(event({message: 'ok', detail: scope}))).toBe(false);   // scope but no text match
+        expect(criteria.filter(event({message: 'timeout'}))).toBe(false);             // text match but no scope
+    });
 });

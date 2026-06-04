@@ -1,6 +1,7 @@
 
 .prop-name {
   color: var(--label);
+  font-size: 15px;
 }
 
 .prop-name.settable {
@@ -12,4 +13,6 @@
   width: 100%;
   overflow: hidden;
   color: var(--value);
+  font-size: 15px;
 }
+

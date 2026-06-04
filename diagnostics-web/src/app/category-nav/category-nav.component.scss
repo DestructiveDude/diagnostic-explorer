@@ -1,5 +1,5 @@
 :host { display:block; height:100%; border-left:1px solid var(--border); min-width:140px; }
-.cat { display:flex; align-items:center; gap:8px; padding:6px 10px; font-size:12px; color:var(--label); cursor:pointer; }
+.cat { display:flex; align-items:center; gap:8px; padding:6px 10px; font-size:16px; color:var(--label); cursor:pointer; }
 .cat:hover { background: rgba(255,255,255,.03); }
 .cat.active { background: rgba(255,255,255,.05); border-right:2px solid var(--active); color:var(--head); font-weight:600; }
 .dot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; background: var(--dot-quiet); }

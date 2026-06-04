@@ -4,6 +4,11 @@
     <p-checkbox class="mr-1 check-notice" [binary]="true" [(ngModel)]="notice" size="small" />
     <p-checkbox class="mr-1 check-warn" [binary]="true" [(ngModel)]="warn" size="small" />
     <p-checkbox class="mr-1 check-error" [binary]="true" [(ngModel)]="error" size="small" />
+    <button type="button" class="scope-toggle mr-1" [class.active]="hasScope"
+            (click)="hasScope = !hasScope"
+            pTooltip="Only rows with a trace scope" tooltipPosition="bottom" [showDelay]="300">
+      <i class="pi pi-info-circle"></i>
+    </button>
     <input pInputText type="text" placeholder="filter text" class="filter-text h-4 text-xs m-0"
            [(ngModel)]="searchText">
   }
