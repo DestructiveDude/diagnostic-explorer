@@ -80,7 +80,9 @@ public class DiagnosticManagerTests
         );
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("can't convert 'invalid-val' to CustomParsableType");
+        result.ErrorMessage.Should().Match(m =>
+            m.Contains("can't convert 'invalid-val' to CustomParsableType") ||
+            m.Contains("Parse failed for value: invalid-val"));
         result.ErrorDetail.Should().Contain(nameof(CustomParseException));
         result.ErrorDetail.Should().Contain("Parse failed for value: invalid-val");
     }

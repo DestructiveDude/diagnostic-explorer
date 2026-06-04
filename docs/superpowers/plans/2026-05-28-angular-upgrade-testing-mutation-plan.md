@@ -97,11 +97,13 @@ Expected: FAIL because `util.spec.ts` does not exist yet.
 
 ```ts
 // diagnostics-web/src/app/app.component.spec.ts
+// imports should include:
+// import { provideRouter } from '@angular/router';
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
       declarations: [AppComponent],
+      providers: [provideRouter([])],
     }).compileComponents();
   });
 
@@ -234,7 +236,7 @@ git commit -m "build: upgrade diagnostics-web to Angular 21"
     "jest-environment-jsdom": "^30.0.5",
     "jest-preset-angular": "^15.0.3",
     "@types/jest": "^30.0.0",
-    "ts-jest": "^29.4.1"
+    "ts-jest": "^30.0.0"
   }
 }
 ```

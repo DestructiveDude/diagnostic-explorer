@@ -100,6 +100,28 @@ public class RetroSearchLifecycleTests
         finishedRaised.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies that SendResults raises Finished when the channel completes without error.
+    /// Complements the error-callback-throws test to confirm the normal completion path also fires Finished.
+    /// </summary>
+    [Fact]
+    public async Task SendResults_WhenChannelCompletesSuccessfully_RaisesFinished()
+    {
+        RetroManager manager = CreateManager();
+        IWebHubClient client = Substitute.For<IWebHubClient>();
+        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 8 });
+        bool finishedRaised = false;
+        process.Finished += (_, _) => finishedRaised = true;
+
+        Channel<RetroSearchResult> channel = Channel.CreateUnbounded<RetroSearchResult>();
+        channel.Writer.Complete();
+
+        Func<Task> act = async () => await InvokeSendResults(process, channel);
+
+        await act.Should().NotThrowAsync();
+        finishedRaised.Should().BeTrue();
+    }
+
     [Fact]
     public void LogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
