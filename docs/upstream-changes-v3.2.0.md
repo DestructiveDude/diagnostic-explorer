@@ -2,11 +2,12 @@
 
 **Baseline:** `da97212` (`Merge pull request #2 from DestructiveDude/main`) — the current tip of
 `upstream/main` (cell001nz/diagnostic-explorer) and the merge-base with this fork.
-**Head:** the `FixPortal/diagnostic-explorer` `main` at the time of this document (`044c9f7`),
+**Head:** `FixPortal/diagnostic-explorer` `main` at the time of this document (`353aecf`),
 including the post-`3.2.1` `TreatWarningsAsErrors` follow-up, the Code Quality pass + CI action
-currency (Part 3c), two further adversarial-review passes (Parts 3d–3e), and the public-API surface
-lock (Part 3f / v3.2.2).
-**Span:** ~66 commits · 206 files · +23,944 / −12,016 (plus this documentation commit).
+currency (Part 3c), two further adversarial-review passes (Parts 3d–3e), the public-API surface
+lock (Part 3f / v3.2.2), and the diagnostics-web Angular Material → PrimeNG migration plus
+GitHub dark re-skin (Parts 1.6–1.7).
+**Span:** ~130 commits · 234 files · +26,913 / −13,143 (plus this documentation commit).
 **Package version:** `3.1.38` → **`3.2.0`** (NuGet `DiagnosticExplorer`). A minor bump: a new
 backward-compatible opt-in feature (hub auth/CORS), a major framework upgrade (Angular 13 → 21),
 and ~40 defect fixes. `3.1.38` was rebuilt during this work and is not reused. Pure defect fixes
@@ -88,6 +89,58 @@ fixed along the way (`EventFilterComponent.loadCriteria` dropping level flags on
   were the supply-chain risk) and a `dependabot.yml` (nuget + npm + github-actions) to keep the
   SHA pins and dependencies maintained. The pins are kept current — the Docker publish job's
   actions were later re-pinned to their Node.js-24 releases (see Part 3c).
+
+### 1.6 diagnostics-web: Angular Material → PrimeNG migration
+
+The existing diagnostics-web UI was built on Angular Material with MDC components. After the
+Angular 13 → 21 upgrade (§1.2) Material's visual quality degraded: broken theming, inconsistent
+sizing, stale overlay behaviour. The entire component surface was migrated to **PrimeNG 21**
+(Lara dark theme + PrimeIcons), the library used by Cameron's reference implementation
+(`diag-azure-app`), giving the fork a consistent baseline with upstream.
+
+- **App shell:** `p-splitter` replaces the custom flex layout; `p-selectButton` for the
+  Realtime / Retro mode toggle.
+- **Realtime:** `p-table` (sortable, resizable, `localStorage` column-width persistence) for the
+  process list; `p-splitter` for the rail / content / detail split; `p-chip` severity rows.
+- **Retro:** `p-inputText`, `p-calendar`, `p-select`, `p-button` on the search form;
+  `p-table` with shared severity rows for results; `p-tabs` + `p-tabpanel` for event detail.
+- **Dialogs:** `MatDialog` → PrimeNG `DynamicDialog` / `DialogService`.
+- **Trace scope:** new `trace-scope` component replacing the bespoke `collapsible-region`;
+  displayed as a collapsible inline tree inside the event-detail tab panel.
+- **Category nav:** new `category-nav` component with severity-dot list.
+- **Removed:** `@angular/material`, `@angular/cdk` and all related module registrations,
+  `angular-split` (migrated to `p-splitter`), Angular `MessageService` toasts. Bundle budget
+  restored to 2 MB (Material had exceeded it).
+- **Preserved behaviours:** retro event-detail adapter is memoed so trace-scope expand state
+  survives re-renders; process and results table column widths persist to `localStorage`.
+- **Tests:** `app.component.spec.ts` updated for `p-splitter`; new `trace-scope.component.spec.ts`
+  covering toggle behaviour; `RealtimeModel` and `RetroModel` specs adjusted for the updated
+  component interface.
+
+### 1.7 diagnostics-web: GitHub dark re-skin
+
+A visual redesign aligned to the GitHub dark palette. No Angular or PrimeNG behaviour changes —
+purely visual / CSS.
+
+- **Palette:** global CSS custom properties in `styles.scss` (`--bg-*`, `--surface-*`, `--text-*`,
+  `--border-*`) covering canvas (`#0d1117`), rail/header content (`#010409`), pure black header bar,
+  box bodies, and interactive states; `--indigo-focus-ring` focus indicator.
+- **Typography:** IBM Plex Mono for structural UI (header, process names, trace scope, metadata);
+  IBM Plex Sans for Process messages and human-readable text. Served from `@fontsource` packages
+  (no external CDN; bundled in the Docker image).
+- **Tailwind 3.0.2 fix:** arbitrary `[var(--x)]` token utilities generated empty CSS rules under
+  Tailwind 3.0.2 (the pinned version). Adding explicit property-hint prefixes (`[color:var(--x)]`,
+  `[background-color:var(--x)]`, etc.) throughout `styles.scss` forces PurgeCSS to emit them
+  correctly.
+- **Realtime nav:** double-click a column header to auto-fit its width; fit-all on Online-only
+  toggle; orange resize indicator strip; auto-fit uses `ElementRef` + `requestAnimationFrame`
+  (not `ViewChild`, which resolves too late for dynamic column content).
+- **Event filter:** severity-coded PrimeNG checkboxes; black filter input.
+- **Category nav:** severity-dot decay extended from 2 s to 5 min.
+- **Retro nav:** black input / select / datepicker; indigo primary; text-link Reset / Delete;
+  white pill Search.
+- **Event detail:** black tab header, grey content, white text; trace scope displayed inline in
+  the retro event-detail view (with a stub fallback when no scope data is present).
 
 ---
 
@@ -420,8 +473,10 @@ confirmed findings were hardened:
 - Full solution builds **0 errors** (Debug & Release); the two published library projects build
   **warnings-as-errors** clean (Sonar findings remain advisory warnings).
 - .NET unit suite: **76/76** green.
-- Frontend: Jest **71/71** green; `ng build` (production) succeeds.
-- The complete integrated tree (all batches together) was built and tested green before this
+- Frontend: Jest suite extended post-PrimeNG migration (new `trace-scope.component.spec.ts`,
+  updated app shell / model specs); all tests pass. `ng build` (production) succeeds.
+- Docker image builds and serves the SPA + both SignalR hubs from a single container.
+- The complete integrated tree (all batches together) was built and verified running before this
   document was written.
 
 ---
@@ -438,23 +493,27 @@ above. So the proposal is **document-first, then PRs shaped to your appetite**:
    opt-in config whose default reproduces today's behaviour — so the large additive/upgrade parts
    can be accepted quickly and scrutiny concentrated on the small behavioural surface.
 
-2. **Preferred shape — four thematic PRs along the seams the history already has,** stacked so each
+2. **Preferred shape — five thematic PRs along the seams the history already has,** stacked so each
    rebases on the one before. This lets the safe parts merge immediately and the behavioural parts
    be reviewed in isolation:
-   - **PR 1 — Tooling, tests, CI, Angular 13 → 21 (Part 1),** including `TreatWarningsAsErrors` on
-     the published projects (§1.4). Purely additive / toolchain; no change to the shipped library's
-     runtime behaviour. Safe to accept first. The Node.js-24 Docker-action currency bump (Part 3c)
-     folds in here.
+   - **PR 1 — Tooling, tests, CI, Angular 13 → 21 (Part 1, §1.1–1.5),** including
+     `TreatWarningsAsErrors` on the published projects (§1.4). Purely additive / toolchain; no
+     change to the shipped library's runtime behaviour. Safe to accept first. The Node.js-24
+     Docker-action currency bump (Part 3c) folds in here.
    - **PR 2 — Audit remediation defect fixes (Parts 2–3; batches 1–8, 10).** The correctness /
      concurrency / DoS / lifecycle fixes, each commit carrying its finding IDs.
    - **PR 3 — Opt-in hub auth & CORS + hardening (Part 4; batch 9 + the hardening commit).** The one
      new feature; off by default.
-   - **PR 4 — Post-tag fixes (Parts 3b–3c): CodeQL code-scanning triage, the dogfood
-     Retro-index/exception/UI fixes, and the later Code Quality maintainability pass.**
+   - **PR 4 — Post-tag fixes (Parts 3b–3f): CodeQL code-scanning triage, the dogfood
+     Retro-index/exception/UI fixes, the Code Quality maintainability pass, the further adversarial
+     review batches (15–20), and the PublicApiAnalyzers surface lock.**
+   - **PR 5 — diagnostics-web visual overhaul (Parts 1.6–1.7): Angular Material → PrimeNG migration
+     and GitHub dark re-skin.** Frontend only; no backend or library changes. Can be reviewed and
+     merged independently of the behavioural PRs.
 
 3. **Alternative — one umbrella PR** (`FixPortal:main` → `cell001nz:main`) whose description links
    this document, if you would rather have the whole thing in one place and review via the doc.
-   Because the history is already themed, it can still be split into the four PRs above on request.
+   Because the history is already themed, it can still be split into the five PRs above on request.
 
 **Mechanics / cautions:**
 - Base the PR(s) on `cell001nz/diagnostic-explorer@da97212` (current `upstream/main`); that is the
@@ -472,6 +531,69 @@ above. So the proposal is **document-first, then PRs shaped to your appetite**:
 ## Appendix — commit inventory (newest first, since `da97212`)
 
 ```
+fix(diagnostics-web): add fontsource packages missing from re-skin PR; fix Docker mongo port (Part 1.7)
+feat(diagnostics-web): GitHub dark re-skin — event detail, trace scope, retro display; strip dummy data (Part 1.7)
+dev(event-detail): dummy trace scope for styling — falls back to real region when present (Part 1.7)
+feat(event-detail): black tab header, grey content, white text, drop indigo border (Part 1.7)
+feat(styles): mixed typography — IBM Plex Mono for structure, Plex Sans for Process + Message (Part 1.7)
+feat(styles): switch body font to IBM Plex Mono (Part 1.7)
+fix(styles): set --p-font-family to override PrimeNG Aura's runtime cascade (Part 1.7)
+chore(realtime-nav): remove redundant per-th dblclick handlers; HostListener covers it (Part 1.7)
+feat(styles): add IBM Plex Sans as body font (Part 1.7)
+feat(event-filter): severity-coded checkboxes; black filter input; fix chevron direction; bump detail font (Part 1.7)
+feat(category-nav): extend severity dot decay from 2s to 5min (Part 1.7)
+feat(retro-nav): text-link Reset/Delete + white pill Search; fixed-size, anchored left/right (Part 1.7)
+feat(retro-nav): black input/select/datepicker boxes; indigo primary (Part 1.7)
+feat(realtime-nav): position-based dblclick fit; overflow-gated toggle fit; orange resize indicator (Part 1.7)
+fix(realtime-nav): use host ElementRef + rAF for column auto-fit (was ViewChild timing) (Part 1.7)
+feat(realtime-nav): double-click column header to auto-fit; fit all columns on online-only toggle (Part 1.7)
+style: black filter input + white text; orange splitter handles (Part 1.7)
+style(realtime-nav): black table header, white process-table text (Part 1.7)
+style(realtime-nav): white Online-only checkbox (checked state) (Part 1.7)
+style(realtime-nav): orange Online-only checkbox + white label (Part 1.7)
+fix(diagnostics-web): add color: type-hint to all [var(--*)] token utilities (Tailwind 3.0.2 fix) (Part 1.7)
+tweak(diagnostics-web): black nav-tabs bar, process-table text green-500 (Part 1.7)
+fix(diagnostics-web): grey canvas/rail vs black header+box body; splitter transparent (Part 1.7)
+tweak(diagnostics-web): rail/canvas #010409, header+box body pure black (Part 1.7)
+feat(diagnostics-web): GitHub re-skin — black header, underline nav tabs, GitHub palette (Part 1.7)
+fix(diagnostics-web): drop border under top app-bar header (Part 1.7)
+fix(diagnostics-web): remove PrimeNG default light borders on process-table header (Part 1.7)
+fix(diagnostics-web): uniform 16px vertical spacing in rail (Part 1.7)
+tweak(diagnostics-web): rail width range 250-500px (Part 1.7)
+fix(diagnostics-web): process table fits container; rail px-clamped min/max (Part 1.7)
+feat(diagnostics-web): rail controls — tools divider, bigger gaps/fonts, teal toggle (Part 1.7)
+feat(diagnostics-web): bounded containers — rail borders, 9px padding+gap, 6px splitter gutters (Part 1.7)
+fix(diagnostics-web): left rail — stack filter/Online, visible teal column grips (Part 1.7)
+fix(diagnostics-web): solid indigo toggle fill (Part 1.7)
+feat(diagnostics-web): panel + fieldset chrome (Part 1.7)
+wip(diagnostics-web): visual-fidelity fixes — detail metadata, teal grips, indigo toggle (Part 1.7)
+docs: add diagnostics-web UI redesign implementation plan (Part 1.6–1.7)
+docs: add diagnostics-web UI redesign design spec (Part 1.6–1.7)
+chore(diagnostics-web): drop unused angular-split dependency (migrated to p-splitter) (Part 1.6)
+chore(diagnostics-web): remove Angular Material; restore 2MB bundle budget (Part 1.6)
+feat(diagnostics-web): convert dialogs to PrimeNG DynamicDialog (Part 1.6)
+feat(diagnostics-web): persist process + results table column widths to localStorage (Part 1.6)
+fix(diagnostics-web): memoise retro event-detail adapter to preserve trace-scope expand state (Part 1.6)
+feat(diagnostics-web): Retro results table with shared severity rows + event-detail (Part 1.6)
+feat(diagnostics-web): Retro search form on PrimeNG controls + focus ring (Part 1.6)
+feat(diagnostics-web): realtime display with category-nav + content/detail splitter (Part 1.6)
+refactor(diagnostics-web): typed trace-scope toggle handler + clarify duration format (Part 1.6)
+feat(diagnostics-web): restore Trace Scope as a proper collapsible tree + tabbed event-detail (Part 1.6)
+feat(diagnostics-web): punchy severity event-row treatment (Part 1.6)
+style(diagnostics-web): align category panels to palette tokens (Part 1.6)
+feat(diagnostics-web): severity-dot category-nav list component (Part 1.6)
+feat(diagnostics-web): resizable columns + palette on process list (Part 1.6)
+test(diagnostics-web): update app shell spec for p-splitter (Part 1.6)
+feat(diagnostics-web): shell on p-splitter + p-selectButton mode toggle (Part 1.6)
+feat(diagnostics-web): add muted-slate palette tokens + indigo focus ring (Part 1.6)
+feat(diagnostics-web): copy Cameron event table, row colours and detail panel verbatim (Part 1.6)
+feat(diagnostics-web): add empty-state hint to realtime display (Part 1.6)
+feat(diagnostics-web): adopt Cameron's realtime layout (stage 1) (Part 1.6)
+feat(diagnostics-web): convert realtime-display tabs and app shell to PrimeNG (Part 1.6)
+feat(diagnostics-web): convert realtime events, filter, category to PrimeNG (Part 1.6)
+feat(diagnostics-web): convert realtime-nav to PrimeNG (Part 1.6)
+feat(diagnostics-web): add PrimeNG 21 foundation alongside Material (Part 1.6)
+chore(diagnostics-web): add ng serve proxy for local SignalR dev (Part 1.6)
 v3.2.2 — lock public API surface via PublicApiAnalyzers; update upstream change doc (Part 3f)
 fix: resolve batch20 CodeQL and Sonar findings (Part 3e — readonly fields, logic/dispose fixes)
 fix: resolve Sonar warnings and failing frontend tests for PR #39 CI (Part 3e — S3267, test race fixes)
