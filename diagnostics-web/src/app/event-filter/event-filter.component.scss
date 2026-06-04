@@ -1,31 +1,39 @@
-::ng-deep .check-info .mdc-checkbox__background,
-::ng-deep .check-info .mat-checkbox-background {
-  @apply bg-lime-400;
+/* ─── Severity-coded checkbox borders + fills ─────────────────────────────
+   Colours match the severity slice tokens used in the event table bands. */
+
+/* info — green */
+:host ::ng-deep .check-info .p-checkbox-box { border-color: #2ee06a !important; }
+:host ::ng-deep .check-info.p-checkbox-checked .p-checkbox-box {
+  background: #2ee06a !important; border-color: #2ee06a !important;
 }
 
-::ng-deep .check-notice .mdc-checkbox__background,
-::ng-deep .check-notice .mat-checkbox-background {
-  @apply bg-purple-400;
+/* notice — purple */
+:host ::ng-deep .check-notice .p-checkbox-box { border-color: #b15cff !important; }
+:host ::ng-deep .check-notice.p-checkbox-checked .p-checkbox-box {
+  background: #b15cff !important; border-color: #b15cff !important;
 }
 
-::ng-deep .check-warn .mdc-checkbox__background,
-::ng-deep .check-warn .mat-checkbox-background {
-  @apply bg-amber-400;
+/* warn — amber */
+:host ::ng-deep .check-warn .p-checkbox-box { border-color: #ffa31a !important; }
+:host ::ng-deep .check-warn.p-checkbox-checked .p-checkbox-box {
+  background: #ffa31a !important; border-color: #ffa31a !important;
 }
 
-::ng-deep .check-error .mdc-checkbox__background,
-::ng-deep .check-error .mat-checkbox-background {
-  @apply bg-red-400;
+/* error — red */
+:host ::ng-deep .check-error .p-checkbox-box { border-color: #ff5252 !important; }
+:host ::ng-deep .check-error.p-checkbox-checked .p-checkbox-box {
+  background: #ff5252 !important; border-color: #ff5252 !important;
 }
 
-::ng-deep .mdc-checkbox__background,
-::ng-deep .mat-checkbox-background {
-  padding: 1px !important;
-  border: 2px solid #333 !important;
-  border-radius: 0 !important;
-}
+/* Checkmark contrast — dark tick on coloured backgrounds */
+:host ::ng-deep .check-info.p-checkbox-checked .p-checkbox-icon,
+:host ::ng-deep .check-notice.p-checkbox-checked .p-checkbox-icon,
+:host ::ng-deep .check-warn.p-checkbox-checked .p-checkbox-icon,
+:host ::ng-deep .check-error.p-checkbox-checked .p-checkbox-icon { color: #000 !important; }
 
-::ng-deep .mdc-checkbox__checkmark-path,
-::ng-deep .mat-checkbox-checkmark-path {
-  stroke: black !important;
+/* ─── Filter text input — black box, white text ───────────────────────── */
+:host ::ng-deep .filter-text {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: var(--border) !important;
 }

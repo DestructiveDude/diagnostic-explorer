@@ -4,10 +4,10 @@
     <p-checkbox class="mr-1 check-notice" [binary]="true" [(ngModel)]="notice" size="small" />
     <p-checkbox class="mr-1 check-warn" [binary]="true" [(ngModel)]="warn" size="small" />
     <p-checkbox class="mr-1 check-error" [binary]="true" [(ngModel)]="error" size="small" />
-    <input pInputText type="text" placeholder="filter text" class="bg-neutral-600 h-4 text-xs m-0"
+    <input pInputText type="text" placeholder="filter text" class="filter-text h-4 text-xs m-0"
            [(ngModel)]="searchText">
   }
   <button class="text-xs" (click)="filterVisible = !filterVisible">
-    <i class="pi text-xs" [class.pi-angle-right]="filterVisible" [class.pi-angle-left]="!filterVisible"></i>
+    <i class="pi text-xs" [class.pi-angle-left]="filterVisible" [class.pi-angle-right]="!filterVisible"></i>
   </button>
 </div>
