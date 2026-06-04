@@ -2,16 +2,15 @@
   display: block;
   height: 100%;
 
-  /* Scope primary colour to indigo — kills the teal Aura default on the Search
-     button, progressbar fill, and any other primary-coloured element here. */
-  --p-button-primary-background: #6366f1;
-  --p-button-primary-hover-background: #4f46e5;
-  --p-button-primary-active-background: #4338ca;
-  --p-button-primary-border-color: #6366f1;
-  --p-button-primary-hover-border-color: #4f46e5;
-  --p-button-primary-active-border-color: #4338ca;
-  --p-button-primary-color: #ffffff;
-  --p-progressbar-value-background: #6366f1;
+  /* Search button — white pill, black text */
+  --p-button-primary-background: #ffffff;
+  --p-button-primary-hover-background: #e6edf3;
+  --p-button-primary-active-background: #c9d1d9;
+  --p-button-primary-border-color: #ffffff;
+  --p-button-primary-hover-border-color: #e6edf3;
+  --p-button-primary-active-border-color: #c9d1d9;
+  --p-button-primary-color: #000000;
+  --p-progressbar-value-background: #ffffff;
 }
 
 .field {
@@ -54,4 +53,29 @@
 }
 :host ::ng-deep .p-datepicker-input-icon-container {
   border-color: var(--border) !important;
+}
+
+/* ─── Text-link buttons (Reset / Delete) — no border, no background ──────── */
+:host ::ng-deep .p-button-text.p-button-secondary {
+  color: var(--label) !important;
+  padding: 5px 8px;
+}
+:host ::ng-deep .p-button-text.p-button-secondary:not(:disabled):hover {
+  background: transparent !important;
+  color: var(--head) !important;
+  text-decoration: underline;
+}
+:host ::ng-deep .p-button-text.p-button-danger {
+  color: var(--label) !important;
+  padding: 5px 8px;
+}
+:host ::ng-deep .p-button-text.p-button-danger:not(:disabled) {
+  color: #f87171 !important;
+}
+:host ::ng-deep .p-button-text.p-button-danger:not(:disabled):hover {
+  background: transparent !important;
+  text-decoration: underline;
+}
+:host ::ng-deep .p-button-text:disabled {
+  opacity: 0.35 !important;
 }

@@ -55,9 +55,11 @@
     <p-progressbar [value]="(model.percentComplete ?? 0) * 100" />
   }
 
-  <div class="flex justify-between gap-2 pt-2">
-    <p-button label="Reset" severity="secondary" [outlined]="true" (onClick)="model.reset()" />
-    <p-button label="Delete" severity="secondary" [outlined]="true" [disabled]="!model.canDelete" (onClick)="model.delete()" />
+  <div class="flex items-center justify-between pt-2">
+    <div class="flex items-center">
+      <p-button label="Reset" [text]="true" severity="secondary" (onClick)="model.reset()" />
+      <p-button label="Delete" [text]="true" severity="danger" [disabled]="!model.canDelete" (onClick)="model.delete()" />
+    </div>
     <p-button [label]="model.currentSearchId ? 'Cancel' : 'Search'" (onClick)="model.search()" />
   </div>
 
