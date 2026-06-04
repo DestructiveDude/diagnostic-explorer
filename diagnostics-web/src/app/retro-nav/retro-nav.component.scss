@@ -1,4 +1,18 @@
-:host { display: block; height: 100%; }
+:host {
+  display: block;
+  height: 100%;
+
+  /* Scope primary colour to indigo — kills the teal Aura default on the Search
+     button, progressbar fill, and any other primary-coloured element here. */
+  --p-button-primary-background: #6366f1;
+  --p-button-primary-hover-background: #4f46e5;
+  --p-button-primary-active-background: #4338ca;
+  --p-button-primary-border-color: #6366f1;
+  --p-button-primary-hover-border-color: #4f46e5;
+  --p-button-primary-active-border-color: #4338ca;
+  --p-button-primary-color: #ffffff;
+  --p-progressbar-value-background: #6366f1;
+}
 
 .field {
   display: flex;
@@ -11,4 +25,33 @@
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--label);
+}
+
+/* ─── Black inputs — pInputText fields (Machine, Process, User, Message) ─── */
+:host ::ng-deep .p-inputtext {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: var(--border) !important;
+}
+
+/* ─── Black p-select dropdowns (Max Records, Min Level, Time, Window) ────── */
+:host ::ng-deep .p-select {
+  background: #000000 !important;
+  border-color: var(--border) !important;
+}
+:host ::ng-deep .p-select-label {
+  color: #ffffff !important;
+}
+:host ::ng-deep .p-select-dropdown {
+  color: var(--label) !important;
+}
+
+/* ─── Black datepicker input ──────────────────────────────────────────────── */
+:host ::ng-deep p-datepicker .p-datepicker-input {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: var(--border) !important;
+}
+:host ::ng-deep .p-datepicker-input-icon-container {
+  border-color: var(--border) !important;
 }
