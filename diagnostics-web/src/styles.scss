@@ -81,9 +81,9 @@ input.p-inputtext:focus,
 /* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
 .p-splitter-gutter { background: var(--border) !important; }
 .p-splitter-gutter-handle {
-  background: var(--resize) !important;
+  background: #fd8c73 !important;
   border-radius: 2px;
-  box-shadow: 0 0 7px var(--resize);
+  box-shadow: 0 0 7px #fd8c73;
   opacity: .85;
   transition: opacity .12s;
 }

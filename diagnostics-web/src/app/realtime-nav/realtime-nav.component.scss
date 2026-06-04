@@ -37,6 +37,13 @@
   border-color: var(--border) !important;
 }
 
+/* Filter input — black box, white text */
+:host ::ng-deep .p-iconfield .p-inputtext,
+:host ::ng-deep .p-iconfield input {
+  color: #ffffff !important;
+  background: #000000 !important;
+}
+
 /* Filter fills its container; the tools block's horizontal padding (p-2 = 8px)
    then sits symmetrically on both sides of the input. */
 :host ::ng-deep .p-iconfield {
