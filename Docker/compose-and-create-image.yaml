@@ -27,7 +27,7 @@ services:
     ports:
       # Bound to loopback only: the app reaches Mongo over the internal diagnostic-network,
       # so the host mapping is for local tooling, not for exposing the DB to the network.
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:27019:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
