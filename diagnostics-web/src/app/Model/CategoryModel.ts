@@ -63,7 +63,7 @@ export class CategoryModel {
         if (this.worstSev > 0) {
             const time = new Date().valueOf() - this.worstSevDate.valueOf();
 
-            if (time > 2_000) {
+            if (time > 300_000) {
                 this.worstSev = 0;
                 this.labelClass = '';
             }
