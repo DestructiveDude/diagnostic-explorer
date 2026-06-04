@@ -2,15 +2,13 @@
   border-bottom-color: var(--border) !important;
 }
 
-/* Process-table text in the same green as the header's online process title
-   (.title-online = Tailwind green-500). */
 :host ::ng-deep .p-datatable-tbody > tr {
-  color: #22c55e;
+  color: #ffffff;
   background: transparent !important;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.online {
-  color: #22c55e;
+  color: #ffffff;
 }
 
 :host ::ng-deep .p-datatable-tbody > tr.active {
@@ -22,7 +20,7 @@
 :host ::ng-deep .p-datatable,
 :host ::ng-deep .p-datatable-table { border: 0 !important; background: transparent !important; }
 :host ::ng-deep .p-datatable-thead > tr > th {
-  background: var(--surface) !important;
+  background: #000000 !important;
   color: var(--head) !important;
   border: 0 !important;
   border-bottom: 1px solid var(--border) !important;
