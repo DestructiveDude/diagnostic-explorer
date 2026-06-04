@@ -24,7 +24,11 @@
         }
       </p-tabpanel>
       <p-tabpanel value="trace">
-        <app-trace-scope [node]="event?.region ?? dummyScope" class="block p-2" />
+        @if (event?.region; as scope) {
+          <app-trace-scope [node]="scope" class="block p-2" />
+        } @else {
+          <div class="h-full flex items-center justify-center text-[color:var(--label)] italic text-sm">No trace scope</div>
+        }
       </p-tabpanel>
     </p-tabpanels>
   </p-tabs>

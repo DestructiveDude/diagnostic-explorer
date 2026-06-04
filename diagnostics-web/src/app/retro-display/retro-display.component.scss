@@ -2,3 +2,12 @@
   display: block;
   height: 100%;
 }
+
+:host ::ng-deep .empty-msg {
+  background: #000000;
+  color: var(--head);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-style: italic;
+  text-align: center;
+  padding: 16px;
+}

@@ -15,6 +15,6 @@
       </div>
     </details>
   } @else {
-    <div class="leaf">{{ node.getDisplayText() }}</div>
+    <div class="leaf" [class.end]="node.isEnd">{{ node.getDisplayText() }}</div>
   }
 }

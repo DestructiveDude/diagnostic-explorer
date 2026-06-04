@@ -10,7 +10,7 @@
         <div class="flex items-center gap-3 px-3 py-1 bg-[color:var(--surface)] border-b border-[color:var(--border)] shrink-0">
           <span class="text-[color:var(--head)] font-semibold whitespace-nowrap">Retro Results</span>
           <span class="text-[color:var(--label)] text-xs opacity-70 whitespace-nowrap">{{ model.resultsMessage }}</span>
-          <div class="ml-auto" (keydown)="$event.stopPropagation()">
+          <div (keydown)="$event.stopPropagation()">
             <app-event-filter [(filterVisible)]="model.filterVisible" [(criteria)]="model.filterCriteria" />
           </div>
         </div>
@@ -52,7 +52,7 @@
 
             <ng-template #emptymessage>
               <tr>
-                <td colspan="6" class="text-center text-[color:var(--label)] italic p-4">No events</td>
+                <td colspan="6" class="empty-msg">No events</td>
               </tr>
             </ng-template>
 

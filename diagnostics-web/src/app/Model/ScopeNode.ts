@@ -34,6 +34,10 @@ export class ScopeNode {
         return this.displayText != '' && !this.hasChildren() ? this.displayText : this.firstLine;
     }
 
+    get isEnd(): boolean {
+        return !this.isBegin && this.displayText.indexOf('] END') > -1;
+    }
+
     public addChild(reg: ScopeNode) {
         this.childRegions.push(reg);
         reg.level = this.level + 1;
