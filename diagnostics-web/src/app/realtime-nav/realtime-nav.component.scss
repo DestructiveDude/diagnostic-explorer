@@ -32,8 +32,8 @@
 
 /* Online-only checkbox — orange (#fd8c73) to match the active tab underline */
 :host ::ng-deep .p-checkbox.p-checkbox-checked .p-checkbox-box {
-  background: #fd8c73 !important;
-  border-color: #fd8c73 !important;
+  background: #ffffff !important;
+  border-color: #ffffff !important;
 }
 :host ::ng-deep .p-checkbox .p-checkbox-box {
   border-color: var(--border) !important;
