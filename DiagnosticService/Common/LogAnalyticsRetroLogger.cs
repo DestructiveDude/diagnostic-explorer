@@ -93,10 +93,14 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     /// <summary>Log Analytics is append-only; per-record delete is not available.</summary>
     public bool SupportsDelete => false;
 
+    // Return a faulted task rather than throwing synchronously: this is a Task-returning method,
+    // so a sync throw would bypass async catch blocks in callers that only observe the task. The
+    // UI also gates this off via SupportsDelete (see WebHub.RetroSupportsDelete), so it should
+    // never actually be invoked under the Log Analytics backend.
     public Task<long> Delete(string[] idList) =>
-        throw new NotSupportedException(
+        Task.FromException<long>(new NotSupportedException(
             "Delete is not supported by the Log Analytics Retro backend (append-only store). " +
-            "Use workspace/table retention policies to age records out.");
+            "Use workspace/table retention policies to age records out."));
 
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)
     {
@@ -104,6 +108,10 @@ public class LogAnalyticsRetroLogger : IRetroLogger
             return;
 
         // Keys MUST match the DCR stream declaration columns in infra/retro-loganalytics.bicep.
+        // DiagnosticRetroAppender stamps Date = DateTime.UtcNow, so the value is already UTC;
+        // SpecifyKind only labels the Kind so the SDK serialises a Z-suffixed (UTC) TimeGenerated.
+        // It does NOT shift the clock — do not "convert" with ToUniversalTime() here or an
+        // already-UTC value would be double-adjusted.
         List<Dictionary<string, object?>> entries = msg.Select(m => new Dictionary<string, object?>
         {
             ["TimeGenerated"] = DateTime.SpecifyKind(m.Date, DateTimeKind.Utc),

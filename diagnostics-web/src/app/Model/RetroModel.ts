@@ -38,6 +38,12 @@ export class RetroModel {
                     this.messages.add({ severity: 'error', detail: error, life: 2000 });
                 }
             });
+
+            // Append-only backends (Log Analytics) cannot delete; hide the affordance once the
+            // backend reports its capability. Re-queried on every (re)connect — harmless.
+            this.hubService.retroSupportsDelete()
+                .then(supported => this.supportsDelete = supported)
+                .catch(err => console.log(err));
         });
     }
 
@@ -61,6 +67,10 @@ export class RetroModel {
     mainMessageClick = _.noop;
     searchCount = 0;
     currentSearchId = 0;
+
+    // Defaults true so the default (MongoDB) backend keeps delete enabled before the capability
+    // query resolves; set false for append-only backends (Log Analytics) — see canDelete.
+    supportsDelete = true;
 
     results: DiagnosticMsg[] = [];
     filteredResults: DiagnosticMsg[] = [];
@@ -149,7 +159,7 @@ export class RetroModel {
     }
 
     public get canDelete(): boolean {
-        return !this.currentSearchId && this.displayResults.length > 0;
+        return this.supportsDelete && !this.currentSearchId && this.displayResults.length > 0;
     }
 
 

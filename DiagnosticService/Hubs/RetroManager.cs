@@ -197,6 +197,13 @@ public class RetroManager : IHostedService
     }
 
 
+    /// <summary>
+    /// Whether the active backend supports interactive per-record delete. Surfaced to the web
+    /// client (via WebHub.RetroSupportsDelete) so the UI can hide the delete affordance for
+    /// append-only backends such as Log Analytics.
+    /// </summary>
+    public bool SupportsDelete => Logger.SupportsDelete;
+
     public Task<long> RetroDelete(string[] idList)
     {
         RetroEvents.Info($"Retro delete starting {idList.Length} messages");

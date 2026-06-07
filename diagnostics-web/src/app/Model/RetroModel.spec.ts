@@ -8,6 +8,7 @@ function makeHub() {
         startRetroSearch: jest.fn().mockResolvedValue(undefined),
         cancelRetroSearch: jest.fn().mockResolvedValue(undefined),
         deleteRecords: jest.fn().mockResolvedValue(0),
+        retroSupportsDelete: jest.fn().mockResolvedValue(true),
     };
 }
 
@@ -101,6 +102,41 @@ describe('RetroModel', () => {
 
             expect(hub.deleteRecords).not.toHaveBeenCalled();
             expect(messages.add).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('canDelete gating', () => {
+        it('allows delete on a backend that supports it once results are present', () => {
+            const {model} = makeModel();
+            model.supportsDelete = true;
+            model.results = [{msgId: '1'}] as any;
+
+            expect(model.canDelete).toBe(true);
+        });
+
+        it('blocks delete on an append-only backend even with results present', () => {
+            const {model} = makeModel();
+            model.supportsDelete = false;
+            model.results = [{msgId: '1'}] as any;
+
+            expect(model.canDelete).toBe(false);
+        });
+
+        it('queries the backend delete capability when the connection becomes ready', async () => {
+            const hub = makeHub();
+            hub.retroSupportsDelete.mockResolvedValue(false);
+            let readyCallback: ((connection: any) => void) | undefined;
+            hub.connectionReady.subscribe.mockImplementation((cb: (connection: any) => void) => {
+                readyCallback = cb;
+            });
+
+            const {model} = makeModel(hub);
+            readyCallback!({on: jest.fn()});
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(hub.retroSupportsDelete).toHaveBeenCalled();
+            expect(model.supportsDelete).toBe(false);
         });
     });
 });

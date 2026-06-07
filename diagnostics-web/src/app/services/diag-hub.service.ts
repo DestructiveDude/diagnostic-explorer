@@ -106,4 +106,8 @@ export class DiagHubService {
     async deleteRecords(toDelete: string[]): Promise<number> {
         return await this.connection!.invoke<number>('RetroDelete', toDelete);
     }
+
+    async retroSupportsDelete(): Promise<boolean> {
+        return await this.connection!.invoke<boolean>('RetroSupportsDelete');
+    }
 }

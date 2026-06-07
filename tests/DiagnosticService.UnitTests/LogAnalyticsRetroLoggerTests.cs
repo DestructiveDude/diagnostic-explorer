@@ -135,4 +135,17 @@ public class LogAnalyticsRetroLoggerTests
 
         await act.Should().ThrowAsync<NotSupportedException>();
     }
+
+    [Fact]
+    public void Delete_ReturnsFaultedTask_RatherThanThrowingSynchronously()
+    {
+        LogAnalyticsRetroLogger logger = new(ValidOptions());
+
+        // Invoking the method must not throw on the calling thread — a Task-returning method
+        // surfaces failures via a faulted task so async callers can observe them.
+        Task<long> task = logger.Delete(["abc"]);
+
+        task.IsFaulted.Should().BeTrue();
+        task.Exception!.InnerException.Should().BeOfType<NotSupportedException>();
+    }
 }

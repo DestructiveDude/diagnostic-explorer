@@ -70,6 +70,16 @@ public class WebHub : Hub<IWebHubClient>
         return _retroManager.RetroDelete(recordList);
     }
 
+    /// <summary>
+    /// Whether the active Retro backend supports per-record delete. The web client queries this
+    /// once per connection and hides the delete affordance when false (append-only backends such
+    /// as Log Analytics), so it never issues a delete that would fault.
+    /// </summary>
+    public bool RetroSupportsDelete()
+    {
+        return _retroManager.SupportsDelete;
+    }
+
     public Task CancelRetroSearch(int searchId)
     {
         return _retroManager.CancelRetroSearch(searchId, Context.ConnectionId);
