@@ -9,6 +9,14 @@
       "AuthMode": "None",
       "ApiKeys": [],
       "AllowedCorsOrigins": []
+    },
+    "//LogAnalytics": "Used only when RetroType=loganalytics. Populate from infra/retro-loganalytics.bicep outputs; auth via DefaultAzureCredential (env-var SP / az login).",
+    "LogAnalytics": {
+      "DceEndpoint": "",
+      "DcrImmutableId": "",
+      "StreamName": "Custom-DiagRetro_CL",
+      "TableName": "DiagRetro_CL",
+      "WorkspaceId": ""
     }
   },
 

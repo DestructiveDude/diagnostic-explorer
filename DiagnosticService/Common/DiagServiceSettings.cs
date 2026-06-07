@@ -13,12 +13,17 @@ public class DiagServiceSettings
 
     public SecuritySettings Security { get; set; } = new();
 
+    public LogAnalyticsSettings LogAnalytics { get; set; } = new();
+
     public IRetroLogger CreateRetroLogger()
     {
         switch (RetroType.ToLower())
         {
             case "mongo":
                 return new MongoRetroLogger(RetroConnection);
+
+            case "loganalytics":
+                return new LogAnalyticsRetroLogger(LogAnalytics);
 
             default:
                 throw new NotSupportedException($"ILogReader type {RetroType} not supported");

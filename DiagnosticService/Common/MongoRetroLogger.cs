@@ -100,6 +100,9 @@ public class MongoRetroLogger : IRetroLogger
 
     public string ConnectionString { get; set; }
 
+    /// <summary>MongoDB supports interactive per-record delete (see <see cref="Delete"/>).</summary>
+    public bool SupportsDelete => true;
+
     private IMongoCollection<T> GetLogCollection<T>() =>
         _client.Value.GetDatabase("Diagnostics").GetCollection<T>("Log");
 

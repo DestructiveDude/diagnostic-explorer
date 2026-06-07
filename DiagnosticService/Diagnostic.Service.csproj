@@ -21,6 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
+	  <PackageReference Include="Azure.Identity" Version="1.21.0" />
+	  <PackageReference Include="Azure.Monitor.Ingestion" Version="1.2.0" />
+	  <PackageReference Include="Azure.Monitor.Query" Version="1.7.1" />
 	  <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="8.0.10" />
 	  <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.10" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />

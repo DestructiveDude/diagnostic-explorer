@@ -40,4 +40,10 @@ public interface IRetroLogger
     Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel);
 
     Task<long> Delete(string[] idList);
+
+    /// <summary>
+    /// Whether the backing store supports interactive per-record delete. False for append-only
+    /// stores (Log Analytics), letting callers gate the Retro delete affordance.
+    /// </summary>
+    bool SupportsDelete { get; }
 }
