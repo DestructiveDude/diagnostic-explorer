@@ -107,6 +107,42 @@ public class LogAnalyticsRetroLoggerTests
         act.Should().Throw<ArgumentException>();
     }
 
+    // Patterns that compile under .NET but use constructs RE2 (KQL `matches regex`) rejects —
+    // they must be caught up front, not deferred to a query-time RequestFailedException.
+    [Theory]
+    [InlineData("a(?=b)")]   // lookahead
+    [InlineData("a(?!b)")]   // negative lookahead
+    [InlineData("(?<=a)b")]  // lookbehind
+    [InlineData("(?<!a)b")]  // negative lookbehind
+    [InlineData("(?>ab)")]   // atomic group
+    [InlineData("(a)\\1")]   // numeric backreference
+    [InlineData("(?<g>a)\\k<g>")] // named backreference
+    public void BuildKql_WithRe2IncompatiblePattern_Throws(string pattern)
+    {
+        RetroQuery query = BaseQuery();
+        query.Message = pattern;
+
+        Action act = () => LogAnalyticsRetroLogger.BuildKql(query, "DiagRetro_CL");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    // Valid patterns that ARE supported by RE2 must not be over-rejected by the guard.
+    [Theory]
+    [InlineData("srv\\d+")]      // ordinary regex
+    [InlineData("a\\.b")]        // escaped metacharacter
+    [InlineData("\\p{Lu}")]      // Unicode property class — RE2 supports these
+    [InlineData("(?<name>abc)")] // named capture group (no backreference)
+    public void BuildKql_WithRe2CompatiblePattern_DoesNotThrow(string pattern)
+    {
+        RetroQuery query = BaseQuery();
+        query.Message = pattern;
+
+        Action act = () => LogAnalyticsRetroLogger.BuildKql(query, "DiagRetro_CL");
+
+        act.Should().NotThrow();
+    }
+
     [Fact]
     public void Constructor_WithMissingRequiredConfig_Throws()
     {

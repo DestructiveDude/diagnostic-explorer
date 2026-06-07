@@ -60,6 +60,20 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     // before it reaches the service, so a crafted catastrophic pattern can't be shipped to KQL.
     private const int MaxFilterPatternLength = 256;
 
+    // KQL `matches regex` runs RE2, which — unlike the .NET engine used to validate the pattern,
+    // and unlike the PCRE the Mongo backend executes via $regex — rejects lookaround, atomic
+    // groups, conditionals and backreferences. A pattern using these compiles under .NET (so the
+    // guard below passes) but then fails at query time with an opaque RequestFailedException.
+    // Reject them up front with a clear message instead. (Note: RE2 *does* support \p{...} Unicode
+    // classes and (?<name>) named groups, so those are intentionally not rejected.)
+    private static readonly Regex Re2Incompatible = new(
+        @"\(\?<?[=!]" +   // lookahead / lookbehind:  (?=) (?!) (?<=) (?<!)
+        @"|\(\?>" +       // atomic group:            (?>...)
+        @"|\(\?\(" +      // conditional:             (?(...)...)
+        @"|\\[1-9]" +     // numeric backreference:   \1 .. \9
+        @"|\\k<",         // named backreference:     \k<name>
+        RegexOptions.Compiled);
+
     private readonly LogAnalyticsSettings _options;
     private readonly Lazy<LogsIngestionClient> _ingestion;
     private readonly Lazy<LogsQueryClient> _query;
@@ -233,5 +247,11 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         {
             throw new ArgumentException($"{field} search is not a valid regular expression: {ex.Message}", ex);
         }
+
+        if (Re2Incompatible.IsMatch(value))
+            throw new ArgumentException(
+                $"{field} search uses a regular-expression construct (lookaround, atomic group, " +
+                "conditional or backreference) that the Log Analytics backend does not support. " +
+                "Rewrite the pattern without it.");
     }
 }
