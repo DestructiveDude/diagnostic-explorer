@@ -17,7 +17,7 @@ on:
 
 jobs:
   stryker-web:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     continue-on-error: true
     defaults:
       run:
