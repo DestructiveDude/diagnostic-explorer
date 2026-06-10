@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reactive.Concurrency;
 using System.Text;
@@ -31,7 +31,7 @@ internal static class ReaderWriterLockExtensions
 
     private struct ExitRead : IDisposable
     {
-        private ReaderWriterLockSlim _lock;
+        private readonly ReaderWriterLockSlim _lock;
         private bool _isDisposed;
 
         public ExitRead(ReaderWriterLockSlim lockSlim)
@@ -56,7 +56,7 @@ internal static class ReaderWriterLockExtensions
 
     private struct ExitWrite : IDisposable
     {
-        private ReaderWriterLockSlim _lock;
+        private readonly ReaderWriterLockSlim _lock;
         private bool _isDisposed;
 
         public ExitWrite(ReaderWriterLockSlim lockSlim)
@@ -79,9 +79,9 @@ internal static class ReaderWriterLockExtensions
 
     #region ExitWrite
 
-    private struct ExitupgradeableRead: IDisposable
+    private struct ExitupgradeableRead : IDisposable
     {
-        private ReaderWriterLockSlim _lock;
+        private readonly ReaderWriterLockSlim _lock;
         private bool _isDisposed;
 
         public ExitupgradeableRead(ReaderWriterLockSlim lockSlim)

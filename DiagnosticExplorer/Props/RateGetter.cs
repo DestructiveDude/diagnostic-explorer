@@ -27,65 +27,74 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+internal class RateGetter : PropertyGetter
 {
-	internal class RateGetter : PropertyGetter
-	{
-		private readonly bool _exposeRate = true;
-		private readonly bool _exposeTotal = false;
+    private readonly bool _exposeRate = true;
+    private readonly bool _exposeTotal = false;
 
-		public RateGetter(PropertyInfo prop, RatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
-		{
-			if (attr != null)
-			{
-				_exposeRate = attr.ExposeRate;
-				_exposeTotal = attr.ExposeTotal;
-				Description = attr.Description;
-			}
-		}
+    public RateGetter(PropertyInfo prop, RatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
+    {
+        if (attr != null)
+        {
+            _exposeRate = attr.ExposeRate;
+            _exposeTotal = attr.ExposeTotal;
+            Description = attr.Description;
+        }
+    }
 
-		public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
-		{
-			RateCounter rateCounter;
-			try
-			{
-				rateCounter = (RateCounter)GetFunc(obj);
-			}
-			catch (Exception ex)
-			{
-				// A throwing rate property must degrade to an error string (like the guarded
-				// PropertyGetter.GetValue path) rather than abort the whole diagnostic walk.
-				string error = $"<{ex.Message}>";
-				if (_exposeRate)
-					bag.AddProperty(new Property(Name + "/sec", error, Description) { SourceProperty = PropInfo }, PrependToCategory(catPrepend));
-				if (_exposeTotal)
-					bag.AddProperty(new Property("Total " + Name, error) { SourceProperty = PropInfo }, PrependToCategory(catPrepend));
-				return;
-			}
+    public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
+    {
+        RateCounter rateCounter;
+        try
+        {
+            rateCounter = (RateCounter) GetFunc(obj);
+        }
+        catch (Exception ex)
+        {
+            // A throwing rate property must degrade to an error string (like the guarded
+            // PropertyGetter.GetValue path) rather than abort the whole diagnostic walk.
+            string error = $"<{ex.Message}>";
+            if (_exposeRate)
+            {
+                bag.AddProperty(new Property(Name + "/sec", error, Description) { SourceProperty = PropInfo }, PrependToCategory(catPrepend));
+            }
 
-			if (_exposeRate)
-			{
-				double? rate = rateCounter == null ? (double?)null : rateCounter.Rate;
-				string val = rate == null ? "" : rate.Value.ToString("N2");
-				Property property = new Property(Name + "/sec", val, Description);
-				property.SourceProperty = PropInfo;
-				property.SourceObject = rateCounter;
-				property.ValueObject = rate;
+            if (_exposeTotal)
+            {
+                bag.AddProperty(new Property("Total " + Name, error) { SourceProperty = PropInfo }, PrependToCategory(catPrepend));
+            }
 
-				bag.AddProperty(property, PrependToCategory(catPrepend));
-			}
+            return;
+        }
 
-			if (_exposeTotal)
-			{
-				ulong? total = rateCounter == null ? (ulong?) null : rateCounter.Total;
-				string val = total == null ? "" : total.ToString();
-				Property property = new Property("Total " + Name, val);
-				property.SourceProperty = PropInfo;
-				property.SourceObject = rateCounter;
-				property.ValueObject = total;
-				
-				bag.AddProperty(property, PrependToCategory(catPrepend));
-			}
-		}
-	}
+        if (_exposeRate)
+        {
+            double? rate = rateCounter == null ? (double?) null : rateCounter.Rate;
+            string val = rate == null ? "" : rate.Value.ToString("N2");
+            Property property = new Property(Name + "/sec", val, Description)
+            {
+                SourceProperty = PropInfo,
+                SourceObject = rateCounter,
+                ValueObject = rate
+            };
+
+            bag.AddProperty(property, PrependToCategory(catPrepend));
+        }
+
+        if (_exposeTotal)
+        {
+            ulong? total = rateCounter == null ? (ulong?) null : rateCounter.Total;
+            string val = total == null ? "" : total.ToString();
+            Property property = new Property("Total " + Name, val)
+            {
+                SourceProperty = PropInfo,
+                SourceObject = rateCounter,
+                ValueObject = total
+            };
+
+            bag.AddProperty(property, PrependToCategory(catPrepend));
+        }
+    }
 }

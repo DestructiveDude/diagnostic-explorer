@@ -22,8 +22,8 @@ public class RegistrationHandler
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(RegistrationHandler));
 
-    private string _url;
-    private Registration _registration;
+    private readonly string _url;
+    private readonly Registration _registration;
     private readonly string _apiKey;
 
     // _connLock guards the _connection/_hubAdapter pair. They are mutated from three racing
@@ -55,9 +55,11 @@ public class RegistrationHandler
         // F8: never send the API key over a cleartext transport. Fail fast at construction rather
         // than silently leaking it on http/ws negotiate + WebSocket requests.
         if (!string.IsNullOrEmpty(_apiKey) && !IsSecureUrl(_url))
+        {
             throw new ArgumentException(
                 $"An API key is configured but the diagnostic hub URL '{_url}' is not https/wss — the key would be transmitted in cleartext. Use a TLS URL or clear the API key.",
                 nameof(url));
+        }
     }
 
     private static bool IsSecureUrl(string url)
@@ -72,7 +74,8 @@ public class RegistrationHandler
         _configureHttp = configureHttp;
         _stopToken = new CancellationTokenSource();
         _logChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(
-            new BoundedChannelOptions(10_000) {
+            new BoundedChannelOptions(10_000)
+            {
                 FullMode = BoundedChannelFullMode.DropWrite,
                 SingleReader = true,
                 SingleWriter = false
@@ -118,7 +121,10 @@ public class RegistrationHandler
                 while (_hubAdapter == null)
                 {
                     if (cancel.IsCancellationRequested)
+                    {
                         return;
+                    }
+
                     await Task.Delay(TimeSpan.FromSeconds(1), CancellationToken.None);
                 }
 
@@ -126,7 +132,9 @@ public class RegistrationHandler
                 // the wait above and the send below.
                 HubServerAdapter adapter = _hubAdapter;
                 if (adapter == null)
+                {
                     continue;
+                }
 
                 Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
                 await adapter.LogEvents(data, cancel).ConfigureAwait(false);
@@ -147,9 +155,13 @@ public class RegistrationHandler
         TimeSpan delay = TimeSpan.Zero;
 
         while (!cancelToken.IsCancellationRequested)
+        {
             try
             {
-                if (delay != TimeSpan.Zero) await Task.Delay(delay, cancelToken);
+                if (delay != TimeSpan.Zero)
+                {
+                    await Task.Delay(delay, cancelToken);
+                }
 
                 delay = TimeSpan.FromSeconds(5);
 
@@ -171,7 +183,9 @@ public class RegistrationHandler
                 // deregisters while the adapter is still valid, then disposes). Closing here would
                 // null _hubAdapter and make Stop's Deregister silently no-op. (M26)
                 if (cancelToken.IsCancellationRequested)
+                {
                     return;
+                }
 
                 //Something went wrong, so kill the connection and try again
                 await CloseConnection();
@@ -180,6 +194,7 @@ public class RegistrationHandler
                 string errorMessage = $"DiagnosticHostingService.RegistrationHandler for {_url} encountered an exception";
                 _log.Warn(errorMessage, ex);
             }
+        }
     }
 
     private Task CloseConnection()
@@ -192,7 +207,9 @@ public class RegistrationHandler
         lock (_connLock)
         {
             if (_hubAdapter != null)
+            {
                 return;
+            }
         }
 
         Debug.WriteLine("Diagnostic RegistrationHandler constructing connection");
@@ -207,7 +224,9 @@ public class RegistrationHandler
                 // H1: when an API key is configured, send it via the access-token mechanism —
                 // "Authorization: Bearer <key>" on negotiate and "access_token" on the WS upgrade.
                 if (!string.IsNullOrEmpty(_apiKey))
+                {
                     options.AccessTokenProvider = () => Task.FromResult(_apiKey);
+                }
             })
             .Build();
 
@@ -268,7 +287,9 @@ public class RegistrationHandler
         }
 
         if (taken.Connection == null)
+        {
             return;
+        }
 
         // Detach the Closed handler before disposing so DisposeAsync's own Closed callback can't
         // re-enter HandleClosed and race this teardown. (M28)
@@ -309,7 +330,9 @@ public class RegistrationHandler
             try
             {
                 if (loopTask != null)
+                {
                     await loopTask.ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -323,7 +346,9 @@ public class RegistrationHandler
             try
             {
                 if (logTask != null)
+                {
                     await logTask.ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -334,10 +359,8 @@ public class RegistrationHandler
                 _log.Error("Logging task faulted during Stop", ex);
             }
 
-            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
-            {
-                await Deregister(cts.Token);
-            }
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await Deregister(cts.Token);
         }
         finally
         {
@@ -353,7 +376,9 @@ public class RegistrationHandler
         // Snapshot under the lock: HandleClosed could null _hubAdapter concurrently.
         HubServerAdapter adapter;
         lock (_connLock)
+        {
             adapter = _hubAdapter;
+        }
 
         try
         {

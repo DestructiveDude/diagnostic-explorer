@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public class DiagnosticMethodAttribute : Attribute
 {
-	[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
-	public class DiagnosticMethodAttribute : Attribute
-	{
-	}
 }

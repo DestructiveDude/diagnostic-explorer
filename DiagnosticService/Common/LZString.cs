@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,18 +6,18 @@ namespace DiagnosticsExplorer.WebApi.Core;
 
 public class LZString
 {
-    static string keyStrBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-    static string keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
-    static Dictionary<string, Dictionary<char, int>> baseReverseDic = new Dictionary<string, Dictionary<char, int>>();
+    private static readonly string keyStrBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    private static readonly string keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
+    private static readonly Dictionary<string, Dictionary<char, int>> baseReverseDic = [];
     private delegate char GetCharFromInt(int a);
-    private static GetCharFromInt f = (a) => Convert.ToChar(a);
+    private static readonly GetCharFromInt f = (a) => Convert.ToChar(a);
     private delegate int GetNextValue(int index);
 
     private static int getBaseValue(string alphabet, char character)
     {
         if (!baseReverseDic.ContainsKey(alphabet))
         {
-            baseReverseDic[alphabet] = new Dictionary<char, int>();
+            baseReverseDic[alphabet] = [];
             for (int i = 0; i < alphabet.Length; i++)
             {
                 baseReverseDic[alphabet][alphabet[i]] = i;
@@ -28,35 +28,59 @@ public class LZString
 
     public static string compressToBase64(string input)
     {
-        if (input == null) return "";
-        string res = _compress(input, 6, (a) => keyStrBase64[a]);
-        switch (res.Length % 4)
+        if (input == null)
         {
-            case 0: return res;
-            case 1: return res + "===";
-            case 2: return res + "==";
-            case 3: return res + "=";
+            return "";
         }
-        return res;
+
+        string res = _compress(input, 6, (a) => keyStrBase64[a]);
+        return (res.Length % 4) switch
+        {
+            0 => res,
+            1 => res + "===",
+            2 => res + "==",
+            3 => res + "=",
+            _ => res,
+        };
     }
 
     public static string? decompressFromBase64(string input)
     {
-        if (input == null) return "";
-        if (input == "") return null;
+        if (input == null)
+        {
+            return "";
+        }
+
+        if (input == "")
+        {
+            return null;
+        }
+
         return _decompress(input.Length, 32, (index) => getBaseValue(keyStrBase64, input[index]));
     }
 
     public static string compressToUTF16(string input)
     {
-        if (input == null) return "";
+        if (input == null)
+        {
+            return "";
+        }
+
         return _compress(input, 15, (a) => f(a + 32)) + " ";
     }
 
     public static string? decompressFromUTF16(string compressed)
     {
-        if (compressed == null) return "";
-        if (compressed == "") return null;
+        if (compressed == null)
+        {
+            return "";
+        }
+
+        if (compressed == "")
+        {
+            return null;
+        }
+
         return _decompress(compressed.Length, 16384, index => Convert.ToInt32(compressed[index]) - 32);
     }
 
@@ -68,21 +92,24 @@ public class LZString
         for (int i = 0, TotalLen = compressed.Length; i < TotalLen; i++)
         {
             int current_value = Convert.ToInt32(compressed[i]);
-            buf[i * 2] = (byte)(((uint)current_value) >> 8);
-            buf[i * 2 + 1] = (byte)(current_value % 256);
+            buf[i * 2] = (byte) (((uint) current_value) >> 8);
+            buf[i * 2 + 1] = (byte) (current_value % 256);
         }
         return buf;
     }
 
     public static string? decompressFromUint8Array(byte[] compressed)
     {
-        if (compressed == null) return "";
+        if (compressed == null)
+        {
+            return "";
+        }
         else
         {
             int[] buf = new int[compressed.Length / 2];
             for (int i = 0, TotalLen = buf.Length; i < TotalLen; i++)
             {
-                buf[i] = ((int)compressed[i * 2]) * 256 + ((int)compressed[i * 2 + 1]);
+                buf[i] = (int) compressed[i * 2] * 256 + (int) compressed[i * 2 + 1];
             }
             char[] result = new char[buf.Length];
             for (int i = 0; i < buf.Length; i++)
@@ -95,14 +122,26 @@ public class LZString
 
     public static string compressToEncodedURIComponent(string input)
     {
-        if (input == null) return "";
+        if (input == null)
+        {
+            return "";
+        }
+
         return _compress(input, 6, (a) => keyStrUriSafe[a]);
     }
 
     public static string? decompressFromEncodedURIComponent(string input)
     {
-        if (input == null) return "";
-        if (input == "") return null;
+        if (input == null)
+        {
+            return "";
+        }
+
+        if (input == "")
+        {
+            return null;
+        }
+
         input = input.Replace(' ', '+');
         return _decompress(input.Length, 32, (index) => getBaseValue(keyStrUriSafe, input[index]));
     }
@@ -114,10 +153,14 @@ public class LZString
 
     private static string _compress(string uncompressed, int bitsPerChar, GetCharFromInt getCharFromInt)
     {
-        if (uncompressed == null) return "";
+        if (uncompressed == null)
+        {
+            return "";
+        }
+
         int i, value, ii, context_enlargeIn = 2, context_dictSize = 3, context_numBits = 2, context_data_val = 0, context_data_position = 0;
-        Dictionary<string, bool> context_dictionaryToCreate = new Dictionary<string, bool>();
-        Dictionary<string, int> context_dictionary = new Dictionary<string, int>();
+        Dictionary<string, bool> context_dictionaryToCreate = [];
+        Dictionary<string, int> context_dictionary = [];
         StringBuilder context_data = new StringBuilder();
         string context_c = "";
         string context_wc = "", context_w = "";
@@ -143,7 +186,7 @@ public class LZString
                     {
                         for (i = 0; i < context_numBits; i++)
                         {
-                            context_data_val = (context_data_val << 1);
+                            context_data_val <<= 1;
                             if (context_data_position == bitsPerChar - 1)
                             {
                                 context_data_position = 0;
@@ -169,7 +212,7 @@ public class LZString
                             {
                                 context_data_position++;
                             }
-                            value = value >> 1;
+                            value >>= 1;
                         }
                     }
                     else
@@ -204,13 +247,13 @@ public class LZString
                             {
                                 context_data_position++;
                             }
-                            value = value >> 1;
+                            value >>= 1;
                         }
                     }
                     context_enlargeIn--;
                     if (context_enlargeIn == 0)
                     {
-                        context_enlargeIn = (int)Math.Pow(2, context_numBits);
+                        context_enlargeIn = (int) Math.Pow(2, context_numBits);
                         context_numBits++;
                     }
                     context_dictionaryToCreate.Remove(context_w);
@@ -231,13 +274,13 @@ public class LZString
                         {
                             context_data_position++;
                         }
-                        value = value >> 1;
+                        value >>= 1;
                     }
                 }
                 context_enlargeIn--;
                 if (context_enlargeIn == 0)
                 {
-                    context_enlargeIn = (int)Math.Pow(2, context_numBits);
+                    context_enlargeIn = (int) Math.Pow(2, context_numBits);
                     context_numBits++;
                 }
                 //Add wc to the dictionary
@@ -254,7 +297,7 @@ public class LZString
                 {
                     for (i = 0; i < context_numBits; i++)
                     {
-                        context_data_val = (context_data_val << 1);
+                        context_data_val <<= 1;
                         if (context_data_position == bitsPerChar - 1)
                         {
                             context_data_position = 0;
@@ -280,7 +323,7 @@ public class LZString
                         {
                             context_data_position++;
                         }
-                        value = value >> 1;
+                        value >>= 1;
                     }
                 }
                 else
@@ -315,13 +358,13 @@ public class LZString
                         {
                             context_data_position++;
                         }
-                        value = value >> 1;
+                        value >>= 1;
                     }
                 }
                 context_enlargeIn--;
                 if (context_enlargeIn == 0)
                 {
-                    context_enlargeIn = (int)Math.Pow(2, context_numBits);
+                    context_enlargeIn = (int) Math.Pow(2, context_numBits);
                     context_numBits++;
                 }
                 context_dictionaryToCreate.Remove(context_w);
@@ -342,13 +385,13 @@ public class LZString
                     {
                         context_data_position++;
                     }
-                    value = value >> 1;
+                    value >>= 1;
                 }
             }
             context_enlargeIn--;
             if (context_enlargeIn == 0)
             {
-                context_enlargeIn = (int)Math.Pow(2, context_numBits);
+                context_enlargeIn = (int) Math.Pow(2, context_numBits);
                 context_numBits++;
             }
         }
@@ -367,27 +410,38 @@ public class LZString
             {
                 context_data_position++;
             }
-            value = value >> 1;
+            value >>= 1;
         }
 
         //Flush the last char
         while (true)
         {
-            context_data_val = (context_data_val << 1);
+            context_data_val <<= 1;
             if (context_data_position == bitsPerChar - 1)
             {
                 context_data.Append(getCharFromInt(context_data_val));
                 break;
             }
-            else context_data_position++;
+            else
+            {
+                context_data_position++;
+            }
         }
         return context_data.ToString();
     }
 
     public static string? decompress(string compressed)
     {
-        if (compressed == null) return "";
-        if (compressed == "") return null;
+        if (compressed == null)
+        {
+            return "";
+        }
+
+        if (compressed == "")
+        {
+            return null;
+        }
+
         return _decompress(compressed.Length, 32768, (index) => Convert.ToInt32(compressed[index]));
     }
 
@@ -398,7 +452,7 @@ public class LZString
     }
     private static string? _decompress(int length, int resetValue, GetNextValue getNextValue)
     {
-        Dictionary<int, string> dictionary = new Dictionary<int, string>();
+        Dictionary<int, string> dictionary = [];
         int next, enlargeIn = 4, dictSize = 4, numBits = 3, i, bits, resb, maxpower, power;
         int c = 0;
         string entry = "", w;
@@ -411,7 +465,7 @@ public class LZString
         }
 
         bits = 0;
-        maxpower = (int)Math.Pow(2, 2);
+        maxpower = (int) Math.Pow(2, 2);
         power = 1;
         while (power != maxpower)
         {
@@ -430,7 +484,7 @@ public class LZString
         {
             case 0:
                 bits = 0;
-                maxpower = (int)Math.Pow(2, 8);
+                maxpower = (int) Math.Pow(2, 8);
                 power = 1;
                 while (power != maxpower)
                 {
@@ -448,7 +502,7 @@ public class LZString
                 break;
             case 1:
                 bits = 0;
-                maxpower = (int)Math.Pow(2, 16);
+                maxpower = (int) Math.Pow(2, 16);
                 power = 1;
                 while (power != maxpower)
                 {
@@ -478,7 +532,7 @@ public class LZString
             }
 
             bits = 0;
-            maxpower = (int)Math.Pow(2, numBits);
+            maxpower = (int) Math.Pow(2, numBits);
             power = 1;
             while (power != maxpower)
             {
@@ -497,7 +551,7 @@ public class LZString
             {
                 case 0:
                     bits = 0;
-                    maxpower = (int)Math.Pow(2, 8);
+                    maxpower = (int) Math.Pow(2, 8);
                     power = 1;
                     while (power != maxpower)
                     {
@@ -518,7 +572,7 @@ public class LZString
                     break;
                 case 1:
                     bits = 0;
-                    maxpower = (int)Math.Pow(2, 16);
+                    maxpower = (int) Math.Pow(2, 16);
                     power = 1;
                     while (power != maxpower)
                     {
@@ -542,7 +596,7 @@ public class LZString
 
             if (enlargeIn == 0)
             {
-                enlargeIn = (int)Math.Pow(2, numBits);
+                enlargeIn = (int) Math.Pow(2, numBits);
                 numBits++;
             }
 
@@ -569,7 +623,7 @@ public class LZString
             w = entry;
             if (enlargeIn == 0)
             {
-                enlargeIn = (int)Math.Pow(2, numBits);
+                enlargeIn = (int) Math.Pow(2, numBits);
                 numBits++;
             }
         }

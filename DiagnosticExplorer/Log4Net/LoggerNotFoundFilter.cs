@@ -28,28 +28,33 @@ using log4net.Core;
 using log4net.Filter;
 using log4net.Repository.Hierarchy;
 
-namespace DiagnosticExplorer.Log4Net
+namespace DiagnosticExplorer.Log4Net;
+
+public class LoggerNotFoundFilter : FilterSkeleton
 {
-	public class LoggerNotFoundFilter : FilterSkeleton
-	{
-		public override FilterDecision Decide(LoggingEvent loggingEvent)
-		{
-			if (loggingEvent.Repository == null)
-				return FilterDecision.Deny;
+    public override FilterDecision Decide(LoggingEvent loggingEvent)
+    {
+        if (loggingEvent.Repository == null)
+        {
+            return FilterDecision.Deny;
+        }
 
-			Hierarchy hierarchy = loggingEvent.Repository as Hierarchy;
-			if (hierarchy == null)
-				return FilterDecision.Deny;
+        if (loggingEvent.Repository is not Hierarchy hierarchy)
+        {
+            return FilterDecision.Deny;
+        }
 
-			Logger hlog = hierarchy.Exists(loggingEvent.LoggerName) as Logger;
 
-			if (hlog == null || hlog.Appenders.Count != 0)
-				return FilterDecision.Deny;
+        if (hierarchy.Exists(loggingEvent.LoggerName) is not Logger hlog || hlog.Appenders.Count != 0)
+        {
+            return FilterDecision.Deny;
+        }
 
-			if (string.Compare(hlog.Parent?.Name, "ROOT", StringComparison.OrdinalIgnoreCase) != 0)
-				return FilterDecision.Deny;
+        if (string.Compare(hlog.Parent?.Name, "ROOT", StringComparison.OrdinalIgnoreCase) != 0)
+        {
+            return FilterDecision.Deny;
+        }
 
-			return FilterDecision.Accept;
-		}
-	}
+        return FilterDecision.Accept;
+    }
 }

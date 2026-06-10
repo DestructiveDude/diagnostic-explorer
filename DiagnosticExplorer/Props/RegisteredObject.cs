@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -24,39 +24,38 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
+using System.Text;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+public class RegisteredObject
 {
-	public class RegisteredObject
-	{
-		private readonly WeakReference _objectRef;
-		public string BagName { get; set; }
-		public string BagCategory { get; set; }
+    private readonly WeakReference _objectRef;
+    public string BagName { get; set; }
+    public string BagCategory { get; set; }
 
-		public object Object
-		{
-			get { return _objectRef.Target; }
-		}
+    public object Object => _objectRef.Target;
 
-		public RegisteredObject(object obj, string bagCategory, string bagName)
-		{
-			_objectRef = new WeakReference(obj);
-			BagName = bagName;
-			BagCategory = bagCategory;
-		}
-	}
+    public RegisteredObject(object obj, string bagCategory, string bagName)
+    {
+        _objectRef = new WeakReference(obj);
+        BagName = bagName;
+        BagCategory = bagCategory;
+    }
+}
 
-	public static class RegisteredObjectExtensions
-	{
-		private static readonly StringComparer _ignoreCase = StringComparer.CurrentCultureIgnoreCase;
+public static class RegisteredObjectExtensions
+{
+    private static readonly StringComparer _ignoreCase = StringComparer.CurrentCultureIgnoreCase;
 
-		public static RegisteredObject FindByCategoryAndName(this IEnumerable<RegisteredObject> list, string category, string name)
-		{
-			if (list == null) throw new ArgumentNullException(nameof(list));
+    public static RegisteredObject FindByCategoryAndName(this IEnumerable<RegisteredObject> list, string category, string name)
+    {
+        if (list == null)
+        {
+            throw new ArgumentNullException(nameof(list));
+        }
 
-			return list.FirstOrDefault(x => _ignoreCase.Equals(x.BagCategory, category) && _ignoreCase.Equals(x.BagName, name));
-		}
-	}
+        return list.FirstOrDefault(x => _ignoreCase.Equals(x.BagCategory, category) && _ignoreCase.Equals(x.BagName, name));
+    }
 }

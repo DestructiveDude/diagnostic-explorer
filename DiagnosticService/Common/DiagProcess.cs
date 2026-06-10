@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -27,8 +27,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json.Serialization;
-using System.Xml.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 using DiagnosticExplorer.Util;
 using MongoDB.Bson.Serialization.Conventions;
@@ -48,7 +48,7 @@ public class DiagProcess
     public string? MachineName { get; set; }
 
     public string? UserName { get; set; }
-        
+
     public OnlineState State { get; set; }
 
     public RegistrationMode RegistrationMode { get; set; } = RegistrationMode.NA;
@@ -65,10 +65,10 @@ public class DiagProcess
     [JsonIgnore]
     public string? ConnectionId { get; set; }
 
- 
+
     public DiagProcess Clone()
     {
-        return (DiagProcess)MemberwiseClone();
+        return (DiagProcess) MemberwiseClone();
     }
 
     public override string ToString()

@@ -25,40 +25,39 @@
 using System;
 using System.Linq;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+
+public enum CollectionMode
 {
+    /// <summary>The count of a collection property is exposed</summary>
+    Count,
+    /// <summary>The items in a collection property are concatenated together</summary>
+    Concatenate,
+    /// <summary>The items in a collection property are listed individually</summary>
+    List,
+    /// <summary>Each item in a collection property is exposed in its own category</summary>
+    Categories
+}
 
-	public enum CollectionMode
-	{
-		/// <summary>The count of a collection property is exposed</summary>
-		Count,
-		/// <summary>The items in a collection property are concatenated together</summary>
-		Concatenate,
-		/// <summary>The items in a collection property are listed individually</summary>
-		List,
-		/// <summary>Each item in a collection property is exposed in its own category</summary>
-		Categories
-	}
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public class CollectionPropertyAttribute : PropertyAttribute
+{
+    public CollectionMode Mode { get; set; }
+    public string NameProperty { get; set; }
+    public string ValueProperty { get; set; }
+    public string DescriptionProperty { get; set; }
+    public string CategoryProperty { get; set; }
+    public string Separator { get; set; }
+    public int MaxItems { get; set; }
 
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
-	public class CollectionPropertyAttribute : PropertyAttribute
-	{
-		public CollectionMode Mode { get; set; }
-		public string NameProperty { get; set; }
-		public string ValueProperty { get; set; }
-		public string DescriptionProperty { get; set; }
-		public string CategoryProperty { get; set; }
-		public string Separator { get; set; }
-		public int MaxItems { get; set; }
+    public CollectionPropertyAttribute(CollectionMode mode) : this(mode, null) { }
 
-		public CollectionPropertyAttribute(CollectionMode mode) : this(mode, null) {}
+    public CollectionPropertyAttribute(CollectionMode mode, string displayName) : this(mode, displayName, null) { }
 
-		public CollectionPropertyAttribute(CollectionMode mode, string displayName) : this(mode, displayName, null) {}
-
-		public CollectionPropertyAttribute(CollectionMode mode, string displayName, string category) : base(displayName, category)
-		{
-			Mode = mode;
-			MaxItems = PropertyGetter.MaxConcatItems;
-		}
-	}
+    public CollectionPropertyAttribute(CollectionMode mode, string displayName, string category) : base(displayName, category)
+    {
+        Mode = mode;
+        MaxItems = PropertyGetter.MaxConcatItems;
+    }
 }

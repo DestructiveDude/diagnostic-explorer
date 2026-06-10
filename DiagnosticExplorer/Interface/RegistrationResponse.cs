@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -25,31 +25,30 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Text.Json.Serialization;
 using DiagnosticExplorer.Util;
 
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+
+public class RegistrationResponse
 {
+    public RegistrationResponse()
+    {
+    }
 
-	public class RegistrationResponse
-	{
-        public RegistrationResponse()
-        {
-        }
-
-        public RegistrationResponse(TimeSpan renewTime)
-        {
-            RenewTimeSeconds = (int)renewTime.TotalSeconds;
-        }
+    public RegistrationResponse(TimeSpan renewTime)
+    {
+        RenewTimeSeconds = (int) renewTime.TotalSeconds;
+    }
 
 
-        [JsonConverter(typeof(JsonTimeSpanConverter))]
-        public TimeSpan RenewTime => TimeSpan.FromSeconds(RenewTimeSeconds);
+    [JsonConverter(typeof(JsonTimeSpanConverter))]
+    public TimeSpan RenewTime => TimeSpan.FromSeconds(RenewTimeSeconds);
 
-        public int RenewTimeSeconds { get; set; }
+    public int RenewTimeSeconds { get; set; }
 
-	}
 }

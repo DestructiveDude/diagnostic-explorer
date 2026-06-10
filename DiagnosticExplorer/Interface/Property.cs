@@ -30,74 +30,75 @@ using System.Runtime.Serialization;
 using System.Xml.Serialization;
 using ProtoBuf;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[ProtoContract(UseProtoMembersOnly = true)]
+public class Property
 {
-	[ProtoContract(UseProtoMembersOnly = true)]
-	public class Property
-	{
-		public Property()
-		{
-		}
+    public Property()
+    {
+    }
 
-		public Property(string name)
-			: this(name, null, null)
-		{
-		}
+    public Property(string name)
+        : this(name, null, null)
+    {
+    }
 
-		public Property(string name, string value) : this(name, value, null)
-		{
-		}
+    public Property(string name, string value) : this(name, value, null)
+    {
+    }
 
-		public Property(string name, string value, string description)
-		{
-			Name = name;
-			Value = value;
-			Description = description;
-		}
+    public Property(string name, string value, string description)
+    {
+        Name = name;
+        Value = value;
+        Description = description;
+    }
 
-		[ProtoMember(1)]
-		public string Name { get; set; }
+    [ProtoMember(1)]
+    public string Name { get; set; }
 
-		[ProtoMember(2)]
-		public string Value { get; set; }
+    [ProtoMember(2)]
+    public string Value { get; set; }
 
-		[ProtoMember(3)]
-		public string Description { get; set; }
+    [ProtoMember(3)]
+    public string Description { get; set; }
 
-		[ProtoMember(4)]
-		public string OperationSet { get; set; }
+    [ProtoMember(4)]
+    public string OperationSet { get; set; }
 
-		[ProtoMember(5)]
-		public bool CanSet { get; set; }
+    [ProtoMember(5)]
+    public bool CanSet { get; set; }
 
-		internal object SourceObject { get; set; }
+    internal object SourceObject { get; set; }
 
-		internal object ValueObject { get; set; }
+    internal object ValueObject { get; set; }
 
-		internal PropertyInfo SourceProperty { get; set; }
+    internal PropertyInfo SourceProperty { get; set; }
 
-		public override string ToString()
-		{
-			string descr = string.IsNullOrEmpty(Description) ? "" : string.Format(" ({0})", Description);
+    public override string ToString()
+    {
+        string descr = string.IsNullOrEmpty(Description) ? "" : string.Format(" ({0})", Description);
 
-			string opset = OperationSet == null ? "" : string.Format(" (OperationSet={0})", OperationSet);
+        string opset = OperationSet == null ? "" : string.Format(" (OperationSet={0})", OperationSet);
 
-			string settable = CanSet ? " (SET)" : "";
+        string settable = CanSet ? " (SET)" : "";
 
-			return $"{Name} = [{Value}]{settable}{descr}{opset}";
-		}
-	}
+        return $"{Name} = [{Value}]{settable}{descr}{opset}";
+    }
+}
 
-	public static class PropertyExtensions
-	{
-		private static readonly StringComparer _ignoreCase = StringComparer.CurrentCultureIgnoreCase;
+public static class PropertyExtensions
+{
+    private static readonly StringComparer _ignoreCase = StringComparer.CurrentCultureIgnoreCase;
 
-		public static Property FindByName(this IEnumerable<Property> list, string name)
-		{
-			if (list == null) throw new ArgumentNullException(nameof(list));
+    public static Property FindByName(this IEnumerable<Property> list, string name)
+    {
+        if (list == null)
+        {
+            throw new ArgumentNullException(nameof(list));
+        }
 
-			return list.FirstOrDefault(x => _ignoreCase.Equals(x.Name, name));
-		}
-	}
-
+        return list.FirstOrDefault(x => _ignoreCase.Equals(x.Name, name));
+    }
 }

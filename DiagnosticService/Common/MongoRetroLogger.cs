@@ -42,7 +42,7 @@ namespace DiagnosticExplorer;
 public class MongoRetroLogger : IRetroLogger
 {
 
-    private static ILog _log = LogManager.GetLogger(typeof(MongoRetroLogger));
+    private static readonly ILog _log = LogManager.GetLogger(typeof(MongoRetroLogger));
 
     static MongoRetroLogger()
     {
@@ -54,8 +54,8 @@ public class MongoRetroLogger : IRetroLogger
         map.MapProperty(nameof(DiagnosticMsg.Message));
         map.MapProperty(nameof(DiagnosticMsg.Process));
         map.MapProperty(nameof(DiagnosticMsg.User));
-        BsonClassMap.RegisterClassMap(map);       
-        
+        BsonClassMap.RegisterClassMap(map);
+
         BsonClassMap<RetroMsg> map2 = new();
         map2.MapIdProperty(nameof(RetroMsg.RecordId));
         map2.MapProperty(nameof(RetroMsg.Category));
@@ -66,7 +66,7 @@ public class MongoRetroLogger : IRetroLogger
         map2.MapProperty(nameof(RetroMsg.Process));
         map2.MapProperty(nameof(RetroMsg.User));
         BsonClassMap.RegisterClassMap(map2);
-        
+
         BsonClassMap<DeleteMsg> map3 = new();
         map3.MapIdProperty(nameof(DeleteMsg.RecordId));
         BsonClassMap.RegisterClassMap(map3);
@@ -129,19 +129,30 @@ public class MongoRetroLogger : IRetroLogger
     public async Task<long> Delete(string[] recordList)
     {
         if (recordList == null || recordList.Length == 0)
+        {
             return 0;
+        }
+
         if (recordList.Length > MaxDeleteBatch)
+        {
             throw new ArgumentException($"Delete batch of {recordList.Length} exceeds the limit of {MaxDeleteBatch}");
+        }
 
         // TryParse: a single malformed id previously threw an unhandled FormatException out of
         // the async method. Skip invalid ids instead.
         List<ObjectId> ids = new(recordList.Length);
         foreach (string s in recordList)
+        {
             if (ObjectId.TryParse(s, out ObjectId id))
+            {
                 ids.Add(id);
+            }
+        }
 
         if (ids.Count == 0)
+        {
             return 0;
+        }
 
         IMongoCollection<RetroMsg> collection = GetLogCollection<RetroMsg>();
 
@@ -156,9 +167,16 @@ public class MongoRetroLogger : IRetroLogger
 
     private static void ValidateFilterPattern(string? value, string field)
     {
-        if (string.IsNullOrWhiteSpace(value)) return;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
         if (value.Length > MaxFilterPatternLength)
+        {
             throw new ArgumentException($"{field} search pattern exceeds {MaxFilterPatternLength} characters");
+        }
+
         try
         {
             _ = new Regex(value, RegexOptions.IgnoreCase);
@@ -178,7 +196,8 @@ public class MongoRetroLogger : IRetroLogger
 
         IMongoCollection<RetroMsg> collection = GetLogCollection<RetroMsg>();
 
-        FindOptions<RetroMsg> options = new() {
+        FindOptions<RetroMsg> options = new()
+        {
             Limit = query.MaxRecords,
             BatchSize = 250,
             // Server-side time budget: aborts a query (incl. a catastrophic $regex) on the Mongo
@@ -193,22 +212,32 @@ public class MongoRetroLogger : IRetroLogger
             && msg.Date < query.EndDate);
 
         if (!string.IsNullOrWhiteSpace(query.Machine))
+        {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Machine, query.Machine, RegexOptions.IgnoreCase));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.User))
+        {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.User, query.User, RegexOptions.IgnoreCase));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Process))
+        {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Process, query.Process, RegexOptions.IgnoreCase));
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Message))
+        {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Message, query.Message, RegexOptions.IgnoreCase));
+        }
 
         using IAsyncCursor<RetroMsg> searchResult = await collection.FindAsync(filter, options, cancel)
             .ConfigureAwait(false);
 
         while (await searchResult.MoveNextAsync(cancel))
+        {
             yield return searchResult.Current.ToArray();
+        }
     }
 
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)

@@ -135,7 +135,7 @@ public class RetroSearchLifecycleTests
 
         RunConcurrentPublishes(
             count: 24,
-            publish: index => manager.LogEvents(new List<DiagnosticMsg> { new() { Message = $"msg-{index}" } }));
+            publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
 
         observer.OverlapDetected.Should().BeFalse();
         observer.SeenValues.Should().Be(24);
@@ -155,13 +155,13 @@ public class RetroSearchLifecycleTests
     private static ConcurrentDictionary<string, RetroSearchProcess> SearchMap(RetroManager manager)
     {
         FieldInfo field = typeof(RetroManager).GetField("_searches", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (ConcurrentDictionary<string, RetroSearchProcess>)field.GetValue(manager)!;
+        return (ConcurrentDictionary<string, RetroSearchProcess>) field.GetValue(manager)!;
     }
 
     private static CancellationTokenSource CancelToken(RetroSearchProcess process)
     {
         FieldInfo field = typeof(RetroSearchProcess).GetField("_cancelToken", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (CancellationTokenSource)field.GetValue(process)!;
+        return (CancellationTokenSource) field.GetValue(process)!;
     }
 
     private static void InvokeHandleSearchFinished(RetroManager manager, RetroSearchProcess process)
@@ -173,7 +173,7 @@ public class RetroSearchLifecycleTests
     private static async Task InvokeSendResults(RetroSearchProcess process, Channel<RetroSearchResult> channel)
     {
         MethodInfo method = typeof(RetroSearchProcess).GetMethod("SendResults", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Task task = (Task)method.Invoke(process, [channel, CancellationToken.None])!;
+        Task task = (Task) method.Invoke(process, [channel, CancellationToken.None])!;
         await task;
     }
 
@@ -187,8 +187,7 @@ public class RetroSearchLifecycleTests
     {
         using ManualResetEventSlim start = new(false);
         Task[] tasks = Enumerable.Range(0, count)
-            .Select(index => Task.Run(() =>
-            {
+            .Select(index => Task.Run(() => {
                 start.Wait();
                 publish(index);
             }))
@@ -217,7 +216,9 @@ public class RetroSearchLifecycleTests
         public void OnNext(T value)
         {
             if (Interlocked.Increment(ref _activeNotifications) > 1)
+            {
                 OverlapDetected = true;
+            }
 
             try
             {

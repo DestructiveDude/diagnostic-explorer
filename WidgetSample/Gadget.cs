@@ -26,109 +26,107 @@ using System;
 using System.ComponentModel;
 using DiagnosticExplorer;
 
-namespace WidgetSample
+namespace WidgetSample;
+
+//Widget extends DiagnosticManager in order to register itself with diagnostics
+public class Gadget : IDisposable, INotifyPropertyChanged
 {
-	//Widget extends DiagnosticManager in order to register itself with diagnostics
-	public class Gadget : IDisposable, INotifyPropertyChanged
-	{
-		public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler PropertyChanged;
 
-		public Gadget(int id)
-		{
-			Id = id;
+    public Gadget(int id)
+    {
+        Id = id;
 
-			Name = GetRandom(_names);
-			Purpose = GetRandom(_purposes);
-			DiagnosticManager.Register(this, string.Format("Gadget {0}", Id), "Gadgets");
-		}
+        Name = GetRandom(_names);
+        Purpose = GetRandom(_purposes);
+        DiagnosticManager.Register(this, string.Format("Gadget {0}", Id), "Gadgets");
+    }
 
-		[DiagnosticMethod]
-		public void Randomise()
-		{
-			Name = GetRandom(_names);
-			Purpose = GetRandom(_purposes);
-		}
-		
-		[DiagnosticMethod]
-		public void Clear()
-		{
-			Name = null;
-			Purpose = null;
-		}
+    [DiagnosticMethod]
+    public void Randomise()
+    {
+        Name = GetRandom(_names);
+        Purpose = GetRandom(_purposes);
+    }
 
-		private void OnPropertyChanged(string propertyName)
-		{
-			if (PropertyChanged != null)
-				PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-		}
+    [DiagnosticMethod]
+    public void Clear()
+    {
+        Name = null;
+        Purpose = null;
+    }
 
-		#region IDisposable Members
+    private void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
-		// Mirror Widget: dispose unregisters the gadget from diagnostics so removal is
-		// deterministic (via RemoveItem) instead of relying on a GC pass to drop the
-		// DiagnosticManager registration.
-		public void Dispose()
-		{
-			Dispose(true);
-			GC.SuppressFinalize(this);
-		}
+    #region IDisposable Members
 
-		~Gadget()
-		{
-			Dispose(false);
-		}
+    // Mirror Widget: dispose unregisters the gadget from diagnostics so removal is
+    // deterministic (via RemoveItem) instead of relying on a GC pass to drop the
+    // DiagnosticManager registration.
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-		protected void Dispose(bool disposing)
-		{
-			if (disposing)
-				DiagnosticManager.Unregister(this);
-		}
+    ~Gadget()
+    {
+        Dispose(false);
+    }
 
-		#endregion
+    protected void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            DiagnosticManager.Unregister(this);
+        }
+    }
 
-		private string GetRandom(string[] items)
-		{
-			int index = ThreadSafeRandom.Next(0, items.Length);
-			return items[index];
-		}
+    #endregion
 
-		private static readonly string[] _names = new[]
-		                                 	{"Gadget X", "Gadget Y", "Gadget Z", "Gadget W"};
+    private string GetRandom(string[] items)
+    {
+        int index = ThreadSafeRandom.Next(0, items.Length);
+        return items[index];
+    }
 
-		private static readonly string[] _purposes = new[]
-		                                    	{"Technical", "Muckabout", "Stuff"};
+    private static readonly string[] _names = new[]
+                                         {"Gadget X", "Gadget Y", "Gadget Z", "Gadget W"};
 
-		public override string ToString()
-		{
-			return string.Format("Gadget {0}", Id);
-		}
+    private static readonly string[] _purposes = new[]
+                                            {"Technical", "Muckabout", "Stuff"};
 
-		public int Id { get; private set; }
+    public override string ToString()
+    {
+        return string.Format("Gadget {0}", Id);
+    }
 
-		private string _name;
+    public int Id { get; private set; }
 
-		[Property(AllowSet = true)]
-		public string Name
-		{
-			get { return _name; }
-			set
-			{
-				_name = value;
-				OnPropertyChanged("Name");
-			}
-		}
+    private string _name;
 
-		private string _purpose;
+    [Property(AllowSet = true)]
+    public string Name
+    {
+        get => _name;
+        set {
+            _name = value;
+            OnPropertyChanged("Name");
+        }
+    }
 
-		[Property(AllowSet = true)]
-		public string Purpose
-		{
-			get { return _purpose; }
-			set
-			{
-				_purpose = value;
-				OnPropertyChanged("Purpose");
-			}
-		}
-	}
+    private string _purpose;
+
+    [Property(AllowSet = true)]
+    public string Purpose
+    {
+        get => _purpose;
+        set {
+            _purpose = value;
+            OnPropertyChanged("Purpose");
+        }
+    }
 }

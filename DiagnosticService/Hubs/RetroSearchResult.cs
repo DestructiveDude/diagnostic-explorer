@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using DiagnosticExplorer;
 using Diagnostics.Service.Common.Transport;

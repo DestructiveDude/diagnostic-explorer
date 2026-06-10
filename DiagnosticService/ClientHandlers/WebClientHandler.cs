@@ -90,8 +90,7 @@ public class WebClientHandler
     {
         lock (_sendLock)
         {
-            _sendChain = _sendChain.ContinueWith(async _ =>
-            {
+            _sendChain = _sendChain.ContinueWith(async _ => {
                 try { await send(); }
                 catch (Exception ex) { Trace.WriteLine($"WebClientHandler {ConnectionId} send failed: {ex.Message}"); }
             }, TaskScheduler.Default).Unwrap();

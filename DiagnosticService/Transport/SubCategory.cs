@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using DiagnosticExplorer;
 
 namespace Diagnostics.Service.Common.Transport;

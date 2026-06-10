@@ -27,42 +27,40 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+public interface ITraceItem
 {
-	public interface ITraceItem
-	{
-		string Message { get; set; }
-	}
-	
+    string Message { get; set; }
+}
 
-	internal class TraceItem<TScope> : ITraceItem
-	{
-		private string _message;
 
-		public TraceItem(string message)
-		{
-			Message = message;
-			Created = DateTime.UtcNow;
-		}
+internal class TraceItem<TScope> : ITraceItem
+{
+    private string _message;
 
-		public TraceItem(TScope traceScope)
-		{
-			TraceScope = traceScope;
-			Created = DateTime.UtcNow;
-		}
+    public TraceItem(string message)
+    {
+        Message = message;
+        Created = DateTime.UtcNow;
+    }
 
-		public DateTime Created { get; private set; }
+    public TraceItem(TScope traceScope)
+    {
+        TraceScope = traceScope;
+        Created = DateTime.UtcNow;
+    }
 
-		public string Message
-		{
-			get { return _message; }
-			set
-			{
-				_message = value;
-				Created = DateTime.UtcNow;
-			}
-		}
+    public DateTime Created { get; private set; }
 
-		public TScope TraceScope { get; set; }
-	}
+    public string Message
+    {
+        get => _message;
+        set {
+            _message = value;
+            Created = DateTime.UtcNow;
+        }
+    }
+
+    public TScope TraceScope { get; set; }
 }

@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 
-namespace DiagnosticExplorer.Log4Net
+namespace DiagnosticExplorer.Log4Net;
+
+public enum BufferOverflowMode
 {
-	public enum BufferOverflowMode
-	{
-		Discard,
-		Block
-	}
+    Discard,
+    Block
 }

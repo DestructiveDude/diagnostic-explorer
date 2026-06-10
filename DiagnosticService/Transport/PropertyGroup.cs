@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Diagnostics.Service.Common.Transport;
 
@@ -10,7 +10,7 @@ public class PropertyGroup
 
     public static List<PropertyGroup> Map(string path, List<DiagnosticExplorer.Category> propertyGroups)
     {
-        List<PropertyGroup> result = new();
+        List<PropertyGroup> result = [];
         foreach (DiagnosticExplorer.Category group in propertyGroups)
         {
             PropertyGroup groupResult = new()

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -40,7 +40,7 @@ public class RealtimeManager : IHostedService
 
     private static readonly TimeSpan _alertDuration = TimeSpan.FromSeconds(2);
 
-   [CollectionProperty(CollectionMode.Categories, Category = "Processes", CategoryProperty = nameof(DiagProcess.Id))]
+    [CollectionProperty(CollectionMode.Categories, Category = "Processes", CategoryProperty = nameof(DiagProcess.Id))]
     public ICollection<DiagProcess> Processes => _processes.Values;
 
 
@@ -93,7 +93,7 @@ public class RealtimeManager : IHostedService
             .DefaultIfEmpty(0)
             .Max();
 
-        DiagProcess? process= Processes.FindByConnectionId(connectionId);
+        DiagProcess? process = Processes.FindByConnectionId(connectionId);
         if (process != null && process.AlertLevel < level)
         {
             process.AlertLevel = level;
@@ -102,14 +102,14 @@ public class RealtimeManager : IHostedService
         }
     }
 
-    
-        
+
+
     public ICollection<DiagProcess> GetProcesses()
     {
         return Processes;
     }
 
-  
+
     private readonly ConcurrentDictionary<string, DiagnosticClientHandler> _diagClients = new();
 
 
@@ -155,7 +155,9 @@ public class RealtimeManager : IHostedService
         // IDisposable) was never disposed. Monitor is recursive on the owning thread, matching the
         // old SupportsRecursion policy. (10s, was 1000s ≈ 16.7 min — see M2.)
         if (!Monitor.TryEnter(_configLockObj, TimeSpan.FromSeconds(10)))
+        {
             throw new ApplicationException("Failed to obtain config write lock");
+        }
     }
 
     private void ExitConfigLock()
@@ -171,12 +173,16 @@ public class RealtimeManager : IHostedService
             _processes.TryRemove(id, out DiagProcess? item);
 
             if (item == null)
+            {
                 throw new ApplicationException($"Can't find item '{id}'");
+            }
 
             RemoveSubscription(item);
 
             if (item.ConnectionId != null)
+            {
                 GetClientHandler(item.ConnectionId)?.CloseConnection();
+            }
 
             ProcessRemoved.OnNext(item);
         }
@@ -192,11 +198,15 @@ public class RealtimeManager : IHostedService
         {
             DiagProcess? p = GetProcess(request.Id);
             if (p == null)
+            {
                 return OperationResponse.Error($"Process {request.Id} not found");
+            }
 
             IDiagnosticClient? client = GetSubscription(p)?.DiagnosticClient;
             if (client == null)
+            {
                 return OperationResponse.Error($"Process {request.Id} is not connected");
+            }
 
             return await client.SetProperty(request.Path, request.Value);
         }
@@ -212,11 +222,15 @@ public class RealtimeManager : IHostedService
         {
             DiagProcess? p = GetProcess(request.Id);
             if (p == null)
+            {
                 return OperationResponse.Error($"Process {request.Id} not found");
+            }
 
             IDiagnosticClient? client = GetSubscription(p)?.DiagnosticClient;
             if (client == null)
+            {
                 return OperationResponse.Error($"Process {request.Id} is not connected");
+            }
 
             return await client.ExecuteOperation(request.Path, request.Operation, request.Arguments);
         }
@@ -231,7 +245,9 @@ public class RealtimeManager : IHostedService
         group.State = state;
         group.Message = message;
         if (group.State == OnlineState.Online)
+        {
             group.LastOnline = DateTime.UtcNow;
+        }
     }
 
     public void Register(Registration registration, string? connectionId = null)
@@ -244,7 +260,9 @@ public class RealtimeManager : IHostedService
 
             DiagProcess? process = null;
             if (!string.IsNullOrWhiteSpace(registration.InstanceId))
+            {
                 process = Processes.FindByInstanceId(registration.InstanceId);
+            }
 
             if (process == null)
             {
@@ -258,17 +276,21 @@ public class RealtimeManager : IHostedService
                     .ToArray();
 
                 if (found.Length >= 1)
+                {
                     process = found.FirstOrDefault(x => x.State == OnlineState.Offline);
+                }
             }
 
             OnlineState? previousState = process?.State;
 
             if (process == null)
             {
-                process = new DiagProcess();
-                process.Id = Guid.NewGuid().ToString("N");
-                process.MachineName = registration.MachineName;
-                process.ProcessName = registration.ProcessName;
+                process = new DiagProcess
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    MachineName = registration.MachineName,
+                    ProcessName = registration.ProcessName
+                };
                 _processes.TryAdd(process.Id, process);
             }
 
@@ -284,10 +306,14 @@ public class RealtimeManager : IHostedService
             SetStatus(process, OnlineState.Online, null);
 
             if (connectionId != null && _diagClients.TryGetValue(connectionId, out DiagnosticClientHandler? diagClient))
+            {
                 GetSubscription(process).SetDiagnosticClient(diagClient);
+            }
 
             if (process.State != previousState)
+            {
                 ProcessChanged.OnNext(process);
+            }
         }
         catch (Exception ex)
         {
@@ -325,10 +351,10 @@ public class RealtimeManager : IHostedService
 
         //Group all items by process, instance and host
         DiagProcess[][] procs = (from x in Processes
-            where x.RegistrationMode != RegistrationMode.Manual
-            group x by new {x.ProcessName, Host = x.MachineName?.ToLower()}
+                                 where x.RegistrationMode != RegistrationMode.Manual
+                                 group x by new { x.ProcessName, Host = x.MachineName?.ToLower() }
             into grp
-            select grp.ToArray()).ToArray();
+                                 select grp.ToArray()).ToArray();
 
         RegistrationMode[] tidyModes = { RegistrationMode.Auto, RegistrationMode.SignalR };
 
@@ -337,11 +363,13 @@ public class RealtimeManager : IHostedService
         {
             //Find the items which are no longer online
             DiagProcess[] toRemove = matching
-                .Where(x =>tidyModes.Contains(x.RegistrationMode) && x.State != OnlineState.Online).ToArray();
+                .Where(x => tidyModes.Contains(x.RegistrationMode) && x.State != OnlineState.Online).ToArray();
 
             //If all must be removed, make sure we leave just one
             if (toRemove.Length == matching.Length)
+            {
                 toRemove = toRemove.Skip(1).ToArray();
+            }
 
             foreach (DiagProcess proc in toRemove)
             {
@@ -363,7 +391,9 @@ public class RealtimeManager : IHostedService
     private bool HasExpired(DiagProcess process)
     {
         if (process.State == OnlineState.Online)
+        {
             return false;
+        }
 
         TimeSpan? elapsed = process.LastOnline.HasValue ? DateTime.UtcNow - process.LastOnline : null;
 
@@ -375,7 +405,7 @@ public class RealtimeManager : IHostedService
         return _processes.TryGetValue(id, out var value) ? value : null;
     }
 
-   
+
     public void Deregister(Registration registration)
     {
         Deregister(() => Processes.FindByInstanceId(registration.InstanceId));
@@ -397,14 +427,18 @@ public class RealtimeManager : IHostedService
             if (process != null)
             {
                 if (process.ConnectionId != null)
+                {
                     _diagClients.TryRemove(process.ConnectionId, out _);
+                }
 
                 process.State = OnlineState.Offline;
                 process.ConnectionId = null;
                 process.Message = "Offline";
 
                 if (_subscriptions.TryGetValue(process, out DiagnosticSubscription? subscription))
+                {
                     subscription.SetDiagnosticClient(null);
+                }
 
                 ProcessChanged.OnNext(process);
             }
@@ -441,7 +475,9 @@ public class RealtimeManager : IHostedService
     private void RemoveClientFromSubscriptions(WebClientHandler client)
     {
         foreach (DiagnosticSubscription sub in _subscriptions.Values)
+        {
             sub.RemoveWebClient(client);
+        }
     }
 
     // Removing a process from _processes must also drop its subscription, else the
@@ -450,19 +486,25 @@ public class RealtimeManager : IHostedService
     private void RemoveSubscription(DiagProcess process)
     {
         if (_subscriptions.TryRemove(process, out DiagnosticSubscription? sub))
+        {
             sub.SetDiagnosticClient(null);
+        }
     }
 
 
     public async Task<bool> SubscribeWebClient(string webConnectionId, string processId)
     {
         if (!_webClients.TryGetValue(webConnectionId, out WebClientHandler? webClient))
+        {
             return false;
+        }
 
         // Validate the target BEFORE tearing the client off its current subscription: a subscribe to
         // a stale/removed process id must not silently drop the client's existing live feed. (A9)
         if (!_processes.TryGetValue(processId, out DiagProcess? process))
+        {
             return false;
+        }
 
         RemoveClientFromSubscriptions(webClient);
 
@@ -476,5 +518,5 @@ public class RealtimeManager : IHostedService
         return _subscriptions.GetOrAdd(process, key => new(process));
     }
 
-   
+
 }

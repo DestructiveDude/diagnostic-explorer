@@ -14,7 +14,7 @@ namespace DiagWebService.ClientHandlers;
 public class DiagnosticSubscription
 {
     private static int _instanceCounter = 0;
-    private int _instance;
+    private readonly int _instance;
     public DiagProcess Process { get; set; }
     public IDiagnosticClient? DiagnosticClient { get; private set; }
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
@@ -81,17 +81,23 @@ public class DiagnosticSubscription
         //Debug.WriteLine($"@@@@@@@@@@ DiagnosticSubscription.AddWebClient {webClient.ConnectionId} now there are {_webClients.Count} _streamingStarted: {_streamingStarted}");
 
         if (_lastResponse != null)
+        {
             await TrySend(webClient, _lastResponse);
+        }
 
         if (DiagnosticClient == null)
+        {
             await webClient.SetEvents(ProcessId, _eventRepo.GetEvents());
+        }
 
         lock (_startStopLock)
         {
             bool added = _webClients.TryAdd(webClient.ConnectionId, webClient);
 
             if (added && _streamingStarted)
+            {
                 webClient.StartStreamingEvents(Process.Id, _eventRepo);
+            }
 
             StartIfRequired();
         }
@@ -121,11 +127,14 @@ public class DiagnosticSubscription
         {
             if (_webClients.Any() && DiagnosticClient != null && _eventStreamSubscription == null
                 && !_eventSubscriptionStopInProgress && !_eventSubscriptionRestartBlocked)
+            {
                 StartDiagClientEvents();
+            }
 
             if (_webClients.Any() && DiagnosticClient != null && _requestLoop == null)
+            {
                 StartRequestLoop();
-
+            }
         }
     }
 
@@ -146,7 +155,7 @@ public class DiagnosticSubscription
         _requestLoopCancelSource = null;
         _requestLoop = null;
     }
-    
+
     private void StartDiagClientEvents()
     {
         _eventRepo.Clear();
@@ -173,7 +182,9 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (_eventSetSubscription == null && _eventStreamSubscription == null)
+            {
                 return;
+            }
 
             eventSetSubscription = _eventSetSubscription;
             eventStreamSubscription = _eventStreamSubscription;
@@ -190,13 +201,15 @@ public class DiagnosticSubscription
         eventStreamSubscription?.Dispose();
 
         if (diagnosticClient != null)
+        {
             RunDetached(
                 () => diagnosticClient.UnsubscribeEvents(),
                 ex => HandleUnsubscribeEventsCompletion(diagnosticClient, ex),
                 () => HandleUnsubscribeEventsCompletion(diagnosticClient, null));
+        }
     }
 
-  
+
     private void RunDetached(Func<Task> action, Action<Exception>? onError = null, Action? onSuccess = null)
     {
         try
@@ -238,7 +251,9 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (!MatchesCurrentEventSubscriptions(diagnosticClient, eventSetSubscription, eventStreamSubscription))
+            {
                 return;
+            }
 
             eventSetSubscription.Dispose();
             eventStreamSubscription.Dispose();
@@ -259,18 +274,24 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (!_eventSubscriptionStopInProgress || !ReferenceEquals(_eventSubscriptionStopClient, diagnosticClient))
+            {
                 return;
+            }
 
             _eventSubscriptionStopInProgress = false;
             _eventSubscriptionStopClient = null;
 
             if (!_eventSubscriptionRestartBlocked
                 && _webClients.Any() && DiagnosticClient != null && _eventStreamSubscription == null)
+            {
                 StartDiagClientEvents();
+            }
         }
 
         if (ex != null)
+        {
             Trace.WriteLine($"DiagnosticSubscription {Process.Id} failed to unsubscribe events: {ex.Message}");
+        }
     }
 
     private bool MatchesCurrentEventSubscriptions(
@@ -294,16 +315,22 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (!MatchesCurrentEventSubscriptions(diagnosticClient, eventSetSubscription, eventStreamSubscription))
+            {
                 return;
+            }
 
             if (_streamingStarted)
+            {
                 return;
+            }
 
             _eventRepo.LogEvents(events);
             _streamingStarted = true;
 
             foreach (WebClientHandler handler in _webClients.Values)
+            {
                 handler.StartStreamingEvents(Process.Id, _eventRepo);
+            }
         }
     }
 
@@ -316,7 +343,9 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (!MatchesCurrentEventSubscriptions(diagnosticClient, eventSetSubscription, eventStreamSubscription))
+            {
                 return;
+            }
 
             //Debug.WriteLine($"@@@@@@@@@@ DiagnosticSubscription {_instance} received single event {events.FirstOrDefault()?.Id}");
             _eventRepo.LogEvents(events);
@@ -328,10 +357,14 @@ public class DiagnosticSubscription
         lock (_startStopLock)
         {
             if (_webClients.Count == 0 && _requestLoop != null)
+            {
                 StopRequestLoop();
+            }
 
             if (_webClients.Count == 0 && _eventStreamSubscription != null)
+            {
                 StopDiagClientEvents();
+            }
         }
     }
 
@@ -351,7 +384,10 @@ public class DiagnosticSubscription
                         // A cancelled (superseded) loop must not publish stale results or push to
                         // clients — otherwise a client swap briefly runs two loops racing _lastResponse.
                         if (cancelToken.IsCancellationRequested)
+                        {
                             break;
+                        }
+
                         _lastResponse = diags;
                         //Debug.WriteLine($"@@@@@@@@@@ RunLoop got diags {Process.Id} {diags}");
                         await Task.WhenAll(_webClients.Values.Select(client => TrySend(client, diags)));

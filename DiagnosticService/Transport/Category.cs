@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Diagnostics.Service.Common.Transport;
 
@@ -15,7 +15,7 @@ public class Category
 
     public string Name { get; set; } = null!;
 
-    public List<SubCategory> SubCategories { get; set; } = new();
+    public List<SubCategory> SubCategories { get; set; } = [];
 
-      
+
 }

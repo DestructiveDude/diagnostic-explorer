@@ -25,21 +25,20 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[Serializable]
+public class PropertyBagNotFoundException : Exception
 {
-	[Serializable]
-	public class PropertyBagNotFoundException : Exception
-	{
-		public PropertyBagNotFoundException()
-		{
-		}
+    public PropertyBagNotFoundException()
+    {
+    }
 
-		public PropertyBagNotFoundException(string bagName) : base($"PropertyBag [{bagName}] not found")
-		{
-		}
+    public PropertyBagNotFoundException(string bagName) : base($"PropertyBag [{bagName}] not found")
+    {
+    }
 
-		protected PropertyBagNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
-		{
-		}
-	}
+    protected PropertyBagNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
 }

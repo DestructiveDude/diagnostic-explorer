@@ -14,16 +14,20 @@ RUN npm run build
 # Stage 2 — build the .NET service.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG GITHUB_PACKAGES_TOKEN
 WORKDIR /src
+COPY ["nuget.config", "./"]
 COPY ["DiagnosticService/Diagnostic.Service.csproj", "DiagnosticService/"]
 COPY ["DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj", "DiagnosticExplorer.Hosting/"]
 COPY ["DiagnosticExplorer/DiagnosticExplorer.csproj", "DiagnosticExplorer/"]
-RUN dotnet restore "DiagnosticService/Diagnostic.Service.csproj"
+RUN dotnet restore "DiagnosticService/Diagnostic.Service.csproj" -p:MaxCpuCount=1
 COPY . .
 RUN dotnet publish "DiagnosticService/Diagnostic.Service.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
-    /p:UseAppHost=false
+    --no-restore \
+    /p:UseAppHost=false \
+    -p:MaxCpuCount=1
 
 # Stage 3 — runtime image.
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final

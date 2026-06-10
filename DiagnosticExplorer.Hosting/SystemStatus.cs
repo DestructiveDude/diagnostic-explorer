@@ -58,10 +58,8 @@ internal class SystemStatus
     public int Threads
     {
         get {
-            using (Process p = Process.GetCurrentProcess())
-            {
-                return p.Threads.Count;
-            }
+            using Process p = Process.GetCurrentProcess();
+            return p.Threads.Count;
         }
     }
 
@@ -70,10 +68,8 @@ internal class SystemStatus
     public double VirtualMemory
     {
         get {
-            using (Process p = Process.GetCurrentProcess())
-            {
-                return p.PagedMemorySize64 / (1024F * 1024F);
-            }
+            using Process p = Process.GetCurrentProcess();
+            return p.PagedMemorySize64 / (1024F * 1024F);
         }
     }
 
@@ -81,10 +77,8 @@ internal class SystemStatus
     public double Memory
     {
         get {
-            using (Process p = Process.GetCurrentProcess())
-            {
-                return p.WorkingSet64 / (1024F * 1024F);
-            }
+            using Process p = Process.GetCurrentProcess();
+            return p.WorkingSet64 / (1024F * 1024F);
         }
     }
 
@@ -92,12 +86,7 @@ internal class SystemStatus
 
     public string HostMachine { get; set; }
 
-    public string BaseDirectory
-    {
-        get {
-            return AppDomain.CurrentDomain.BaseDirectory;
-        }
-    }
+    public string BaseDirectory => AppDomain.CurrentDomain.BaseDirectory;
 
     public RateCounter DiagnosticRequests { get; }
 
@@ -106,21 +95,14 @@ internal class SystemStatus
     public TimeSpan UpTime
     {
         get {
-            using (Process p = Process.GetCurrentProcess())
-            {
-                return DateTime.Now - p.StartTime;
-            }
+            using Process p = Process.GetCurrentProcess();
+            return DateTime.Now - p.StartTime;
         }
     }
 
 
     [Property(FormatString = "{0:d MMM yyyy HH:mm:ss}")]
-    public DateTime SystemTime
-    {
-        get {
-            return DateTime.Now;
-        }
-    }
+    public DateTime SystemTime => DateTime.Now;
 
 
     public void RegisterDiagnosticRequest()

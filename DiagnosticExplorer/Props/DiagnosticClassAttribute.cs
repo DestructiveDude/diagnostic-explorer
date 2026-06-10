@@ -25,15 +25,14 @@
 using System;
 using System.Linq;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+public class DiagnosticClassAttribute : Attribute
 {
-	[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-	public class DiagnosticClassAttribute : Attribute
-	{
-		public bool AttributedPropertiesOnly { get; set; }
+    public bool AttributedPropertiesOnly { get; set; }
 
-		public bool DeclaringTypeOnly { get; set; }
+    public bool DeclaringTypeOnly { get; set; }
 
-		public bool AllPropertiesSettable { get; set; }
-	}
+    public bool AllPropertiesSettable { get; set; }
 }

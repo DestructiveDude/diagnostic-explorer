@@ -1,4 +1,4 @@
-﻿using DiagnosticExplorer;
+using DiagnosticExplorer;
 using log4net;
 
 namespace DiagWebService;

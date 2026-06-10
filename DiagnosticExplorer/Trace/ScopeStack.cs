@@ -28,14 +28,20 @@ internal sealed class ScopeStack
     public ScopeStack Remove(TraceScope scope)
     {
         if (IsEmpty)
+        {
             return this;
+        }
 
         if (ReferenceEquals(Current, scope))
+        {
             return Parent ?? Empty;
+        }
 
         ScopeStack updatedParent = Parent?.Remove(scope) ?? Empty;
         if (ReferenceEquals(updatedParent, Parent))
+        {
             return this;
+        }
 
         return new ScopeStack(Current, updatedParent);
     }

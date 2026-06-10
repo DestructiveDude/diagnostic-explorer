@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,7 +10,7 @@ using DiagnosticExplorer;
 
 namespace Diagnostics.Service.Common.Hubs;
 
-class AsyncCallException : ApplicationException
+internal class AsyncCallException : ApplicationException
 {
     public AsyncCallException()
     {
@@ -35,7 +35,10 @@ public class AsyncResultBucket
 
     public void SetResult(RpcResult result, object returnValue)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
+        if (result == null)
+        {
+            throw new ArgumentNullException(nameof(result));
+        }
 
         if (_results.TryGetValue(result.RequestId, out var completionSource))
         {
@@ -44,9 +47,13 @@ public class AsyncResultBucket
             // otherwise throw "already completed" out of the hub return method and fault the hub
             // invocation. The first reply wins; later ones no-op. (A7)
             if (result.IsSuccess)
+            {
                 completionSource.TrySetResult(returnValue);
+            }
             else
+            {
                 completionSource.TrySetException(new AsyncCallException(result.Message, result.Detail));
+            }
         }
         else
         {
@@ -59,7 +66,10 @@ public class AsyncResultBucket
 
     public async Task<T> GetResult<T>(string requestId, TimeSpan timeout, CancellationToken cancel)
     {
-        if (requestId == null) throw new ArgumentNullException(nameof(requestId));
+        if (requestId == null)
+        {
+            throw new ArgumentNullException(nameof(requestId));
+        }
 
         var completionSource = _results.GetOrAdd(requestId, _ => new TaskCompletionSource<object>());
         try
@@ -67,9 +77,11 @@ public class AsyncResultBucket
             Task awaitResult = await Task.WhenAny(Task.Delay(timeout, cancel), completionSource.Task);
 
             if (awaitResult == completionSource.Task)
+            {
                 // await (not .Result): a faulted task surfaces the original AsyncCallException
                 // with its message/detail, instead of an AggregateException wrapping it.
                 return (T) await completionSource.Task;
+            }
 
             // Task.Delay won the race: either the timeout elapsed OR the caller cancelled (e.g. the
             // client disconnected, passing ConnectionAborted). Awaiting the delay task surfaces

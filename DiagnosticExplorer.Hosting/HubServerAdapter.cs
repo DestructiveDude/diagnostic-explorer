@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -77,7 +77,9 @@ internal class HubServerAdapter : IDiagnosticHubClient
         _writeEventTask = null;
 
         if (cts == null)
+        {
             return;
+        }
 
         try { cts.Cancel(); }
         catch (ObjectDisposedException) { }
@@ -85,9 +87,13 @@ internal class HubServerAdapter : IDiagnosticHubClient
         // Dispose the CTS only after the stream task observes cancellation and completes, so we
         // never dispose a token still registered in an in-flight await (channel read / Invoke).
         if (task != null)
+        {
             task.ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+        }
         else
+        {
             cts.Dispose();
+        }
     }
 
     private async Task SendEventStream(CancellationToken cancel)
@@ -191,7 +197,9 @@ internal class HubServerAdapter : IDiagnosticHubClient
     {
         RpcResult<RegistrationResponse> response = await _hubConn.InvokeCoreAsync<RpcResult<RegistrationResponse>>(nameof(IDiagnosticHubServer.Register), new object[] { registration }, cancel);
         if (!response.IsSuccess)
+        {
             throw new ApplicationException(response.Message);
+        }
 
         return response.Response;
     }
@@ -202,7 +210,9 @@ internal class HubServerAdapter : IDiagnosticHubClient
         {
             RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.Deregister), new object[] { registration }, cancel);
             if (!response.IsSuccess)
+            {
                 throw new ApplicationException(response.Message);
+            }
         }
     }
 
@@ -211,6 +221,8 @@ internal class HubServerAdapter : IDiagnosticHubClient
         RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.LogEvents), new object[] { eventData }, cancel);
 
         if (!response.IsSuccess)
+        {
             throw new ApplicationException(response.Message);
+        }
     }
 }

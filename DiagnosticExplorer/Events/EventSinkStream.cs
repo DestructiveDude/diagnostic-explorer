@@ -8,7 +8,7 @@ using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer;
 
-sealed public class EventSinkStream : IDisposable
+public sealed class EventSinkStream : IDisposable
 {
     public event EventHandler Disposed;
     private readonly Subject<SystemEvent> _innerSubject;
@@ -18,7 +18,11 @@ sealed public class EventSinkStream : IDisposable
 
     public EventSinkStream(SystemEvent[] initialEvents, TimeSpan buffer, int bufferSize)
     {
-        if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), "bufferSize must be positive");
+        if (bufferSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bufferSize), "bufferSize must be positive");
+        }
+
         InitialEvents = initialEvents;
         this.bufferSize = bufferSize;
 
@@ -28,7 +32,8 @@ sealed public class EventSinkStream : IDisposable
             .Subscribe(WriteEvents, () => EventChannel?.Writer.Complete());
 
         EventChannel = Channel.CreateBounded<IList<SystemEvent>>(
-            new BoundedChannelOptions(10000) {
+            new BoundedChannelOptions(10000)
+            {
                 SingleReader = true,
                 FullMode = BoundedChannelFullMode.DropWrite,
             });
@@ -50,7 +55,10 @@ sealed public class EventSinkStream : IDisposable
         {
             var chunk = new List<SystemEvent>(Math.Min(bufferSize, evts.Count - i));
             for (int j = i; j < evts.Count && j < i + bufferSize; j++)
+            {
                 chunk.Add(evts[j]);
+            }
+
             EventChannel?.Writer.TryWrite(chunk);
         }
     }

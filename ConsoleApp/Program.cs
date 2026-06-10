@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 // using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
@@ -12,7 +12,7 @@ namespace ConsoleApp;
 
 internal class Program
 {
-    private static async Task Main(string[] args)
+    private static async Task Main()
     {
         Trace.Listeners.Add(new ConsoleTraceListener());
 

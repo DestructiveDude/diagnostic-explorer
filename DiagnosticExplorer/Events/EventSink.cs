@@ -29,153 +29,180 @@ using System.Threading;
 using DiagnosticExplorer.Util;
 using log4net.Core;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+// Events are bounded by the inline MaxMessages trim in AddSingleEvent. The former static
+// `sinks` WeakReferenceHash + 20s purge timer were dead code — nothing ever registered a sink
+// into `sinks` (live sinks live in EventSinkRepo), so the 30-minute age purge never ran.
+// Removed rather than half-wired (per-instance timers would leak; re-registering into the
+// static hash reintroduces its collision/concurrency issues).
+public class EventSink
 {
-    // Events are bounded by the inline MaxMessages trim in AddSingleEvent. The former static
-    // `sinks` WeakReferenceHash + 20s purge timer were dead code — nothing ever registered a sink
-    // into `sinks` (live sinks live in EventSinkRepo), so the 30-minute age purge never ran.
-    // Removed rather than half-wired (per-instance timers would leak; re-registering into the
-    // static hash reintroduces its collision/concurrency issues).
-    public class EventSink
-	{
-		public const int MaxMessages = 1000;
-		private const int MaxLength = 102400;
-        private readonly EventSinkRepo _repo;
+    public const int MaxMessages = 1000;
+    private const int MaxLength = 102400;
+    private readonly EventSinkRepo _repo;
 
-		internal EventSink(EventSinkRepo repo, string name, string category)
+    internal EventSink(EventSinkRepo repo, string name, string category)
+    {
+        _repo = repo;
+        Name = name;
+        Category = category;
+    }
+
+    public string Name { get; }
+
+    public string Category { get; }
+
+
+    private long _idCount = 0;
+
+    public ConcurrentQueue<SystemEvent> Events { get; } = new();
+
+    public void Info(string message, string detail = null)
+    {
+        LogEvent(Level.Info.Value, message, detail);
+    }
+
+    public void Notice(string message, string detail = null)
+    {
+        LogEvent(Level.Notice.Value, message, detail);
+    }
+
+    public void Warn(string message, string detail = null)
+    {
+        LogEvent(Level.Warn.Value, message, detail);
+    }
+
+    public void Error(string message, string detail = null)
+    {
+        LogEvent(Level.Error.Value, message, detail);
+    }
+
+    public void Fatal(string message, string detail = null)
+    {
+        LogEvent(Level.Fatal.Value, message, detail);
+    }
+
+    public void LogEvent(int level, string message, string detail)
+    {
+        try
         {
-            _repo = repo;
-			Name = name;
-			Category = category;
-		}
+            CleanMessageAndDetail(ref message, ref detail);
 
-		public string Name { get; }
-
-		public string Category { get; }
-
-
-        private long _idCount = 0;
-
-        public ConcurrentQueue<SystemEvent> Events { get; } = new();
-
-        public void Info(string message, string detail = null)
-        {
-            LogEvent(Level.Info.Value, message, detail);
-        }
-
-        public void Notice(string message, string detail = null)
-        {
-            LogEvent(Level.Notice.Value, message, detail);
-        }
-
-        public void Warn(string message, string detail = null)
-        {
-            LogEvent(Level.Warn.Value, message, detail);
-        }
-
-        public void Error(string message, string detail = null)
-        {
-            LogEvent(Level.Error.Value, message, detail);
-        }
-
-        public void Fatal(string message, string detail = null)
-        {
-            LogEvent(Level.Fatal.Value, message, detail);
-        }
-
-        public void LogEvent(int level, string message, string detail)
-		{
-            try
+            SystemEvent evt = new()
             {
-                CleanMessageAndDetail(ref message, ref detail);
-
-                SystemEvent evt = new();
-                evt.Id = Interlocked.Increment(ref _idCount);
-                evt.Date = DateTime.UtcNow;
-                evt.Level = level;
-                evt.SinkName = Name;
-                evt.SinkCategory = Category;
-                evt.Message = MaxLengthString(message, MaxLength);
-                evt.Detail = MaxLengthString(detail, MaxLength);
-                AddSingleEvent(evt);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-            }
-        }
-
-        public void LogEvent(SystemEvent evt)
-        {
-            // Imported events bypass the int overload, so apply the same length cap here —
-            // otherwise an arbitrarily long Message/Detail flows unbounded into the queue and
-            // protobuf serialization.
-            evt.Message = MaxLengthString(evt.Message, MaxLength);
-            evt.Detail = MaxLengthString(evt.Detail, MaxLength);
-
+                Id = Interlocked.Increment(ref _idCount),
+                Date = DateTime.UtcNow,
+                Level = level,
+                SinkName = Name,
+                SinkCategory = Category,
+                Message = MaxLengthString(message, MaxLength),
+                Detail = MaxLengthString(detail, MaxLength)
+            };
             AddSingleEvent(evt);
-
-            // Atomically advance _idCount; a plain Math.Max RMW races the Interlocked.Increment
-            // in the int overload and would lose updates / yield duplicate ids.
-            long target = evt.Id + 1;
-            long current;
-            while ((current = Interlocked.Read(ref _idCount)) < target)
-                if (Interlocked.CompareExchange(ref _idCount, target, current) == current)
-                    break;
         }
-
-        private bool _invalid;
-
-        internal void Invalidate()
+        catch (Exception ex)
         {
-            _invalid = true;
+            Debug.WriteLine(ex);
         }
+    }
 
-        public void Clear()
+    public void LogEvent(SystemEvent evt)
+    {
+        // Imported events bypass the int overload, so apply the same length cap here —
+        // otherwise an arbitrarily long Message/Detail flows unbounded into the queue and
+        // protobuf serialization.
+        evt.Message = MaxLengthString(evt.Message, MaxLength);
+        evt.Detail = MaxLengthString(evt.Detail, MaxLength);
+
+        AddSingleEvent(evt);
+
+        // Atomically advance _idCount; a plain Math.Max RMW races the Interlocked.Increment
+        // in the int overload and would lose updates / yield duplicate ids.
+        long target = evt.Id + 1;
+        long current;
+        while ((current = Interlocked.Read(ref _idCount)) < target)
         {
-            while (Events.TryDequeue(out _)) ;
-            Interlocked.Exchange(ref _idCount, 0);
+            if (Interlocked.CompareExchange(ref _idCount, target, current) == current)
+            {
+                break;
+            }
         }
+    }
 
-        private void AddSingleEvent(SystemEvent evt)
+    private bool _invalid;
+
+    internal void Invalidate()
+    {
+        _invalid = true;
+    }
+
+    public void Clear()
+    {
+        while (Events.TryDequeue(out _))
         {
-            if (_invalid)
-                return;
-
-            // Events are enqueued inside RegisterEvent under the repo read lock to ensure
-            // stream creation snapshots are atomic with respect to live broadcasts (DE03-DUP).
-            _repo.RegisterEvent(this, evt);
-
-            // Bounded queue size is a soft limit; under concurrent logging from multiple threads,
-            // the queue size can transiently exceed MaxMessages before items are dequeued.
-            if (Events.Count > MaxMessages)
-                Events.TryDequeue(out _);
+            ;
         }
 
-        /// <summary>
+        Interlocked.Exchange(ref _idCount, 0);
+    }
+
+    private void AddSingleEvent(SystemEvent evt)
+    {
+        if (_invalid)
+        {
+            return;
+        }
+
+        // Events are enqueued inside RegisterEvent under the repo read lock to ensure
+        // stream creation snapshots are atomic with respect to live broadcasts (DE03-DUP).
+        _repo.RegisterEvent(this, evt);
+
+        // Bounded queue size is a soft limit; under concurrent logging from multiple threads,
+        // the queue size can transiently exceed MaxMessages before items are dequeued.
+        if (Events.Count > MaxMessages)
+        {
+            Events.TryDequeue(out _);
+        }
+    }
+
+    /// <summary>
 		/// If there is no detail but a massive message, put the whole message into detail
 		/// and leave only the first line in message
 		/// </summary>
 		private void CleanMessageAndDetail(ref string message, ref string detail)
-		{
-			if (!string.IsNullOrEmpty(detail)) return;
-			if (string.IsNullOrWhiteSpace(message)) return;
+    {
+        if (!string.IsNullOrEmpty(detail))
+        {
+            return;
+        }
 
-			int index = message.IndexOf("\n");
-			if (index != -1)
-			{
-				detail = message;
-				message = message.Substring(0, index);
-			}
-		}
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
 
-		private static string MaxLengthString(string s, int maxLength)
-		{
-			if (s == null) return s;
-			if (s.Length <= maxLength) return s;
+        int index = message.IndexOf("\n");
+        if (index != -1)
+        {
+            detail = message;
+            message = message.Substring(0, index);
+        }
+    }
 
-			return s.Substring(0, maxLength);
-		}
+    private static string MaxLengthString(string s, int maxLength)
+    {
+        if (s == null)
+        {
+            return s;
+        }
 
-      }
+        if (s.Length <= maxLength)
+        {
+            return s;
+        }
+
+        return s.Substring(0, maxLength);
+    }
+
 }

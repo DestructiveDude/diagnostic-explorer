@@ -25,16 +25,15 @@
 using System;
 using System.Linq;
 
-namespace DiagnosticExplorer
-{
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
-	public class ExtendedPropertyAttribute : PropertyAttribute
-	{
-		public ExtendedPropertyAttribute() {}
+namespace DiagnosticExplorer;
 
-		public ExtendedPropertyAttribute(string name)
-		{
-			Name = name;
-		}
-	}
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public class ExtendedPropertyAttribute : PropertyAttribute
+{
+    public ExtendedPropertyAttribute() { }
+
+    public ExtendedPropertyAttribute(string name)
+    {
+        Name = name;
+    }
 }

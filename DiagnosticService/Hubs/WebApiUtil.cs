@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Newtonsoft.Json;
@@ -23,7 +23,7 @@ public class WebApiUtil
 
         return await httpClient.SendAsync(request);
     }
-		
+
 
     public static async Task<string> Get(string url)
     {
@@ -44,7 +44,9 @@ public class WebApiUtil
 
         string content = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != HttpStatusCode.OK)
+        {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
+        }
 
         T result = JsonConvert.DeserializeObject<T>(content)!;
         return result;
@@ -56,7 +58,9 @@ public class WebApiUtil
         string content = await response.Content.ReadAsStringAsync();
 
         if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent)
+        {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
+        }
 
         return content;
     }
@@ -67,7 +71,9 @@ public class WebApiUtil
 
         string content = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != HttpStatusCode.OK)
+        {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
+        }
 
         T result = JsonConvert.DeserializeObject<T>(content)!;
         return result;

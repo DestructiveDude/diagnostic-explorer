@@ -27,66 +27,75 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace DiagnosticExplorer
-{
-    internal class DateGetter : PropertyGetter
-    {
-        private readonly bool _exposeDate = true;
-        private readonly bool _exposeElapsed;
-        private readonly bool _exposeTimeUntil;
+namespace DiagnosticExplorer;
 
-        public DateGetter(PropertyInfo prop, DatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
+internal class DateGetter : PropertyGetter
+{
+    private readonly bool _exposeDate = true;
+    private readonly bool _exposeElapsed;
+    private readonly bool _exposeTimeUntil;
+
+    public DateGetter(PropertyInfo prop, DatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
+    {
+        if (attr != null)
         {
-            if (attr != null)
-            {
-                _exposeDate = attr.ExposeDate;
-                _exposeElapsed = attr.ExposeElapsed;
-                _exposeTimeUntil = attr.ExposeTimeUntil;
-            }
+            _exposeDate = attr.ExposeDate;
+            _exposeElapsed = attr.ExposeElapsed;
+            _exposeTimeUntil = attr.ExposeTimeUntil;
+        }
+    }
+
+    public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
+    {
+        if (_exposeDate)
+        {
+            base.GetProperties(obj, bag, catPrepend);
         }
 
-        public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
+        if (!_exposeElapsed && !_exposeTimeUntil)
         {
-            if (_exposeDate)
-            {
-                base.GetProperties(obj, bag, catPrepend);
-            }
+            return;
+        }
 
-            if (!_exposeElapsed && !_exposeTimeUntil)
-                return;
-
-            DateTime? dateVal;
-            try
+        DateTime? dateVal;
+        try
+        {
+            var value = GetFunc(obj);
+            dateVal = value is DateTimeOffset off ? off.LocalDateTime : (DateTime?) value;
+            if (dateVal != null && dateVal.Value.Kind == DateTimeKind.Utc)
             {
-                var value = GetFunc(obj);
-                dateVal = value is DateTimeOffset off ? off.LocalDateTime : (DateTime?) value;
-                if (dateVal != null && dateVal.Value.Kind == DateTimeKind.Utc)
-                    dateVal = dateVal.Value.ToLocalTime();
+                dateVal = dateVal.Value.ToLocalTime();
             }
-            catch (Exception ex)
-            {
-                // A throwing date property must degrade to an error string rather than abort the
-                // whole diagnostic walk; this raw getter call bypassed the guarded GetValue path.
-                string error = $"<{ex.Message}>";
-                if (_exposeElapsed)
-                    bag.AddProperty(new Property("Time since " + Name, error), PrependToCategory(catPrepend));
-                if (_exposeTimeUntil)
-                    bag.AddProperty(new Property("Time until " + Name, error), PrependToCategory(catPrepend));
-                return;
-            }
-
+        }
+        catch (Exception ex)
+        {
+            // A throwing date property must degrade to an error string rather than abort the
+            // whole diagnostic walk; this raw getter call bypassed the guarded GetValue path.
+            string error = $"<{ex.Message}>";
             if (_exposeElapsed)
             {
-                string val = dateVal == null ? "" : FormatTimeSpan(DateTime.Now.Subtract(dateVal.Value));
-                Property property = new Property("Time since " + Name, val);
-                bag.AddProperty(property, PrependToCategory(catPrepend));
+                bag.AddProperty(new Property("Time since " + Name, error), PrependToCategory(catPrepend));
             }
+
             if (_exposeTimeUntil)
             {
-                string val = dateVal == null ? "" : FormatTimeSpan(dateVal.Value.Subtract(DateTime.Now));
-                Property property = new Property("Time until " + Name, val);
-                bag.AddProperty(property, PrependToCategory(catPrepend));
+                bag.AddProperty(new Property("Time until " + Name, error), PrependToCategory(catPrepend));
             }
+
+            return;
+        }
+
+        if (_exposeElapsed)
+        {
+            string val = dateVal == null ? "" : FormatTimeSpan(DateTime.Now.Subtract(dateVal.Value));
+            Property property = new Property("Time since " + Name, val);
+            bag.AddProperty(property, PrependToCategory(catPrepend));
+        }
+        if (_exposeTimeUntil)
+        {
+            string val = dateVal == null ? "" : FormatTimeSpan(dateVal.Value.Subtract(DateTime.Now));
+            Property property = new Property("Time until " + Name, val);
+            bag.AddProperty(property, PrependToCategory(catPrepend));
         }
     }
 }

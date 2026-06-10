@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -25,8 +25,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.ServiceModel;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Diagnostics.Service.Common.Transport;

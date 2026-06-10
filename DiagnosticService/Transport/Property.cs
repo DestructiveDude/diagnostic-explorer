@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Diagnostics.Service.Common.Transport;
 
@@ -14,14 +14,14 @@ public class Property
 
     public static List<Property> Map(string path, List<DiagnosticExplorer.Property> properties)
     {
-        List<Property> result = new();
+        List<Property> result = [];
         foreach (DiagnosticExplorer.Property property in properties)
         {
             Property groupResult = new()
             {
                 Name = property.Name,
                 CanSet = property.CanSet,
-                Path = (property.CanSet ? (path + '|' + property.Name) : null),
+                Path = property.CanSet ? (path + '|' + property.Name) : null,
                 Value = property.Value
             };
             result.Add(groupResult);

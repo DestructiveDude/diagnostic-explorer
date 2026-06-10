@@ -29,65 +29,66 @@ using System.Linq;
 using System.Reflection;
 using DiagnosticExplorer;
 
-namespace DiagnosticExplorer
-{
-    internal class ExtendedPropertyGetter : PropertyGetter
-    {
-        private readonly string _name;
+namespace DiagnosticExplorer;
 
-        public ExtendedPropertyGetter(PropertyInfo info, ExtendedPropertyAttribute attr, bool isStatic)
-            : base(info, isStatic)
+internal class ExtendedPropertyGetter : PropertyGetter
+{
+    private readonly string _name;
+
+    public ExtendedPropertyGetter(PropertyInfo info, ExtendedPropertyAttribute attr, bool isStatic)
+        : base(info, isStatic)
+    {
+        _name = attr.Name ?? info.Name;
+    }
+
+    public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
+    {
+        string newPrepend = CombineCategories(catPrepend, _name);
+
+        object val;
+        try
         {
-            _name = attr.Name ?? info.Name;
+            val = GetFunc(obj);
+        }
+        catch (Exception ex)
+        {
+            Property p = new Property
+            {
+                Name = "Error",
+                Value = $"<{ex.InnerException?.Message ?? ex.Message}>",
+                CanSet = false,
+                SourceObject = obj,
+                SourceProperty = PropInfo
+            };
+            string prependToCategory = PrependToCategory(newPrepend);
+            bag.AddProperty(p, prependToCategory);
+            return;
         }
 
-        public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
+        if (val == null)
         {
-            string newPrepend = CombineCategories(catPrepend, _name);
+            Property p = new Property
+            {
+                Name = "null",
+                CanSet = CanSet,
+                SourceObject = obj,
+                SourceProperty = PropInfo
+            };
 
-            object val;
-            try
+            string prependToCategory = PrependToCategory(newPrepend);
+            bag.AddProperty(p, prependToCategory);
+        }
+        else
+        {
+            List<PropertyGetter> getters = DiagnosticManager.GetPropertyGetters(val);
+            foreach (PropertyGetter getter in getters)
             {
-                val = GetFunc(obj);
+                getter.GetProperties(val, bag, newPrepend);
             }
-            catch (Exception ex)
+            Category cat = bag.Categories.FindByName(newPrepend);
+            if (cat != null)
             {
-                Property p = new Property
-                {
-                    Name = "Error",
-                    Value = $"<{ex.InnerException?.Message ?? ex.Message}>",
-                    CanSet = false,
-                    SourceObject = obj,
-                    SourceProperty = PropInfo
-                };
-                string prependToCategory = PrependToCategory(newPrepend);
-                bag.AddProperty(p, prependToCategory);
-                return;
-            }
-
-            if (val == null)
-            {
-                Property p = new Property
-                {
-                    Name = "null",
-                    CanSet = CanSet,
-                    SourceObject = obj,
-                    SourceProperty = PropInfo
-                };
-
-                string prependToCategory = PrependToCategory(newPrepend);
-                bag.AddProperty(p, prependToCategory);
-            }
-            else
-            {
-                List<PropertyGetter> getters = DiagnosticManager.GetPropertyGetters(val);
-                foreach (PropertyGetter getter in getters)
-                {
-                    getter.GetProperties(val, bag, newPrepend);
-                }
-                Category cat = bag.Categories.FindByName(newPrepend);
-                if (cat != null)
-                    cat.ValueObject = val;
+                cat.ValueObject = val;
             }
         }
     }

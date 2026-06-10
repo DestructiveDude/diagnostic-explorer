@@ -26,66 +26,64 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+
+public interface IDiagnosticHubClient
 {
+    Task GetDiagnostics(string requestId);
+    Task ExecuteOperation(string requestId, string path, string operation, string[] arguments);
+    Task SetProperty(string requestId, string path, string value);
+    Task SubscribeEvents();
+    Task UnsubscribeEvents();
+}
 
-    public interface IDiagnosticHubClient
-    {
-        Task GetDiagnostics(string requestId);
-        Task ExecuteOperation(string requestId, string path, string operation, string[] arguments);
-        Task SetProperty(string requestId, string path, string value);
-        Task SubscribeEvents();
-        Task UnsubscribeEvents();
-    }
-
-    public interface IDiagnosticHubServer
-    {
-        Task<RpcResult<RegistrationResponse>> Register(Registration registration);
-        Task<RpcResult> Deregister(Registration registration);
-        Task<RpcResult> LogEvents(byte[] eventData);
-        Task GetDiagnosticsReturn(RpcResult<byte[]> response);
-        Task ExecuteOperationReturn(RpcResult<OperationResponse> response);
-        Task SetPropertyReturn(RpcResult<OperationResponse> response);
-        Task SetEvents(SystemEvent[] events);
-        Task StreamEvents(SystemEvent[] evt);
-    }
+public interface IDiagnosticHubServer
+{
+    Task<RpcResult<RegistrationResponse>> Register(Registration registration);
+    Task<RpcResult> Deregister(Registration registration);
+    Task<RpcResult> LogEvents(byte[] eventData);
+    Task GetDiagnosticsReturn(RpcResult<byte[]> response);
+    Task ExecuteOperationReturn(RpcResult<OperationResponse> response);
+    Task SetPropertyReturn(RpcResult<OperationResponse> response);
+    Task SetEvents(SystemEvent[] events);
+    Task StreamEvents(SystemEvent[] evt);
+}
 
 
-    public class RpcResult<T> : RpcResult
-    {
-        public T Response { get; set; }
+public class RpcResult<T> : RpcResult
+{
+    public T Response { get; set; }
 
 
-        public static RpcResult<T> Success(T result)
-            => new() { IsSuccess = true, Response = result };
+    public static RpcResult<T> Success(T result)
+        => new() { IsSuccess = true, Response = result };
 
-        public static RpcResult<T> Success(string requestId, T result)
-            => new() { RequestId = requestId, IsSuccess = true, Response = result };
+    public static RpcResult<T> Success(string requestId, T result)
+        => new() { RequestId = requestId, IsSuccess = true, Response = result };
 
-        public static new RpcResult<T> Fail(string requestId, string message, string detail)
-            => new() { RequestId = requestId, IsSuccess = false, Message = message, Detail = detail };
+    public static new RpcResult<T> Fail(string requestId, string message, string detail)
+        => new() { RequestId = requestId, IsSuccess = false, Message = message, Detail = detail };
 
-        public static new RpcResult<T> Fail(string requestId, Exception ex)
-            => new() { RequestId = requestId, IsSuccess = false, Message = ex.Message, Detail = ex.ToString() };
+    public static new RpcResult<T> Fail(string requestId, Exception ex)
+        => new() { RequestId = requestId, IsSuccess = false, Message = ex.Message, Detail = ex.ToString() };
 
 
-    }
+}
 
-    public class RpcResult
-    {
-        public static RpcResult Success(string requestId = null)
-            => new() {RequestId = requestId, IsSuccess = true};
+public class RpcResult
+{
+    public static RpcResult Success(string requestId = null)
+        => new() { RequestId = requestId, IsSuccess = true };
 
-        public static RpcResult Fail(string requestId, string message, string detail) 
-            => new() {RequestId = requestId, IsSuccess = false, Message = message, Detail = detail};
+    public static RpcResult Fail(string requestId, string message, string detail)
+        => new() { RequestId = requestId, IsSuccess = false, Message = message, Detail = detail };
 
-        public static RpcResult Fail(string requestId, Exception ex)
-            => new() {RequestId = requestId, IsSuccess = false, Message = ex.Message, Detail = ex.ToString()};
+    public static RpcResult Fail(string requestId, Exception ex)
+        => new() { RequestId = requestId, IsSuccess = false, Message = ex.Message, Detail = ex.ToString() };
 
-        public string RequestId { get; set; }
-        public bool IsSuccess { get; set; }
-        public string Message { get; set; }
-        public string Detail { get; set; }
-    }
-
+    public string RequestId { get; set; }
+    public bool IsSuccess { get; set; }
+    public string Message { get; set; }
+    public string Detail { get; set; }
 }

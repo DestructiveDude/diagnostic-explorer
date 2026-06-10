@@ -11,13 +11,13 @@ namespace Diagnostics.Service.Common.Hubs;
 
 public class RetroSearchProcess : IDisposable
 {
-    private IWebHubClient _client;
+    private readonly IWebHubClient _client;
     public RetroQuery Query { get; }
-    private CancellationTokenSource _cancelToken = new();
+    private readonly CancellationTokenSource _cancelToken = new();
     private readonly RetroManager _retroManager;
     public event EventHandler? Finished;
     public string ClientId { get; }
-    private Stopwatch _watch = new Stopwatch();
+    private readonly Stopwatch _watch = new Stopwatch();
 
 
     public RetroSearchProcess(RetroManager retroManager, string clientId, IWebHubClient client, RetroQuery query)
@@ -93,7 +93,8 @@ public class RetroSearchProcess : IDisposable
 
                 // No debug Info: the old `cancelled: {IsCancellationRequested}` was always false here
                 // (we ThrowIfCancellationRequested above) and was only ever console.logged client-side.
-                RetroSearchResult result = new() {
+                RetroSearchResult result = new()
+                {
                     SearchId = Query.SearchId,
                     Results = messages,
                 };

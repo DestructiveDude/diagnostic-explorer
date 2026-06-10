@@ -24,11 +24,11 @@ public class DiagnosticHostingService
     // Accessed via Interlocked/Volatile; only ever published after StartHosting succeeds so a
     // failed init can't leave a non-null, half-initialized instance behind.
     private static DiagnosticHostingService _instance;
-    private DiagnosticOptions _options;
+    private readonly DiagnosticOptions _options;
 
     private RegistrationHandler[] _registrationHandlers;
 
-    private Action<HttpConnectionOptions> _configureHttp;
+    private readonly Action<HttpConnectionOptions> _configureHttp;
 
     private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions> configureHttp = null)
     {
@@ -49,7 +49,9 @@ public class DiagnosticHostingService
     {
         Debug.WriteLine($"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}");
         if (_options.Enabled)
+        {
             TryStart(this);
+        }
 
         return Task.CompletedTask;
     }
@@ -68,10 +70,14 @@ public class DiagnosticHostingService
     private static void TryStart(DiagnosticHostingService candidate)
     {
         if (Interlocked.CompareExchange(ref _instance, candidate, null) != null)
+        {
             throw new InvalidOperationException("An instance of DiagnosticHostingService is already running. Only one instance can run at a time.");
+        }
 
         if (!candidate.StartHosting())
+        {
             Interlocked.CompareExchange(ref _instance, null, candidate);
+        }
     }
 
     private bool StartHosting()
@@ -87,7 +93,8 @@ public class DiagnosticHostingService
             DiagnosticRetroAppender.SetLoggingAction(LogEvent);
             SystemStatus.Register();
 
-            Registration registration = new() {
+            Registration registration = new()
+            {
                 ProcessId = Process.GetCurrentProcess().Id,
                 InstanceId = Guid.NewGuid().ToString("N"),
                 UserDomain = Environment.UserDomainName,
@@ -103,7 +110,9 @@ public class DiagnosticHostingService
                 .ToArray();
 
             foreach (RegistrationHandler handler in handlers)
+            {
                 handler.Start(_configureHttp);
+            }
 
             // Publish only after the full build + start succeeds.
             _registrationHandlers = handlers;
@@ -128,7 +137,9 @@ public class DiagnosticHostingService
     {
         string entryAssemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
         if (!string.IsNullOrEmpty(entryAssemblyName))
+        {
             return entryAssemblyName;
+        }
 
         return Process.GetCurrentProcess().ProcessName.Replace(".vshost", "");
     }
@@ -144,7 +155,9 @@ public class DiagnosticHostingService
             RegistrationHandler[] handlers = _registrationHandlers;
             _registrationHandlers = null;
             if (handlers != null)
+            {
                 await Task.WhenAll(handlers.Select(handler => handler.Stop()).ToArray());
+            }
         }
         catch (Exception ex)
         {
@@ -163,7 +176,9 @@ public class DiagnosticHostingService
     {
         DiagnosticHostingService instance = Interlocked.Exchange(ref _instance, null);
         if (instance != null)
+        {
             await instance.StopHosting();
+        }
     }
 
 
@@ -171,7 +186,11 @@ public class DiagnosticHostingService
     {
         DiagnosticHostingService instance = Volatile.Read(ref _instance);
         if (instance != null)
+        {
             foreach (RegistrationHandler handler in instance._registrationHandlers ?? Array.Empty<RegistrationHandler>())
+            {
                 handler.LogEvent(evt);
+            }
+        }
     }
 }

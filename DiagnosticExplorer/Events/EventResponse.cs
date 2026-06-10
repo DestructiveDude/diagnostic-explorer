@@ -28,29 +28,28 @@ using System.Linq;
 using System.Runtime.Serialization;
 using ProtoBuf;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[ProtoContract(UseProtoMembersOnly = true)]
+public class EventResponse
 {
-	[ProtoContract(UseProtoMembersOnly = true)]
-	public class EventResponse
-	{
-		public EventResponse()
-		{
-		}
+    public EventResponse()
+    {
+    }
 
-		public EventResponse(string name, string category)
-		{
-			Events = new List<SystemEvent>();
-			Name = name;
-			Category = category;
-		}
+    public EventResponse(string name, string category)
+    {
+        Events = [];
+        Name = name;
+        Category = category;
+    }
 
-		[ProtoMember(1)]
-		public string Name { get; set; }
+    [ProtoMember(1)]
+    public string Name { get; set; }
 
-		[ProtoMember(2)]
-		public string Category { get; set; }
+    [ProtoMember(2)]
+    public string Category { get; set; }
 
-		[ProtoMember(3)]
-		public List<SystemEvent> Events { get; set; }
-	}
+    [ProtoMember(3)]
+    public List<SystemEvent> Events { get; set; }
 }

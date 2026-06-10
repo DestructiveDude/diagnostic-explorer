@@ -1,4 +1,4 @@
-﻿namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostics.Service.Common.Transport;
 
 public enum SeverityLevel
 {

@@ -101,7 +101,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     private static void Require(string value, string name)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
             throw new ArgumentException($"LogAnalytics:{name} is required for the Log Analytics Retro backend.");
+        }
     }
 
     /// <summary>Log Analytics is append-only; per-record delete is not available.</summary>
@@ -119,7 +121,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)
     {
         if (msg == null || msg.Count == 0)
+        {
             return;
+        }
 
         // Keys MUST match the DCR stream declaration columns in infra/retro-loganalytics.bicep.
         // DiagnosticRetroAppender stamps Date = DateTime.UtcNow, so the value is already UTC;
@@ -129,13 +133,13 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         List<Dictionary<string, object?>> entries = msg.Select(m => new Dictionary<string, object?>
         {
             ["TimeGenerated"] = DateTime.SpecifyKind(m.Date, DateTimeKind.Utc),
-            ["Level"]         = m.Level,
-            ["Machine"]       = m.Machine,
-            ["Process"]       = m.Process,
-            ["User"]          = m.User,
-            ["Category"]      = m.Category,
-            ["Message"]       = m.Message,
-            ["Environment"]   = m.Environment,
+            ["Level"] = m.Level,
+            ["Machine"] = m.Machine,
+            ["Process"] = m.Process,
+            ["User"] = m.User,
+            ["Category"] = m.Category,
+            ["Message"] = m.Message,
+            ["Environment"] = m.Environment,
         }).ToList();
 
         // UploadAsync batches + gzips internally and throws an aggregate on partial failure.
@@ -173,7 +177,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         }
 
         if (batch.Count > 0)
+        {
             yield return batch.ToArray();
+        }
     }
 
     private static RetroMsg MapRow(LogsTableRow row) => new()
@@ -222,7 +228,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     private static void AppendRegexFilter(StringBuilder sb, string column, string? pattern)
     {
         if (string.IsNullOrWhiteSpace(pattern))
+        {
             return;
+        }
         // (?i) = case-insensitive, matching the Mongo backend's RegexOptions.IgnoreCase.
         sb.Append($"\n| where {column} matches regex {KqlString("(?i)" + pattern)}");
     }
@@ -236,9 +244,16 @@ public class LogAnalyticsRetroLogger : IRetroLogger
 
     private static void ValidateFilterPattern(string? value, string field)
     {
-        if (string.IsNullOrWhiteSpace(value)) return;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
         if (value.Length > MaxFilterPatternLength)
+        {
             throw new ArgumentException($"{field} search pattern exceeds {MaxFilterPatternLength} characters");
+        }
+
         try
         {
             _ = new Regex(value, RegexOptions.IgnoreCase);
@@ -249,9 +264,11 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         }
 
         if (Re2Incompatible.IsMatch(value))
+        {
             throw new ArgumentException(
                 $"{field} search uses a regular-expression construct (lookaround, atomic group, " +
                 "conditional or backreference) that the Log Analytics backend does not support. " +
                 "Rewrite the pattern without it.");
+        }
     }
 }

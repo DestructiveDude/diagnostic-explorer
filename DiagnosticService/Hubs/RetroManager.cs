@@ -54,7 +54,7 @@ public class RetroManager : IHostedService
         _lifetime = lifetime;
     }
 
-  
+
     public Task StartAsync(CancellationToken cancel)
     {
         DiagnosticManager.Register(this, "Retro Manager", "Retro");
@@ -79,7 +79,9 @@ public class RetroManager : IHostedService
             .Where(evts => evts.Count != 0)
             .Subscribe(evts => {
                 if (_writeChannel.Writer.TryWrite(evts))
+                {
                     Interlocked.Add(ref _writeQueueSize, evts.Count);
+                }
             });
 
 
@@ -108,7 +110,9 @@ public class RetroManager : IHostedService
         _writeChannel?.Writer.Complete();
 
         if (_loggingTask != null)
+        {
             await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5)));
+        }
 
         (_logger as IDisposable)?.Dispose();
     }
@@ -116,7 +120,9 @@ public class RetroManager : IHostedService
     private async Task RunLoop(CancellationToken cancel)
     {
         await foreach (var messages in WriteChannel.Reader.ReadAllAsync(cancel))
+        {
             await TryLog(messages, cancel);
+        }
     }
 
 
@@ -184,9 +190,11 @@ public class RetroManager : IHostedService
     public Task StartRetroSearch(RetroQuery query, string connectionId, IWebHubClient client)
     {
         if (_searches.TryRemove(connectionId, out RetroSearchProcess? existingSearch))
+        {
             existingSearch.Cancel();
+        }
 
-        RetroEvents.Info($"Retro search starting for connection {connectionId}", 
+        RetroEvents.Info($"Retro search starting for connection {connectionId}",
             JsonSerializer.SerializeToElement(query).ToString());
 
         RetroSearchProcess search = new(this, connectionId, client, query);
@@ -228,7 +236,9 @@ public class RetroManager : IHostedService
         // Called on client disconnect: cancel and drop any in-flight retro search for the connection
         // so a disconnected client's search isn't left running or lingering in the registry. (A3)
         if (_searches.TryRemove(connectionId, out RetroSearchProcess? running))
+        {
             running.Cancel();
+        }
 
         return Task.CompletedTask;
     }
@@ -245,5 +255,5 @@ public class RetroManager : IHostedService
         return Task.CompletedTask;
     }
 
-   
+
 }

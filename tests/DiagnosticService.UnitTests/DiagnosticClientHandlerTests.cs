@@ -61,8 +61,7 @@ public class DiagnosticClientHandlerTests
     {
         using ManualResetEventSlim start = new(false);
         Task[] tasks = Enumerable.Range(0, count)
-            .Select(index => Task.Run(() =>
-            {
+            .Select(index => Task.Run(() => {
                 start.Wait();
                 publish(index);
             }))
@@ -74,7 +73,7 @@ public class DiagnosticClientHandlerTests
 
     private sealed class OverlapDetectingObserver<T> : IObserver<T>
     {
-        private readonly List<T> _seenValues = new();
+        private readonly List<T> _seenValues = [];
         private int _activeNotifications;
 
         public bool OverlapDetected { get; private set; }
@@ -91,12 +90,16 @@ public class DiagnosticClientHandlerTests
         public void OnNext(T value)
         {
             if (Interlocked.Increment(ref _activeNotifications) > 1)
+            {
                 OverlapDetected = true;
+            }
 
             try
             {
                 lock (_seenValues)
+                {
                     _seenValues.Add(value);
+                }
 
                 Thread.Sleep(10);
             }

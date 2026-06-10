@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -27,22 +27,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+public class RateSampleEventArgs : EventArgs
 {
-	public class RateSampleEventArgs : EventArgs
-	{
-		public RateSampleEventArgs(double rate, int[] allSamples)
-		{
-			Rate = rate;
-			Samples = allSamples;
-		}
+    public RateSampleEventArgs(double rate, int[] allSamples)
+    {
+        Rate = rate;
+        Samples = allSamples;
+    }
 
-		/// <summary>The overall rate</summary>
-		public double Rate { get; private set; }
+    /// <summary>The overall rate</summary>
+    public double Rate { get; private set; }
 
-		/// <summary>
-		/// A list of all sample values currently held, most recent first
-		/// </summary>
-		public int[] Samples { get; private set; }
-	}
+    /// <summary>
+    /// A list of all sample values currently held, most recent first
+    /// </summary>
+    public int[] Samples { get; private set; }
 }

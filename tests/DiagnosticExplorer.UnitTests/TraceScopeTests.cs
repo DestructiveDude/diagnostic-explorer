@@ -141,7 +141,7 @@ public class TraceScopeTests
 
         using (new TraceScope("Root", s => captured = s))
         {
-            using (new TraceScope("Child", (Action<string>?)null) { SuppressDetailThreshold = TimeSpan.FromMinutes(10) })
+            using (new TraceScope("Child", (Action<string>?) null) { SuppressDetailThreshold = TimeSpan.FromMinutes(10) })
             {
                 TraceScope.Trace("hidden detail");
             }
@@ -163,7 +163,7 @@ public class TraceScopeTests
     public void RenderingAnOpenChildUnderSuppressThreshold_DoesNotThrow()
     {
         using var root = new TraceScope("Root", _ => { });
-        using var child = new TraceScope("Child", (Action<string>?)null) { SuppressDetailThreshold = TimeSpan.FromMinutes(10) };
+        using var child = new TraceScope("Child", (Action<string>?) null) { SuppressDetailThreshold = TimeSpan.FromMinutes(10) };
 
         // child is intentionally NOT disposed — this is the auto-trace render state.
         Action render = () => root.ToString();

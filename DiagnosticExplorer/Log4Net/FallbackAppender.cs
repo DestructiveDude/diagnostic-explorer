@@ -8,115 +8,126 @@ using log4net.Appender;
 using log4net.Core;
 using log4net.Util;
 
-namespace DiagnosticExplorer.Log4Net
+namespace DiagnosticExplorer.Log4Net;
+
+/// <summary>
+/// This appender takes care of falling back to another appender if appending causes
+/// an error
+/// </summary>
+[DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
+public class FallbackAppender : ForwardingAppenderBase
 {
-	/// <summary>
-	/// This appender takes care of falling back to another appender if appending causes
-	/// an error
-	/// </summary>
-	[DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
-	public class FallbackAppender : ForwardingAppenderBase
-	{
 
-		protected override void Append(LoggingEvent loggingEvent)
-		{
-			if (loggingEvent == null)
-				throw new ArgumentNullException(nameof(loggingEvent));
+    protected override void Append(LoggingEvent loggingEvent)
+    {
+        if (loggingEvent == null)
+        {
+            throw new ArgumentNullException(nameof(loggingEvent));
+        }
 
-			EventsIn.Register(1);
+        EventsIn.Register(1);
 
-			PerformAppend(loggingEvent);
-		}
+        PerformAppend(loggingEvent);
+    }
 
-		protected override void Append(LoggingEvent[] loggingEvents)
-		{
-			if (loggingEvents == null)
-				throw new ArgumentNullException(nameof(loggingEvents));
+    protected override void Append(LoggingEvent[] loggingEvents)
+    {
+        if (loggingEvents == null)
+        {
+            throw new ArgumentNullException(nameof(loggingEvents));
+        }
 
-			if (loggingEvents.Length == 0)
-				throw new ArgumentException("loggingEvents array must not be empty", nameof(loggingEvents));
+        if (loggingEvents.Length == 0)
+        {
+            throw new ArgumentException("loggingEvents array must not be empty", nameof(loggingEvents));
+        }
 
-			if (loggingEvents.Length == 1)
-			{
-				EventsIn.Register(1);
-				PerformAppend(loggingEvents[0]);
-				return;
-			}
+        if (loggingEvents.Length == 1)
+        {
+            EventsIn.Register(1);
+            PerformAppend(loggingEvents[0]);
+            return;
+        }
 
-			PerformAppend(loggingEvents);
-		}
+        PerformAppend(loggingEvents);
+    }
 
-		protected void PerformAppend(LoggingEvent loggingEvent)
-		{
-			loggingEvent.Fix = FixFlags.All;
-			List<AppenderProxy> proxies;
-			lock (_lock)
-			{
-				proxies = Proxies;
-			}
-			if (proxies == null)
-				return;
+    protected void PerformAppend(LoggingEvent loggingEvent)
+    {
+        loggingEvent.Fix = FixFlags.All;
+        List<AppenderProxy> proxies;
+        lock (_lock)
+        {
+            proxies = Proxies;
+        }
+        if (proxies == null)
+        {
+            return;
+        }
 
-			Queue<AppenderProxy> proxyQueue = new Queue<AppenderProxy>(proxies);
+        Queue<AppenderProxy> proxyQueue = new Queue<AppenderProxy>(proxies);
 
-			while (proxyQueue.Count > 0)
-			{
-				AppenderProxy proxy = proxyQueue.Dequeue();
+        while (proxyQueue.Count > 0)
+        {
+            AppenderProxy proxy = proxyQueue.Dequeue();
 
-				if (proxy.TryAppend(loggingEvent))
-				{
-					EventsOut.Register(1);
-					break;
-				}
-				EventsErrored.Register(1);
-				RecordAppenderError(proxyQueue, proxy);
-			}
-		}
+            if (proxy.TryAppend(loggingEvent))
+            {
+                EventsOut.Register(1);
+                break;
+            }
+            EventsErrored.Register(1);
+            RecordAppenderError(proxyQueue, proxy);
+        }
+    }
 
 
-		protected void PerformAppend(LoggingEvent[] loggingEvents)
-		{
-			foreach (var loggingEvent in loggingEvents)
-			{
-				loggingEvent.Fix = FixFlags.All;
-			}
+    protected void PerformAppend(LoggingEvent[] loggingEvents)
+    {
+        foreach (var loggingEvent in loggingEvents)
+        {
+            loggingEvent.Fix = FixFlags.All;
+        }
 
-			List<AppenderProxy> proxies;
-			lock (_lock)
-			{
-				proxies = Proxies;
-			}
-			if (proxies == null)
-				return;
+        List<AppenderProxy> proxies;
+        lock (_lock)
+        {
+            proxies = Proxies;
+        }
+        if (proxies == null)
+        {
+            return;
+        }
 
-			EventsIn.Register(loggingEvents.Length);
+        EventsIn.Register(loggingEvents.Length);
 
-			var appenderQueue = new Queue<AppenderProxy>(proxies);
-			while (appenderQueue.Count > 0)
-			{
-				AppenderProxy appender = appenderQueue.Dequeue();
+        var appenderQueue = new Queue<AppenderProxy>(proxies);
+        while (appenderQueue.Count > 0)
+        {
+            AppenderProxy appender = appenderQueue.Dequeue();
 
-				if (appender.TryAppend(loggingEvents))
-				{
-					EventsOut.Register(loggingEvents.Length);
-					break;
-				}
+            if (appender.TryAppend(loggingEvents))
+            {
+                EventsOut.Register(loggingEvents.Length);
+                break;
+            }
 
-				EventsErrored.Register(loggingEvents.Length);
-				RecordAppenderError(appenderQueue, appender);
-			}
-		}
+            EventsErrored.Register(loggingEvents.Length);
+            RecordAppenderError(appenderQueue, appender);
+        }
+    }
 
-		private void RecordAppenderError(Queue<AppenderProxy> appenderQueue, AppenderProxy appender)
-		{
-			ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
-			if (appenderQueue.Count > 0)
-			{
-				var nextAppender = appenderQueue.Peek();
-				LogLog.Debug(GetType(), $"Chaining through to appender [{nextAppender.Name}]");
-			}
-			else
-				ForwardingAppenderBase.LogLogError(GetType(), "No more appenders exist to chain through to");
-		}
-	}
+    private void RecordAppenderError(Queue<AppenderProxy> appenderQueue, AppenderProxy appender)
+    {
+        ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
+        if (appenderQueue.Count > 0)
+        {
+            var nextAppender = appenderQueue.Peek();
+            LogLog.Debug(GetType(), $"Chaining through to appender [{nextAppender.Name}]");
+        }
+        else
+        {
+            ForwardingAppenderBase.LogLogError(GetType(), "No more appenders exist to chain through to");
+        }
+    }
 }

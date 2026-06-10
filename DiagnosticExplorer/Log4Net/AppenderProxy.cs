@@ -8,391 +8,437 @@ using DiagnosticExplorer.Util;
 using log4net.Appender;
 using log4net.Core;
 
-namespace DiagnosticExplorer.Log4Net
+namespace DiagnosticExplorer.Log4Net;
+
+public struct AppendResult
 {
-	public struct AppendResult
-	{
-		public AppendResult(bool success) : this()
-		{
-			Success = success;
-		}
+    public AppendResult(bool success) : this()
+    {
+        Success = success;
+    }
 
-		public AppendResult(bool success, string message)
-		{
-			Success = success;
-			Message = message;
-		}
+    public AppendResult(bool success, string message)
+    {
+        Success = success;
+        Message = message;
+    }
 
-		public bool Success { get; }
-		public string Message { get; }
-	}
+    public bool Success { get; }
+    public string Message { get; }
+}
 
-	[DiagnosticClass(AttributedPropertiesOnly = true)]
-	public abstract class AppenderProxyBase
-	{
-		protected TimeSpan _timeout;
-		private DateTime? _errorTime;
+[DiagnosticClass(AttributedPropertiesOnly = true)]
+public abstract class AppenderProxyBase
+{
+    protected TimeSpan _timeout;
+    private DateTime? _errorTime;
 
-		// Guards the failover state (_isInError + the nullable _errorTime) and the diagnostic
-		// timestamps (_lastError + _lastMessageSent). These are written by the append thread
-		// (DoAppend) and Reactivate (a [DiagnosticMethod], i.e. the diagnostic-walk thread) and
-		// read by StatusMessage / the [Property] getters on the walk thread; an unsynchronized
-		// nullable DateTime read can tear. (M17a)
-		private readonly object _stateLock = new();
-		private bool _isInError;
-		private bool _isHalfOpen;
-		private DateTime? _lastError;
-		private DateTime? _lastMessageSent;
+    // Guards the failover state (_isInError + the nullable _errorTime) and the diagnostic
+    // timestamps (_lastError + _lastMessageSent). These are written by the append thread
+    // (DoAppend) and Reactivate (a [DiagnosticMethod], i.e. the diagnostic-walk thread) and
+    // read by StatusMessage / the [Property] getters on the walk thread; an unsynchronized
+    // nullable DateTime read can tear. (M17a)
+    private readonly object _stateLock = new();
+    private bool _isInError;
+    private bool _isHalfOpen;
+    private DateTime? _lastError;
+    private DateTime? _lastMessageSent;
 
 
-		public AppenderProxyBase(TimeSpan timeout)
-		{
-			_timeout = timeout;
-		}
+    public AppenderProxyBase(TimeSpan timeout)
+    {
+        _timeout = timeout;
+    }
 
-		public bool IsInError
-		{
-			get { lock (_stateLock) return _isInError; }
-		}
+    public bool IsInError
+    {
+        get { lock (_stateLock)
+            {
+                return _isInError;
+            }
+        }
+    }
 
-		[Property]
-		public DateTime? LastError
-		{
-			get { lock (_stateLock) return _lastError; }
-			set { lock (_stateLock) _lastError = value; }
-		}
+    [Property]
+    public DateTime? LastError
+    {
+        get { lock (_stateLock)
+            {
+                return _lastError;
+            }
+        }
+        set { lock (_stateLock)
+            {
+                _lastError = value;
+            }
+        }
+    }
 
-		[Property]
-		public DateTime? LastMessageSent
-		{
-			get { lock (_stateLock) return _lastMessageSent; }
-			set { lock (_stateLock) _lastMessageSent = value; }
-		}
+    [Property]
+    public DateTime? LastMessageSent
+    {
+        get { lock (_stateLock)
+            {
+                return _lastMessageSent;
+            }
+        }
+        set { lock (_stateLock)
+            {
+                _lastMessageSent = value;
+            }
+        }
+    }
 
-		[RateProperty(ExposeRate = false, ExposeTotal = true)]
-		public RateCounter MessagesSent { get; } = new RateCounter(3);
+    [RateProperty(ExposeRate = false, ExposeTotal = true)]
+    public RateCounter MessagesSent { get; } = new RateCounter(3);
 
-		[RateProperty(ExposeRate = false, ExposeTotal = true)]
-		public RateCounter Errors { get; } = new RateCounter(3);
+    [RateProperty(ExposeRate = false, ExposeTotal = true)]
+    public RateCounter Errors { get; } = new RateCounter(3);
 
-		[DiagnosticMethod]
-		public void Reactivate()
-		{
-			lock (_stateLock)
-			{
-				_isInError = false;
-				_isHalfOpen = false;
-				_errorTime = null;
-			}
-		}
+    [DiagnosticMethod]
+    public void Reactivate()
+    {
+        lock (_stateLock)
+        {
+            _isInError = false;
+            _isHalfOpen = false;
+            _errorTime = null;
+        }
+    }
 
-		private string _lastErrorMessage;
+    private string _lastErrorMessage;
 
-		[Property]
-		public string LastErrorMessage
-		{
-			get { lock (_stateLock) return _lastErrorMessage; }
-			set { lock (_stateLock) _lastErrorMessage = value; }
-		}
+    [Property]
+    public string LastErrorMessage
+    {
+        get { lock (_stateLock)
+            {
+                return _lastErrorMessage;
+            }
+        }
+        set { lock (_stateLock)
+            {
+                _lastErrorMessage = value;
+            }
+        }
+    }
 
-		private TimeSpan? TimeUntilNextActive()
-		{
-			DateTime? time;
-			lock (_stateLock)
-				time = _errorTime;
+    private TimeSpan? TimeUntilNextActive()
+    {
+        DateTime? time;
+        lock (_stateLock)
+        {
+            time = _errorTime;
+        }
 
-			if (!time.HasValue)
-				return null;
+        if (!time.HasValue)
+        {
+            return null;
+        }
 
-			TimeSpan elapsed = SystemDateTime.UtcNow() - time.Value;
-			if (elapsed > _timeout)
-				return null;
+        TimeSpan elapsed = SystemDateTime.UtcNow() - time.Value;
+        if (elapsed > _timeout)
+        {
+            return null;
+        }
 
-			return elapsed;
-		}
+        return elapsed;
+    }
 
-		[Property]
-		public string StatusMessage
-		{
-			get
-			{
-				lock (_stateLock)
-				{
-					if (_isHalfOpen)
-						return "PROBING";
+    [Property]
+    public string StatusMessage
+    {
+        get {
+            lock (_stateLock)
+            {
+                if (_isHalfOpen)
+                {
+                    return "PROBING";
+                }
 
-					TimeSpan? timeFailed = TimeUntilNextActive();
-					if (timeFailed.HasValue)
-					{
-						string remaining = FormatTimeSpan(_timeout - timeFailed.Value);
-						return $"FAILED, Ready in {remaining}";
-					}
-					return "READY";
-				}
-			}
-		}
+                TimeSpan? timeFailed = TimeUntilNextActive();
+                if (timeFailed.HasValue)
+                {
+                    string remaining = FormatTimeSpan(_timeout - timeFailed.Value);
+                    return $"FAILED, Ready in {remaining}";
+                }
+                return "READY";
+            }
+        }
+    }
 
-		private string FormatTimeSpan(TimeSpan time)
-		{
-			if (time.TotalMinutes >= 60)
-				return string.Format("{0:D2}:{1:D2}:{2:D2}", (int) time.TotalHours, time.Minutes, time.Seconds);
+    private string FormatTimeSpan(TimeSpan time)
+    {
+        if (time.TotalMinutes >= 60)
+        {
+            return string.Format("{0:D2}:{1:D2}:{2:D2}", (int) time.TotalHours, time.Minutes, time.Seconds);
+        }
 
-			if (time.TotalSeconds < 60)
-				return string.Format("{0} seconds", time.Seconds);
+        if (time.TotalSeconds < 60)
+        {
+            return string.Format("{0} seconds", time.Seconds);
+        }
 
-			return string.Format("{0}m {1:D2}s", (int) time.TotalMinutes, time.Seconds);
-		}
+        return string.Format("{0}m {1:D2}s", (int) time.TotalMinutes, time.Seconds);
+    }
 
-		protected bool DoAppend(Func<AppendResult> appendAction)
-		{
-			bool isProbe = false;
+    protected bool DoAppend(Func<AppendResult> appendAction)
+    {
+        bool isProbe = false;
 
-			lock (_stateLock)
-			{
-				if (_isInError)
-				{
-					if (ShouldResetErrorNoLock())
-					{
-						// Timeout expired: transition from error to half-open, and this thread becomes the probe.
-						_isInError = false;
-						_isHalfOpen = true;
-						isProbe = true;
-					}
-					else
-					{
-						// Still in error / quarantined
-						return false;
-					}
-				}
-				else if (_isHalfOpen)
-				{
-					// Another thread is already probing; reject this thread to avoid thundering herd.
-					return false;
-				}
-			}
+        lock (_stateLock)
+        {
+            if (_isInError)
+            {
+                if (ShouldResetErrorNoLock())
+                {
+                    // Timeout expired: transition from error to half-open, and this thread becomes the probe.
+                    _isInError = false;
+                    _isHalfOpen = true;
+                    isProbe = true;
+                }
+                else
+                {
+                    // Still in error / quarantined
+                    return false;
+                }
+            }
+            else if (_isHalfOpen)
+            {
+                // Another thread is already probing; reject this thread to avoid thundering herd.
+                return false;
+            }
+        }
 
-			// Run append action outside the lock
-			AppendResult result = appendAction();
+        // Run append action outside the lock
+        AppendResult result = appendAction();
 
-			lock (_stateLock)
-			{
-				if (isProbe)
-				{
-					_isHalfOpen = false;
-					if (result.Success)
-					{
-						// Probe succeeded: clear error state
-						_errorTime = null;
-						_isInError = false;
-					}
-					else
-					{
-						// Probe failed: go back to error state with a new timeout
-						_errorTime = SystemDateTime.UtcNow();
-						_isInError = true;
-					}
-				}
-				else
-				{
-					// Normal append path (not a probe)
-					if (!result.Success)
-					{
-						_lastError = SystemDateTime.UtcNow();
-						_lastErrorMessage = result.Message;
-						if (_timeout > TimeSpan.Zero)
-						{
-							_errorTime = SystemDateTime.UtcNow();
-							_isInError = true;
-						}
-					}
-				}
+        lock (_stateLock)
+        {
+            if (isProbe)
+            {
+                _isHalfOpen = false;
+                if (result.Success)
+                {
+                    // Probe succeeded: clear error state
+                    _errorTime = null;
+                    _isInError = false;
+                }
+                else
+                {
+                    // Probe failed: go back to error state with a new timeout
+                    _errorTime = SystemDateTime.UtcNow();
+                    _isInError = true;
+                }
+            }
+            else
+            {
+                // Normal append path (not a probe)
+                if (!result.Success)
+                {
+                    _lastError = SystemDateTime.UtcNow();
+                    _lastErrorMessage = result.Message;
+                    if (_timeout > TimeSpan.Zero)
+                    {
+                        _errorTime = SystemDateTime.UtcNow();
+                        _isInError = true;
+                    }
+                }
+            }
 
-				if (result.Success)
-				{
-					_lastMessageSent = SystemDateTime.UtcNow();
-				}
-			}
+            if (result.Success)
+            {
+                _lastMessageSent = SystemDateTime.UtcNow();
+            }
+        }
 
-			if (result.Success)
-			{
-				MessagesSent.Register(1);
-			}
-			else
-			{
-				Errors.Register(1);
-			}
+        if (result.Success)
+        {
+            MessagesSent.Register(1);
+        }
+        else
+        {
+            Errors.Register(1);
+        }
 
-			return result.Success;
-		}
+        return result.Success;
+    }
 
-		// Caller must hold _stateLock.
-		private bool ShouldResetErrorNoLock()
-		{
-			if (!_isInError)
-				return false;
+    // Caller must hold _stateLock.
+    private bool ShouldResetErrorNoLock()
+    {
+        if (!_isInError)
+        {
+            return false;
+        }
 
-			if (_timeout <= TimeSpan.Zero)
-				return true;
+        if (_timeout <= TimeSpan.Zero)
+        {
+            return true;
+        }
 
-			// _isInError implies _errorTime was set; guard explicitly so the intent is clear
-			// and a future invariant break can't silently rely on nullable arithmetic.
-			if (!_errorTime.HasValue)
-				return false;
+        // _isInError implies _errorTime was set; guard explicitly so the intent is clear
+        // and a future invariant break can't silently rely on nullable arithmetic.
+        if (!_errorTime.HasValue)
+        {
+            return false;
+        }
 
-			return (SystemDateTime.UtcNow() - _errorTime.Value) >= _timeout;
-		}
-	}
+        return SystemDateTime.UtcNow() - _errorTime.Value >= _timeout;
+    }
+}
 
 
 
-	[DiagnosticClass(AttributedPropertiesOnly = true)]
-	public class SmtpAppenderProxy : AppenderProxyBase
-	{
-		private readonly SmtpAppender _appender;
+[DiagnosticClass(AttributedPropertiesOnly = true)]
+public class SmtpAppenderProxy : AppenderProxyBase
+{
+    private readonly SmtpAppender _appender;
 
-		public SmtpAppenderProxy(SmtpAppender appender, string smtpHost, TimeSpan timeout) : base(timeout)
-		{
-			_appender = appender;
-			SmtpHost = smtpHost;
-		}
+    public SmtpAppenderProxy(SmtpAppender appender, string smtpHost, TimeSpan timeout) : base(timeout)
+    {
+        _appender = appender;
+        SmtpHost = smtpHost;
+    }
 
-		public string SmtpHost { get; set; }
-		
-		public bool TrySend(MailMessage message)
-		{
-			return DoAppend(() => SendMessage(message));
-		}
+    public string SmtpHost { get; set; }
 
-		private AppendResult SendMessage(MailMessage message)
-		{
-			try
-			{
-				using SmtpClient smtpClient = new SmtpClient();
-				if (!string.IsNullOrEmpty(SmtpHost) && !string.Equals(SmtpHost, SmtpAppender.DefaultHostName, StringComparison.CurrentCultureIgnoreCase))
-					smtpClient.Host = SmtpHost;
+    public bool TrySend(MailMessage message)
+    {
+        return DoAppend(() => SendMessage(message));
+    }
 
-				if (_appender.Port > 0)
-					smtpClient.Port = _appender.Port;
+    private AppendResult SendMessage(MailMessage message)
+    {
+        try
+        {
+            using SmtpClient smtpClient = new SmtpClient();
+            if (!string.IsNullOrEmpty(SmtpHost) && !string.Equals(SmtpHost, SmtpAppender.DefaultHostName, StringComparison.CurrentCultureIgnoreCase))
+            {
+                smtpClient.Host = SmtpHost;
+            }
 
-				smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+            if (_appender.Port > 0)
+            {
+                smtpClient.Port = _appender.Port;
+            }
 
-				// Require TLS when sending Basic-auth credentials so username/password don't traverse
-				// the wire in clear; otherwise honour the configured EnableSsl. (M13)
-				smtpClient.EnableSsl = _appender.EnableSsl
-					|| _appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic;
+            smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
 
-				if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic)
-				{
-					// Perform basic authentication
-					smtpClient.Credentials = new NetworkCredential(_appender.Username, _appender.Password);
-				}
-				else if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Ntlm)
-				{
-					// Perform integrated authentication (NTLM)
-					smtpClient.Credentials = CredentialCache.DefaultNetworkCredentials;
-				}
-				smtpClient.Send(message);
-				return new AppendResult(true);
-			}
-			catch (Exception ex)
-			{
-				return new AppendResult(false, ex.Message);
-			}
-		}
-	}
+            // Require TLS when sending Basic-auth credentials so username/password don't traverse
+            // the wire in clear; otherwise honour the configured EnableSsl. (M13)
+            smtpClient.EnableSsl = _appender.EnableSsl
+                || _appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic;
 
-	[DiagnosticClass(AttributedPropertiesOnly = true)]
-	public class AppenderProxy : AppenderProxyBase
-	{
-		public IAppender RawAppender { get; }
+            if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic)
+            {
+                // Perform basic authentication
+                smtpClient.Credentials = new NetworkCredential(_appender.Username, _appender.Password);
+            }
+            else if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Ntlm)
+            {
+                // Perform integrated authentication (NTLM)
+                smtpClient.Credentials = CredentialCache.DefaultNetworkCredentials;
+            }
+            smtpClient.Send(message);
+            return new AppendResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new AppendResult(false, ex.Message);
+        }
+    }
+}
 
-		/// <summary>
-		/// Wraps up an <see cref="IAppender"/> adding extra behaviour to how to handle
-		/// an error while appending
-		/// </summary>
-		/// <param name="timeout">Duration to wait before attempting to append again after an error</param>
-		public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout) : base(timeout)
-		{
-			RawAppender = appenderToWrap ?? throw new ArgumentNullException(nameof(appenderToWrap));
+[DiagnosticClass(AttributedPropertiesOnly = true)]
+public class AppenderProxy : AppenderProxyBase
+{
+    public IAppender RawAppender { get; }
 
-			if (appenderToWrap is AsyncFallbackAppender || 
-			    appenderToWrap is AsyncForwardingAppender || 
-			    appenderToWrap is AsyncSmtpAppender)
-			{
-				throw new ArgumentException($"Cannot wrap async appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' inside AppenderProxy. Failover and quarantine are not supported for asynchronous appenders.");
-			}
+    /// <summary>
+    /// Wraps up an <see cref="IAppender"/> adding extra behaviour to how to handle
+    /// an error while appending
+    /// </summary>
+    /// <param name="timeout">Duration to wait before attempting to append again after an error</param>
+    public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout) : base(timeout)
+    {
+        RawAppender = appenderToWrap ?? throw new ArgumentNullException(nameof(appenderToWrap));
 
-			AppenderSkeleton convertedAppender = appenderToWrap as AppenderSkeleton;
-			if (convertedAppender == null)
-			{
-				throw new ArgumentException($"Appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' does not inherit from AppenderSkeleton. AppenderProxy requires AppenderSkeleton targets to track errors.");
-			}
+        if (appenderToWrap is AsyncFallbackAppender ||
+            appenderToWrap is AsyncForwardingAppender ||
+            appenderToWrap is AsyncSmtpAppender)
+        {
+            throw new ArgumentException($"Cannot wrap async appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' inside AppenderProxy. Failover and quarantine are not supported for asynchronous appenders.");
+        }
 
-			Appender = convertedAppender;
-			ErrorHandler = new AppenderProxyErrorHandler();
-			MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
-		}
+        if (appenderToWrap is not AppenderSkeleton convertedAppender)
+        {
+            throw new ArgumentException($"Appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' does not inherit from AppenderSkeleton. AppenderProxy requires AppenderSkeleton targets to track errors.");
+        }
 
-		private AppenderProxyErrorHandler ErrorHandler { get; }
+        Appender = convertedAppender;
+        ErrorHandler = new AppenderProxyErrorHandler();
+        MultiErrorHandler.SetErrorHandler(Appender, ErrorHandler);
+    }
 
-		/// <summary>
-		/// Attempts to append to wrapped appender
-		/// </summary>
-		/// <returns>Whether the append was successful</returns>
-		public bool TryAppend(LoggingEvent loggingEvent)
-		{
-			return DoAppend(() => FireAppendAction(() => RawAppender.DoAppend(loggingEvent)));
-		}
+    private AppenderProxyErrorHandler ErrorHandler { get; }
 
-		/// <summary>
-		/// Attempts to append to wrapped appender
-		/// </summary>
-		/// <returns>Whether the append was successful</returns>
-		public bool TryAppend(LoggingEvent[] loggingEvents)
-		{
-			return DoAppend(() => FireAppendAction(() =>
-			{
-				if (Appender != null)
-				{
-					Appender.DoAppend(loggingEvents);
-				}
-				else
-				{
-					foreach (var loggingEvent in loggingEvents)
-					{
-						RawAppender.DoAppend(loggingEvent);
-					}
-				}
-			}));
-		}
+    /// <summary>
+    /// Attempts to append to wrapped appender
+    /// </summary>
+    /// <returns>Whether the append was successful</returns>
+    public bool TryAppend(LoggingEvent loggingEvent)
+    {
+        return DoAppend(() => FireAppendAction(() => RawAppender.DoAppend(loggingEvent)));
+    }
 
-		private AppendResult FireAppendAction(Action appendAction)
-		{
-			if (ErrorHandler != null)
-			{
-				ErrorHandler.EnableForCurrentThread();
-				ErrorHandler.ResetError();
-			}
-			try
-			{
-				appendAction();
-			}
-			catch (Exception ex)
-			{
-				return new AppendResult(false, ex.Message);
-			}
-			finally
-			{
-				ErrorHandler?.Disable();
-			}
-			return new AppendResult(ErrorHandler == null || !ErrorHandler.HasError, ErrorHandler?.Message);
-		}
+    /// <summary>
+    /// Attempts to append to wrapped appender
+    /// </summary>
+    /// <returns>Whether the append was successful</returns>
+    public bool TryAppend(LoggingEvent[] loggingEvents)
+    {
+        return DoAppend(() => FireAppendAction(() => {
+            if (Appender != null)
+            {
+                Appender.DoAppend(loggingEvents);
+            }
+            else
+            {
+                foreach (var loggingEvent in loggingEvents)
+                {
+                    RawAppender.DoAppend(loggingEvent);
+                }
+            }
+        }));
+    }
 
-		/// <summary>
-		/// Appender being wrapped
-		/// </summary>
-		public AppenderSkeleton Appender { get; }
+    private AppendResult FireAppendAction(Action appendAction)
+    {
+        if (ErrorHandler != null)
+        {
+            ErrorHandler.EnableForCurrentThread();
+            ErrorHandler.ResetError();
+        }
+        try
+        {
+            appendAction();
+        }
+        catch (Exception ex)
+        {
+            return new AppendResult(false, ex.Message);
+        }
+        finally
+        {
+            ErrorHandler?.Disable();
+        }
+        return new AppendResult(ErrorHandler == null || !ErrorHandler.HasError, ErrorHandler?.Message);
+    }
 
-		public string Name => RawAppender.Name;
-	}
+    /// <summary>
+    /// Appender being wrapped
+    /// </summary>
+    public AppenderSkeleton Appender { get; }
+
+    public string Name => RawAppender.Name;
 }

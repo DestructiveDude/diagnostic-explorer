@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace DiagnosticExplorer.Common;
 
@@ -17,16 +17,11 @@ public class DiagServiceSettings
 
     public IRetroLogger CreateRetroLogger()
     {
-        switch (RetroType.ToLower())
+        return RetroType.ToLower() switch
         {
-            case "mongo":
-                return new MongoRetroLogger(RetroConnection);
-
-            case "loganalytics":
-                return new LogAnalyticsRetroLogger(LogAnalytics);
-
-            default:
-                throw new NotSupportedException($"ILogReader type {RetroType} not supported");
-        }
+            "mongo" => new MongoRetroLogger(RetroConnection),
+            "loganalytics" => new LogAnalyticsRetroLogger(LogAnalytics),
+            _ => throw new NotSupportedException($"ILogReader type {RetroType} not supported"),
+        };
     }
 }

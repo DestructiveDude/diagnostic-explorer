@@ -1,4 +1,4 @@
-﻿#region Copyright
+#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -25,32 +25,31 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Runtime.Serialization;
+using System.Text;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+
+public class Registration
 {
 
-	public class Registration
-	{
-    
-        public string InstanceId { get; set; }
+    public string InstanceId { get; set; }
 
-		public string ProcessName { get; set; }
+    public string ProcessName { get; set; }
 
-		public string UserName { get; set; }
+    public string UserName { get; set; }
 
-		public string UserDomain { get; set; }
+    public string UserDomain { get; set; }
 
-		public int ProcessId { get; set; }
+    public int ProcessId { get; set; }
 
-		public string Uri { get; set; }
+    public string Uri { get; set; }
 
-		public string MachineName { get; set; }
+    public string MachineName { get; set; }
 
-		public override string ToString()
-		{
-			return $"DiagnosticRegistration(Uri:{Uri}, UserName:{UserDomain}\\{UserName}, PID:{ProcessId}, Process:{ProcessName})";
-		}
-	}
+    public override string ToString()
+    {
+        return $"DiagnosticRegistration(Uri:{Uri}, UserName:{UserDomain}\\{UserName}, PID:{ProcessId}, Process:{ProcessName})";
+    }
 }

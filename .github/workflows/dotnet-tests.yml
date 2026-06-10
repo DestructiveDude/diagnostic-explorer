@@ -16,6 +16,9 @@ on:
       - '.github/workflows/dotnet-tests.yml'
   workflow_dispatch:
 
+env:
+  GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   unit-tests:
     runs-on: blacksmith-4vcpu-ubuntu-2404

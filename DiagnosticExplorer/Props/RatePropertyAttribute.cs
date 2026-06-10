@@ -25,25 +25,24 @@
 using System;
 using System.Linq;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+[AttributeUsage(AttributeTargets.Property)]
+public class RatePropertyAttribute : PropertyAttribute
 {
-	[AttributeUsage(AttributeTargets.Property)]
-	public class RatePropertyAttribute : PropertyAttribute
-	{
-		public RatePropertyAttribute() : this(null)
-		{
-		}
+    public RatePropertyAttribute() : this(null)
+    {
+    }
 
-		public RatePropertyAttribute(string name) : this(name, null)
-		{
-		}
+    public RatePropertyAttribute(string name) : this(name, null)
+    {
+    }
 
-		public RatePropertyAttribute(string name, string category) : base(name, category)
-		{
-		}
+    public RatePropertyAttribute(string name, string category) : base(name, category)
+    {
+    }
 
-		public bool ExposeRate { get; set; } = true;
+    public bool ExposeRate { get; set; } = true;
 
-		public bool ExposeTotal { get; set; } = true;
-	}
+    public bool ExposeTotal { get; set; } = true;
 }

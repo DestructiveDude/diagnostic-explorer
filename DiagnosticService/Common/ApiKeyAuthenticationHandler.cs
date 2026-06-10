@@ -39,11 +39,15 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         // definitive failure keeps rejection unambiguous at every layer even if a second scheme or
         // an AllowAnonymous policy is added later. (F5)
         if (string.IsNullOrEmpty(presented))
+        {
             return Task.FromResult(AuthenticateResult.Fail("No API key provided"));
+        }
 
         bool valid = _security.ApiKeys.Any(key => KeysEqual(key, presented));
         if (!valid)
+        {
             return Task.FromResult(AuthenticateResult.Fail("Invalid API key"));
+        }
 
         ClaimsIdentity identity = new(
             [new Claim(ClaimTypes.Name, "diagnostic-client")], SchemeName);
@@ -55,21 +59,29 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     {
         // Check for the short-lived cookie first to avoid query string leak in browsers.
         if (Request.Cookies.TryGetValue("Diag-Hub-Auth", out var cookieToken) && !string.IsNullOrEmpty(cookieToken))
+        {
             return cookieToken.ToString().Trim();
+        }
 
         // All paths are Trim()'d consistently — a whitespace-padded key (copy-paste, padding proxy)
         // must not silently fail the fixed-time comparison. (F7)
         if (Request.Headers.TryGetValue(HeaderName, out var apiKeyHeader) && !string.IsNullOrEmpty(apiKeyHeader))
+        {
             return apiKeyHeader.ToString().Trim();
+        }
 
         // SignalR's AccessTokenProvider sends "Authorization: Bearer <key>" on the negotiate request.
         string auth = Request.Headers.Authorization.ToString();
         if (auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
             return auth.Substring("Bearer ".Length).Trim();
+        }
 
         // ...and "access_token=<key>" on the WebSocket/SSE/long-polling requests.
         if (Request.Query.TryGetValue("access_token", out var token) && !string.IsNullOrEmpty(token))
+        {
             return token.ToString().Trim();
+        }
 
         return null;
     }
@@ -77,7 +89,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     private static bool KeysEqual(string configured, string? presented)
     {
         if (string.IsNullOrEmpty(configured) || presented == null)
+        {
             return false;
+        }
 
         // FixedTimeEquals returns false for differing lengths (it only reveals length, not content).
         return CryptographicOperations.FixedTimeEquals(

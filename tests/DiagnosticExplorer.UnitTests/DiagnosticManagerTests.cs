@@ -34,7 +34,7 @@ public class DiagnosticManagerTests
         response.Should().NotBeNull();
         response.OperationSets.Should().HaveCount(1);
         var opSet = response.OperationSets[0];
-        
+
         opSet.Operations.Should().Contain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod)));
         opSet.Operations.Should().NotContain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod)));
     }
@@ -55,7 +55,9 @@ public class DiagnosticManagerTests
     public class OperationWithCustomParsableType
     {
         [DiagnosticMethod]
+#pragma warning disable IDE0060
         public void Run(CustomParsableType arg)
+#pragma warning restore IDE0060
         {
             // Empty method for testing
         }
@@ -66,7 +68,7 @@ public class DiagnosticManagerTests
     {
         var obj = new OperationWithCustomParsableType();
         var registered = new RegisteredObject(obj, "TestCategory", "TestBag");
-        
+
         // Let's obtain the operation signature
         var response = DiagnosticManager.GetDiagnostics(new[] { registered });
         response.OperationSets.Should().HaveCount(1);

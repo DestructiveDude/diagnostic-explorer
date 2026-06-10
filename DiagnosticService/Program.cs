@@ -86,21 +86,30 @@ public static class Program
         {
             SecuritySettings security = settings.Security;
             if (security.ApiKeys is not { Length: > 0 } || security.ApiKeys.All(string.IsNullOrWhiteSpace))
+            {
                 throw new ApplicationException(
                     "DiagServiceSettings:Security:AuthMode is ApiKey but no non-empty ApiKeys are configured — every hub connection would be rejected. Configure at least one key.");
+            }
+
             if (security.AllowedCorsOrigins is not { Length: > 0 })
+            {
                 throw new ApplicationException(
                     "DiagServiceSettings:Security:AuthMode is ApiKey but AllowedCorsOrigins is empty — credentialed any-origin CORS is not allowed with auth enabled. Configure the allowlist.");
+            }
         }
 
         if (app.Environment.IsDevelopment())
+        {
             app.UseDeveloperExceptionPage();
+        }
         else
+        {
             app.UseExceptionHandler(errorApp => errorApp.Run(async context => {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 context.Response.ContentType = "text/plain";
                 await context.Response.WriteAsync("An unexpected error occurred.");
             }));
+        }
 
         app.UseRouting();
 
@@ -139,8 +148,7 @@ public static class Program
             // POST and the WS upgrade; native clients (the .NET hosting client) send none, so an
             // absent Origin is allowed and remains gated by the API key.
             var allowedOrigins = new HashSet<string>(settings.Security.AllowedCorsOrigins, StringComparer.OrdinalIgnoreCase);
-            app.Use(async (context, next) =>
-            {
+            app.Use(async (context, next) => {
                 PathString path = context.Request.Path;
                 bool isHub = path.StartsWithSegments("/web-hub") || path.StartsWithSegments("/diagnostics");
                 if (isHub)
@@ -167,15 +175,21 @@ public static class Program
         });
 
         if (!settings.UseSpaProxy && !Directory.Exists(spaPath))
+        {
             throw new ApplicationException($"Diagnostics SPA directory not found: {spaPath}");
+        }
 
         app.UseSpa(spa => {
             spa.Options.DefaultPage = "/index.html";
             if (!settings.UseSpaProxy)
+            {
                 app.UseSpaStaticFiles();
+            }
 
             if (settings.UseSpaProxy)
+            {
                 spa.UseProxyToSpaDevelopmentServer(settings.SpaProxy);
+            }
         });
 
         if (!app.Urls.IsReadOnly)
@@ -183,14 +197,16 @@ public static class Program
             app.Urls.Clear();
 
             foreach (string url in settings.Urls)
+            {
                 app.Urls.Add(url);
+            }
         }
 
         app.Run();
     }
 
 
-    static string? Expand(string? path) =>
+    private static string? Expand(string? path) =>
         path == null
             ? null
             : Path.GetFullPath(Path.IsPathRooted(path)

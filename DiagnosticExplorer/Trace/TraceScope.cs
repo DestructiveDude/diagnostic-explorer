@@ -29,27 +29,26 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using log4net;
-using System.Linq;
 using DiagnosticExplorer.Util;
+using log4net;
+
+using ATraceItem = DiagnosticExplorer.TraceItem<DiagnosticExplorer.TraceScope>;
 
 namespace DiagnosticExplorer;
-
-using ATraceItem = TraceItem<TraceScope>;
-
 /// <summary>Enabled trace to a single source through method calls</summary>
 public class TraceScope : IDisposable
 {
-    private static AsyncLocal<ScopeStack> _scopeStack = new();
- 		
+    private static readonly AsyncLocal<ScopeStack> _scopeStack = new();
+
     private readonly DateTime _created = DateTime.UtcNow;
     private DateTime? _disposed;
-    private readonly List<ATraceItem> _traceItems = new();
+    private readonly List<ATraceItem> _traceItems = [];
     private readonly ReaderWriterLockSlim _traceItemsLock = new();
     private bool _forceTrace;
     private bool _isRoot;
@@ -77,7 +76,7 @@ public class TraceScope : IDisposable
     {
         Setup(name, traceMethod, false);
     }
-	
+
     public TraceScope(string name, Action<string> traceMethod, bool forceTrace)
     {
         Setup(name, traceMethod, forceTrace);
@@ -90,7 +89,7 @@ public class TraceScope : IDisposable
 
     private void Setup(string name, Action<string> traceMethod, bool forceTrace)
     {
-        _traceMethods = new SortedDictionary<int, Action<string>>();
+        _traceMethods = [];
         SetTraceAction(0, traceMethod);
 
         Name = name;
@@ -99,7 +98,7 @@ public class TraceScope : IDisposable
 
         ScopeStack scopeStack = _scopeStack.Value ?? ScopeStack.Empty;
         _isRoot = scopeStack.Current == null;
-            
+
         TraceScope current = scopeStack.Current;
         current?.AddTraceItem(new ATraceItem(this));
         _scopeStack.Value = scopeStack.Push(this);
@@ -110,7 +109,9 @@ public class TraceScope : IDisposable
         try
         {
             using (_traceItemsLock.WriteGuard())
+            {
                 _traceItems.Add(traceItem);
+            }
         }
         catch (ObjectDisposedException)
         {
@@ -119,11 +120,11 @@ public class TraceScope : IDisposable
     }
 
     #endregion
-        
+
 
     public void StartAutoTraceTimer(TimeSpan time)
     {
-        Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
+        Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int) time.TotalMilliseconds, Timeout.Infinite);
         Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
         oldTimer?.Dispose();
         // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
@@ -166,7 +167,7 @@ public class TraceScope : IDisposable
         _traceMethods[timeMillis] = traceMethod;
     }
 
-	
+
     public TimeSpan Age => DateTime.UtcNow.Subtract(_created);
 
 
@@ -185,7 +186,10 @@ public class TraceScope : IDisposable
 
     public void ToString(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage, int indent)
     {
-        if (IsHidden) return;
+        if (IsHidden)
+        {
+            return;
+        }
 
         using (_traceItemsLock.ReadGuard())
         {
@@ -222,9 +226,20 @@ public class TraceScope : IDisposable
 
     private bool FullTraceRequired(ATraceItem item)
     {
-        if (item.TraceScope == null) return false;
-        if (item.TraceScope._forceTrace) return true;
-        if (item.TraceScope.SuppressDetailThreshold == null) return true;
+        if (item.TraceScope == null)
+        {
+            return false;
+        }
+
+        if (item.TraceScope._forceTrace)
+        {
+            return true;
+        }
+
+        if (item.TraceScope.SuppressDetailThreshold == null)
+        {
+            return true;
+        }
 
         TimeSpan thresh = item.TraceScope.SuppressDetailThreshold.Value;
         // Snapshot _disposed once: when a still-running child is rendered (the auto-trace timer
@@ -238,19 +253,31 @@ public class TraceScope : IDisposable
 
     private void WriteBeginScope(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage)
     {
-        if (Name == null) return;
+        if (Name == null)
+        {
+            return;
+        }
 
         string message = $"BEGIN {Name}";
         if (_disposed != null)
+        {
             message = string.Format("{0} ({1:N3} seconds)", message, _disposed.Value.Subtract(_created).TotalSeconds);
+        }
 
         WriteString(writer, message, _created, scopeStart, ref lastMessage);
     }
 
     private void WriteEndScope(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage)
     {
-        if (Name == null) return;
-        if (_disposed == null) return;
+        if (Name == null)
+        {
+            return;
+        }
+
+        if (_disposed == null)
+        {
+            return;
+        }
 
         string message = string.Format("END {0} ({1:N3} seconds)", Name, _disposed.Value.Subtract(_created).TotalSeconds);
 
@@ -260,8 +287,15 @@ public class TraceScope : IDisposable
     private static void WriteBeginEndScope(TraceScope scope, IndentedTextWriter writer,
         DateTime scopeStart, ref DateTime lastMessage, bool suppressed)
     {
-        if (scope.Name == null) return;
-        if (scope._disposed == null) return;
+        if (scope.Name == null)
+        {
+            return;
+        }
+
+        if (scope._disposed == null)
+        {
+            return;
+        }
 
         TimeSpan duration = scope._disposed.Value.Subtract(scope._created);
 
@@ -339,8 +373,15 @@ public class TraceScope : IDisposable
         try
         {
             Action<string> action = GetTraceMethod(Age.TotalMilliseconds);
-            if (action == null) return;
-            if (!_isRoot && !_forceTrace) return;
+            if (action == null)
+            {
+                return;
+            }
+
+            if (!_isRoot && !_forceTrace)
+            {
+                return;
+            }
 
             action(ToString());
         }
@@ -369,7 +410,10 @@ public class TraceScope : IDisposable
     {
         string s = trace.ToString();
         if (s.Length > 200)
+        {
             s = s.Substring(0, 200);
+        }
+
         return Trace(s);
     }
 
@@ -381,14 +425,18 @@ public class TraceScope : IDisposable
     public static void TraceIf(bool condition, object o)
     {
         if (condition)
+        {
             Trace(o?.ToString() ?? "");
+        }
     }
 
     public static ITraceItem Trace(string message)
     {
         var current = Current;
         if (current == null)
+        {
             return null;
+        }
 
         ATraceItem item = new ATraceItem(message);
         current.AddTraceItem(item);
@@ -398,10 +446,12 @@ public class TraceScope : IDisposable
     public static void TraceIf(bool condition, string message)
     {
         if (condition)
+        {
             Trace(message);
+        }
     }
-		
-	
-		
+
+
+
     #endregion
 }

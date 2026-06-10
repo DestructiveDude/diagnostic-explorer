@@ -29,35 +29,34 @@ using System.Runtime.Serialization;
 using System.Xml.Serialization;
 using ProtoBuf;
 
-namespace DiagnosticExplorer
+namespace DiagnosticExplorer;
+
+
+[ProtoContract(UseProtoMembersOnly = true)]
+public class DiagnosticResponse
 {
+    public DiagnosticResponse()
+    {
+        Events = [];
+        PropertyBags = [];
+        OperationSets = [];
+    }
 
-	[ProtoContract(UseProtoMembersOnly = true)]
-	public class DiagnosticResponse
-	{
-		public DiagnosticResponse()
-		{
-			Events = new List<EventResponse>();
-			PropertyBags = new List<PropertyBag>();
-			OperationSets = new List<OperationSet>();
-		}
+    [ProtoMember(1)]
+    public List<PropertyBag> PropertyBags { get; set; }
 
-		[ProtoMember(1)]
-		public List<PropertyBag> PropertyBags { get; set; }
+    [ProtoMember(2)]
+    public List<EventResponse> Events { get; set; }
 
-		[ProtoMember(2)]
-		public List<EventResponse> Events { get; set; }
+    [ProtoMember(3)]
+    public string Context { get; set; }
 
-		[ProtoMember(3)]
-		public string Context { get; set; }
+    [ProtoMember(4)]
+    public string ExceptionMessage { get; set; }
 
-		[ProtoMember(4)]
-		public string ExceptionMessage { get; set; }
+    [ProtoMember(5)]
+    public string ExceptionDetail { get; set; }
 
-		[ProtoMember(5)]
-		public string ExceptionDetail { get; set; }
-
-		[ProtoMember(6)]
-		public List<OperationSet> OperationSets { get; set; }
-	}
+    [ProtoMember(6)]
+    public List<OperationSet> OperationSets { get; set; }
 }

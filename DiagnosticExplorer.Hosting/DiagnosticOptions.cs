@@ -1,4 +1,4 @@
-﻿namespace DiagnosticExplorer;
+namespace DiagnosticExplorer;
 
 public class DiagnosticOptions
 {
