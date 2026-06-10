@@ -19,12 +19,7 @@
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
 	</ItemGroup>
 
-	<!-- PublicApiAnalyzers only runs on modern TFMs — the Hosting APIs (IHostedService,
-	     SignalR, IServiceCollection) are not compiled into the net48 target, so the
-	     API file entries would all fire RS0017 there. -->
-	<ItemGroup Condition="'$(TargetFramework)' != 'net48'">
-		<PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="All" />
-	</ItemGroup>
+
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0" />
