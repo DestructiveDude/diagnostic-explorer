@@ -1,8 +1,6 @@
-using System;
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Transport;
 using Xunit;
 
 namespace DiagnosticService.UnitTests;

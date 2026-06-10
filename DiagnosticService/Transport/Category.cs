@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostic.Service.Transport;
 
 public class Category
 {

@@ -22,16 +22,10 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.ServiceModel;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
+using DiagnosticExplorer;
 
-namespace DiagnosticExplorer;
+namespace Diagnostic.Service.Common;
 
 public interface IRetroLogger
 {

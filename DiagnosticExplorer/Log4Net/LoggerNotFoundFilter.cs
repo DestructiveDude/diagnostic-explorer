@@ -23,7 +23,6 @@
 #endregion
 
 using System;
-using log4net;
 using log4net.Core;
 using log4net.Filter;
 using log4net.Repository.Hierarchy;

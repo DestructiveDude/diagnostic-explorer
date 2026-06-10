@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-
-namespace DiagnosticExplorer.Log4Net;
+namespace DiagnosticExplorer.Log4Net.Util;
 
 public enum BufferOverflowMode
 {

@@ -26,10 +26,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
-using DiagnosticExplorer.Util;
 using log4net.Core;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Events;
 
 // Events are bounded by the inline MaxMessages trim in AddSingleEvent. The former static
 // `sinks` WeakReferenceHash + 20s purge timer were dead code — nothing ever registered a sink
@@ -54,7 +53,7 @@ public class EventSink
     public string Category { get; }
 
 
-    private long _idCount = 0;
+    private long _idCount;
 
     public ConcurrentQueue<SystemEvent> Events { get; } = new();
 

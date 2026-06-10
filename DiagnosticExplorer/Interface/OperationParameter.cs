@@ -1,7 +1,6 @@
-using System.Runtime.Serialization;
 using ProtoBuf;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Interface;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class OperationParameter

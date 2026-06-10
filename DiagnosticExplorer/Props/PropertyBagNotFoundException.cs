@@ -25,7 +25,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 [Serializable]
 public class PropertyBagNotFoundException : Exception

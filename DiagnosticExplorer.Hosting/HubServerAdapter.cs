@@ -1,18 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
 using log4net;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace DiagWebService.Hubs;
+namespace DiagnosticExplorer.Hosting;
 
 internal class HubServerAdapter : IDiagnosticHubClient
 {
@@ -113,14 +109,14 @@ internal class HubServerAdapter : IDiagnosticHubClient
         }
         catch (OperationCanceledException)
         {
-            Trace.WriteLine("HubServerAdapter.SendEventStream cancelled");
+            System.Diagnostics.Trace.WriteLine("HubServerAdapter.SendEventStream cancelled");
         }
         catch (Exception ex)
         {
             // A non-cancellation fault here ends event delivery to this client. The task is launched
             // fire-and-forget (Task.Run in SubscribeEvents; the disposal continuation discards it), so
             // without this catch the exception would go unobserved. Surface it rather than swallow it.
-            Trace.WriteLine($"HubServerAdapter.SendEventStream failed: {ex}");
+            System.Diagnostics.Trace.WriteLine($"HubServerAdapter.SendEventStream failed: {ex}");
         }
     }
 

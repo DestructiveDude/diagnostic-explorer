@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using Diagnostics.Service.Common.Hubs;
-using DiagWebService.ClientHandlers;
+using Diagnostic.Service.ClientHandlers;
+using Diagnostic.Service.Hubs;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
 using Xunit;

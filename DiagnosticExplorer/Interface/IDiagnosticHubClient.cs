@@ -23,10 +23,10 @@
 #endregion
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
+using DiagnosticExplorer.Events;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Interface;
 
 
 public interface IDiagnosticHubClient

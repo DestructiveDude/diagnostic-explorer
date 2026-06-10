@@ -1,7 +1,6 @@
-using System;
 using ProtoBuf;
 
-namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostic.Service.Transport;
 
 [ProtoContract]
 public class RetroQuery

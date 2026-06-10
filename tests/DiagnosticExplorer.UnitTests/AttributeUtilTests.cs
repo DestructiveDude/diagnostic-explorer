@@ -1,8 +1,6 @@
-using System;
 using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Util;
-using Xunit;
 
 namespace DiagnosticExplorer.UnitTests;
 

@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using Xunit;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Props;
 
 namespace DiagnosticExplorer.UnitTests;
 

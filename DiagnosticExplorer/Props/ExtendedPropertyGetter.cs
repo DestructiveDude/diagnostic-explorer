@@ -23,13 +23,11 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 internal class ExtendedPropertyGetter : PropertyGetter
 {

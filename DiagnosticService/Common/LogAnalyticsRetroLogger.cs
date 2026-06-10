@@ -22,27 +22,22 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Monitor.Ingestion;
 using Azure.Monitor.Query;
 using Azure.Monitor.Query.Models;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
+using DiagnosticExplorer;
 using log4net;
 using MongoDB.Bson;
 
-namespace DiagnosticExplorer;
+namespace Diagnostic.Service.Common;
 
 /// <summary>
 /// Log Analytics implementation of <see cref="IRetroLogger"/>. Writes via the Logs Ingestion API

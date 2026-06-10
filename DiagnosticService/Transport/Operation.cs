@@ -1,8 +1,6 @@
-using System.Collections.Generic;
-using System.Linq;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Interface;
 
-namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostic.Service.Transport;
 
 public class Operation
 {

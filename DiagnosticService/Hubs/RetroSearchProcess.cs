@@ -1,13 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class RetroSearchProcess : IDisposable
 {

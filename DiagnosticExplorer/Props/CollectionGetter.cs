@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 internal class CollectionGetter : PropertyGetter
 {

@@ -1,22 +1,18 @@
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
-using DiagWebService.Hubs;
 using log4net;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 
-
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Hosting;
 
 public class RegistrationHandler
 {
@@ -283,7 +279,7 @@ public class RegistrationHandler
         }
         catch (Exception ex)
         {
-            Trace.WriteLine("RegistrationHandler.DisposeConnection HubServerAdapter.Dispose: " + ex);
+            System.Diagnostics.Trace.WriteLine("RegistrationHandler.DisposeConnection HubServerAdapter.Dispose: " + ex);
         }
 
         if (taken.Connection == null)
@@ -300,7 +296,7 @@ public class RegistrationHandler
         }
         catch (Exception ex)
         {
-            Trace.WriteLine("RegistrationHandler.DisposeConnection HubConnection.DisposeAsync: " + ex);
+            System.Diagnostics.Trace.WriteLine("RegistrationHandler.DisposeConnection HubConnection.DisposeAsync: " + ex);
         }
     }
 

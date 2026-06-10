@@ -1,10 +1,11 @@
-using System.Configuration;
 using System.Text.Json.Serialization;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Hubs;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Hubs;
+using DiagnosticExplorer.Hosting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+
+namespace Diagnostic.Service;
 
 public static class Program
 {

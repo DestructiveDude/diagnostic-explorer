@@ -1,7 +1,5 @@
-using System.Threading;
-using System.Threading.Tasks;
 using AwesomeAssertions;
-using Diagnostics.Service.Common.Hubs;
+using Diagnostic.Service.Hubs;
 using Xunit;
 
 namespace DiagnosticService.UnitTests;

@@ -1,7 +1,5 @@
-using System.Linq;
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using Xunit;
+using DiagnosticExplorer.Events;
 
 namespace DiagnosticExplorer.UnitTests;
 

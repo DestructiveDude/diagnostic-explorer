@@ -1,14 +1,8 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Interface;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 internal class AsyncCallException : ApplicationException
 {

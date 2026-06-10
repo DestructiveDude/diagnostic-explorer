@@ -1,14 +1,11 @@
-using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Hubs;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Hubs;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 
-namespace DiagWebService.ClientHandlers;
+namespace Diagnostic.Service.ClientHandlers;
 
 public class WebClientHandler
 {

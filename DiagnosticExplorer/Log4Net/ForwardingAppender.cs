@@ -1,12 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using log4net.Appender;
+using DiagnosticExplorer.Props;
 using log4net.Core;
-using log4net.Util;
 
 namespace DiagnosticExplorer.Log4Net;
 

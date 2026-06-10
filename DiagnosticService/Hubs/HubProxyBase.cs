@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class HubProxyBase
 {

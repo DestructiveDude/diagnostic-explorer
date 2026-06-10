@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostic.Service.Transport;
 
 public class Property
 {
@@ -12,10 +10,10 @@ public class Property
 
     public string? Path { get; set; }
 
-    public static List<Property> Map(string path, List<DiagnosticExplorer.Property> properties)
+    public static List<Property> Map(string path, List<DiagnosticExplorer.Interface.Property> properties)
     {
         List<Property> result = [];
-        foreach (DiagnosticExplorer.Property property in properties)
+        foreach (DiagnosticExplorer.Interface.Property property in properties)
         {
             Property groupResult = new()
             {

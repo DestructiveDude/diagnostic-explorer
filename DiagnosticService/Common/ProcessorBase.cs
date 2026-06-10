@@ -1,7 +1,7 @@
-using DiagnosticExplorer;
+using DiagnosticExplorer.Props;
 using log4net;
 
-namespace DiagWebService;
+namespace Diagnostic.Service.Common;
 
 public class ProcessorBase
 {

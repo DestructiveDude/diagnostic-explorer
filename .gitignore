@@ -64,3 +64,8 @@ packages
 
 # Generated NuGet packages
 nupkg/
+
+# AI Agent directories and knowledge graphs
+.agents/
+.understand-anything/
+graphify-out/

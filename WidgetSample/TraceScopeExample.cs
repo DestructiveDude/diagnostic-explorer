@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Trace;
 
 namespace WidgetSample;
 

@@ -5,7 +5,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
-namespace DiagnosticExplorer.Common;
+namespace Diagnostic.Service.Common;
 
 /// <summary>
 /// Minimal API-key authentication for the SignalR hubs (audit finding H1). The key is accepted

@@ -1,6 +1,5 @@
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using Xunit;
+using DiagnosticExplorer.Interface;
 
 namespace DiagnosticExplorer.UnitTests;
 

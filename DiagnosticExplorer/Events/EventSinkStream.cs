@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 using DiagnosticExplorer.Util;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Events;
 
 public sealed class EventSinkStream : IDisposable
 {

@@ -1,11 +1,8 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using DiagnosticExplorer.Log4Net.Util;
+using DiagnosticExplorer.Props;
 using log4net.Appender;
 using log4net.Core;
-using log4net.Util;
 
 namespace DiagnosticExplorer.Log4Net;
 
@@ -83,7 +80,7 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         base.OnClose();
     }
 
-    private bool _disposed = false;
+    private bool _disposed;
 
     public void Dispose()
     {

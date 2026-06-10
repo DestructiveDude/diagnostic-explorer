@@ -3,10 +3,12 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
+using DiagnosticExplorer.Props;
 using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer;

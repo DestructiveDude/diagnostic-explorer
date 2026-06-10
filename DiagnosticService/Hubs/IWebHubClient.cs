@@ -1,8 +1,8 @@
-using System.Threading.Tasks;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
+using Diagnostic.Service.Common;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public interface IWebHubClient
 {

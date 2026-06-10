@@ -25,6 +25,7 @@
 using System;
 using System.ComponentModel;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Props;
 
 namespace WidgetSample;
 

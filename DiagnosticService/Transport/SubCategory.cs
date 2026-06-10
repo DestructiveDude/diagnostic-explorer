@@ -1,7 +1,7 @@
-using System;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 
-namespace Diagnostics.Service.Common.Transport;
+namespace Diagnostic.Service.Transport;
 
 public class SubCategory
 {

@@ -1,10 +1,7 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using AwesomeAssertions;
-using DiagnosticExplorer;
-using Xunit;
+using DiagnosticExplorer.Interface;
+using DiagnosticExplorer.Props;
 
 namespace DiagnosticExplorer.UnitTests;
 

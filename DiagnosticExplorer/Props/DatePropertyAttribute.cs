@@ -23,9 +23,8 @@
 #endregion
 
 using System;
-using System.Linq;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 [AttributeUsage(AttributeTargets.Property)]
 public class DatePropertyAttribute : PropertyAttribute

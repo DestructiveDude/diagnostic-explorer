@@ -2,7 +2,8 @@ using System;
 using System.Diagnostics;
 // using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
-using DiagnosticExplorer;
+using DiagnosticExplorer.Hosting;
+
 // using DiagnosticExplorer.Common;
 
 // using Grpc.Core;

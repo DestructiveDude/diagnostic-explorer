@@ -22,18 +22,9 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
-using System.Xml.Serialization;
-using DiagnosticExplorer.Util;
-using MongoDB.Bson.Serialization.Conventions;
 
-namespace DiagnosticExplorer.Common;
+namespace Diagnostic.Service.Common;
 
 public class DiagProcess
 {

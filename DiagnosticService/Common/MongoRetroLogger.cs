@@ -22,22 +22,16 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
+using DiagnosticExplorer;
 using log4net;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
-using Newtonsoft.Json;
 
-namespace DiagnosticExplorer;
+namespace Diagnostic.Service.Common;
 
 public class MongoRetroLogger : IRetroLogger
 {

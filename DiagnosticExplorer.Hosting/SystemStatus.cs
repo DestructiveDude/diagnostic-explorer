@@ -24,9 +24,9 @@
 
 using System;
 using System.Diagnostics;
-using log4net;
+using DiagnosticExplorer.Props;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Hosting;
 
 [Serializable]
 internal class SystemStatus

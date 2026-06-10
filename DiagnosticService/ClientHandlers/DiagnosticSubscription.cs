@@ -1,19 +1,15 @@
-using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.ServiceModel;
-using System.Threading;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
+using Diagnostic.Service.Common;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 
-namespace DiagWebService.ClientHandlers;
+namespace Diagnostic.Service.ClientHandlers;
 
 
 public class DiagnosticSubscription
 {
-    private static int _instanceCounter = 0;
+    private static int _instanceCounter;
     private readonly int _instance;
     public DiagProcess Process { get; set; }
     public IDiagnosticClient? DiagnosticClient { get; private set; }
@@ -27,10 +23,10 @@ public class DiagnosticSubscription
     private IDisposable? _eventStreamSubscription;
     private readonly EventSinkRepo _eventRepo = new();
     private readonly object _startStopLock = new();
-    private bool _streamingStarted = false;
-    private bool _eventSubscriptionStopInProgress = false;
+    private bool _streamingStarted;
+    private bool _eventSubscriptionStopInProgress;
     private IDiagnosticClient? _eventSubscriptionStopClient;
-    private bool _eventSubscriptionRestartBlocked = false;
+    private bool _eventSubscriptionRestartBlocked;
 
     public DiagnosticSubscription(DiagProcess process)
     {

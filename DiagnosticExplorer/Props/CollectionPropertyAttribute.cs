@@ -23,9 +23,8 @@
 #endregion
 
 using System;
-using System.Linq;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 
 public enum CollectionMode

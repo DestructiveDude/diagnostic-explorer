@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using DiagnosticExplorer;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class RetroSearchResult
 {

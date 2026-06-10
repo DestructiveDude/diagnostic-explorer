@@ -23,16 +23,15 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
+using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 internal class RateGetter : PropertyGetter
 {
     private readonly bool _exposeRate = true;
-    private readonly bool _exposeTotal = false;
+    private readonly bool _exposeTotal;
 
     public RateGetter(PropertyInfo prop, RatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
     {

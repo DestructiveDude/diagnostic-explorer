@@ -1,8 +1,6 @@
-using System;
-using System.Collections.Generic;
 using log4net.Core;
 
-namespace DiagnosticExplorer.Log4Net;
+namespace DiagnosticExplorer.Log4Net.Util;
 
 internal class LoggingEventContext
 {

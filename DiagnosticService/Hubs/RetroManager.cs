@@ -1,24 +1,17 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Channels;
-using System.Threading.Tasks;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Transport;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Props;
 using log4net;
-using log4net.Core;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Operation = DiagnosticExplorer.Operation;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class RetroManager : IHostedService
 {
@@ -29,7 +22,7 @@ public class RetroManager : IHostedService
     private Subject<IList<DiagnosticMsg>>? _ownedLogSubject;
     private ISubject<IList<DiagnosticMsg>>? _logSubject;
     private IDisposable? _logSubscription;
-    private long _writeQueueSize = 0;
+    private long _writeQueueSize;
     private readonly ConcurrentDictionary<string, RetroSearchProcess> _searches = new();
     public EventSink RetroEvents { get; } = EventSinkRepo.Default.GetSink("Retro Events", "Retro");
 

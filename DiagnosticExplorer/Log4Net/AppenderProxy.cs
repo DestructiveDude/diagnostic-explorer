@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Mail;
-using System.Net.Security;
-using DiagnosticExplorer.Util;
+using DiagnosticExplorer.Log4Net.Util;
+using DiagnosticExplorer.Props;
 using log4net.Appender;
 using log4net.Core;
 

@@ -1,13 +1,13 @@
-using System;
 using System.Diagnostics;
-using System.Threading.Tasks;
+using Diagnostic.Service.ClientHandlers;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
-using DiagWebService.ClientHandlers;
 using log4net;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 {

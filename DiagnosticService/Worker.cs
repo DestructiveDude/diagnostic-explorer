@@ -1,4 +1,4 @@
-namespace DiagnosticService;
+namespace Diagnostic.Service;
 
 public class Worker : BackgroundService
 {

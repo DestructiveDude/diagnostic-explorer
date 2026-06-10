@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using DiagnosticExplorer.Props;
 using log4net.Appender;
 
 namespace DiagnosticExplorer.Log4Net;

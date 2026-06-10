@@ -1,22 +1,17 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Diagnostic.Service.ClientHandlers;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
-using DiagnosticExplorer.Common;
-using Diagnostics.Service.Common.Transport;
-using DiagWebService.ClientHandlers;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
+using DiagnosticExplorer.Props;
 using log4net;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class RealtimeManager : IHostedService
 {

@@ -1,10 +1,6 @@
-
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace DiagnosticExplorer.Log4Net;
+namespace DiagnosticExplorer.Log4Net.Util;
 
 /// <summary>
 /// Provides an abstraction for the system clock

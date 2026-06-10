@@ -1,8 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Text;
 
-namespace DiagnosticsExplorer.WebApi.Core;
+namespace Diagnostic.Service.Common;
 
 public class LZString
 {

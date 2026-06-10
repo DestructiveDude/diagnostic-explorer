@@ -1,17 +1,12 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
+using Diagnostic.Service.Common;
+using Diagnostic.Service.Hubs;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
-using Diagnostics.Service.Common.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
-namespace DiagWebService.ClientHandlers;
+namespace Diagnostic.Service.ClientHandlers;
 
 public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
 {

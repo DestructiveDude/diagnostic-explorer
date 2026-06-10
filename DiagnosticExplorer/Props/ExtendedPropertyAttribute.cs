@@ -23,9 +23,8 @@
 #endregion
 
 using System;
-using System.Linq;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Props;
 
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
 public class ExtendedPropertyAttribute : PropertyAttribute

@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Common;
+namespace Diagnostic.Service.Common;
 
 /// <summary>
 /// Configuration for the Log Analytics Retro backend (DiagServiceSettings:LogAnalytics).

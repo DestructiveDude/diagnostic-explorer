@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using DiagnosticExplorer.Log4Net.Util;
 using log4net.Core;
 using log4net.Util;
 

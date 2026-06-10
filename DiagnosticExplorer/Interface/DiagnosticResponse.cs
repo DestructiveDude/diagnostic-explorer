@@ -22,14 +22,11 @@
 
 #endregion
 
-using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using System.Xml.Serialization;
+using DiagnosticExplorer.Events;
 using ProtoBuf;
 
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Interface;
 
 
 [ProtoContract(UseProtoMembersOnly = true)]

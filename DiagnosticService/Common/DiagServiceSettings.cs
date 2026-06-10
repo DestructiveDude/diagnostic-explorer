@@ -1,6 +1,4 @@
-using System;
-
-namespace DiagnosticExplorer.Common;
+namespace Diagnostic.Service.Common;
 
 public class DiagServiceSettings
 {

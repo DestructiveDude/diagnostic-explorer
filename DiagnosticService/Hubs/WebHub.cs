@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Threading.Tasks;
-using DiagnosticExplorer;
-using Diagnostics.Service.Common.Transport;
+using Diagnostic.Service.Transport;
+using DiagnosticExplorer.Interface;
 using log4net;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Diagnostics.Service.Common.Hubs;
+namespace Diagnostic.Service.Hubs;
 
 public class WebHub : Hub<IWebHubClient>
 {

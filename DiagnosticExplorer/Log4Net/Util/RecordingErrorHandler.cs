@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using log4net.Appender;
 using log4net.Core;
 using log4net.Util;
 
-namespace DiagnosticExplorer.Log4Net;
+namespace DiagnosticExplorer.Log4Net.Util;
 
 
 public class MultiErrorHandler : IErrorHandler

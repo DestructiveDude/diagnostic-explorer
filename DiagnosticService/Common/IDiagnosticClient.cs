@@ -1,8 +1,7 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using DiagnosticExplorer.Events;
+using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer;
+namespace Diagnostic.Service.Common;
 
 public interface IDiagnosticClient
 {

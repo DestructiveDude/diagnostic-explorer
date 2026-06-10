@@ -24,23 +24,19 @@
 
 using System;
 using System.CodeDom.Compiler;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using DiagnosticExplorer.Util;
 using log4net;
+using ATraceItem = DiagnosticExplorer.Trace.TraceItem<DiagnosticExplorer.Trace.TraceScope>;
 
-using ATraceItem = DiagnosticExplorer.TraceItem<DiagnosticExplorer.TraceScope>;
-
-namespace DiagnosticExplorer;
+namespace DiagnosticExplorer.Trace;
 /// <summary>Enabled trace to a single source through method calls</summary>
 public class TraceScope : IDisposable
 {

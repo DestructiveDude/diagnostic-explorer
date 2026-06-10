@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Common;
+namespace Diagnostic.Service.Common;
 
 /// <summary>
 /// Authentication mode for the SignalR hubs. <see cref="None"/> is the default and preserves the
