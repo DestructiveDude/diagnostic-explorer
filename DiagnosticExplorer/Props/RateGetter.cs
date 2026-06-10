@@ -71,7 +71,7 @@ internal class RateGetter : PropertyGetter
 
         if (_exposeRate)
         {
-            double? rate = rateCounter == null ? (double?) null : rateCounter.Rate;
+            double? rate = rateCounter?.Rate;
             string val = rate == null ? "" : rate.Value.ToString("N2");
             Property property = new Property(Name + "/sec", val, Description)
             {
@@ -85,7 +85,7 @@ internal class RateGetter : PropertyGetter
 
         if (_exposeTotal)
         {
-            ulong? total = rateCounter == null ? (ulong?) null : rateCounter.Total;
+            ulong? total = rateCounter?.Total;
             string val = total == null ? "" : total.ToString();
             Property property = new Property("Total " + Name, val)
             {

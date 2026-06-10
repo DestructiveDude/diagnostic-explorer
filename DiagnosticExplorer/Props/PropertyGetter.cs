@@ -25,9 +25,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -270,19 +268,19 @@ internal class PropertyGetter
             return null;
         }
 
-        if (val is TimeSpan)
+        if (val is TimeSpan timeSpan)
         {
-            return FormatTimeSpan((TimeSpan) val);
+            return FormatTimeSpan(timeSpan);
         }
 
-        if (val is string)
+        if (val is string str)
         {
-            return (string) val;
+            return str;
         }
 
-        if (val is IEnumerable)
+        if (val is IEnumerable enumerable)
         {
-            return FormatEnumerable((IEnumerable) val, Environment.NewLine, MaxConcatItems);
+            return FormatEnumerable(enumerable, Environment.NewLine, MaxConcatItems);
         }
 
         if (FormatString != null)

@@ -342,9 +342,9 @@ public static class DiagnosticManager
 
         Type type = obj.GetType();
         string typeKey = type.AssemblyQualifiedName;
-        if (obj is Type)
+        if (obj is Type t)
         {
-            type = (Type) obj;
+            type = t;
             typeKey = "Static: " + type.AssemblyQualifiedName;
         }
 
@@ -591,9 +591,9 @@ public static class DiagnosticManager
             return null;
         }
 
-        if (obj is string)
+        if (obj is string str)
         {
-            return (string) obj;
+            return str;
         }
 
         if (obj is not IEnumerable asEnumerable)
@@ -721,14 +721,7 @@ public static class DiagnosticManager
             }
 
             object newValue = ConvertValue(getter.PropInfo.PropertyType, value);
-            if (isType)
-            {
-                getter.PropInfo.SetValue(null, newValue, null);
-            }
-            else
-            {
-                getter.PropInfo.SetValue(obj, newValue, null);
-            }
+            getter.PropInfo.SetValue(isType ? null : obj, newValue, null);
 
             return OperationResponse.Success();
         }

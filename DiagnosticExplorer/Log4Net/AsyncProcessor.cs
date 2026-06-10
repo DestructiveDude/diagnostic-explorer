@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +12,7 @@ public class AsyncProcessor : IDisposable
 {
     private BlockingCollection<LoggingEventContext> _loggingEvents;
     private CancellationTokenSource _loggingCancelationTokenSource;
-    private CancellationToken _loggingCancelationToken;
+    private readonly CancellationToken _loggingCancelationToken;
     private Task _loggingTask;
     private readonly Action<LoggingEvent> _forwardLoggingEvent;
     private volatile bool _shutDownRequested;
