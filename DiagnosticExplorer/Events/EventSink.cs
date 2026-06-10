@@ -167,10 +167,10 @@ public class EventSink
     }
 
     /// <summary>
-		/// If there is no detail but a massive message, put the whole message into detail
-		/// and leave only the first line in message
-		/// </summary>
-		private void CleanMessageAndDetail(ref string message, ref string detail)
+    /// If there is no detail but a massive message, put the whole message into detail
+    /// and leave only the first line in message
+    /// </summary>
+    private void CleanMessageAndDetail(ref string message, ref string detail)
     {
         if (!string.IsNullOrEmpty(detail))
         {

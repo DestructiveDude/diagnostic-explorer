@@ -83,7 +83,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                     });
         */
         StartDiagnostics();
-        Closed += StopDiagnostics;
+        FormClosed += StopDiagnostics;
 
         //Expose the remoting interface
         _gadgets = [];
@@ -156,6 +156,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
     [Property(Category = "Widgets")] public int WidgetIdCount { get; private set; }
 
     [Property(AllowSet = true)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string InfoText
     {
         get => _infoText;
@@ -187,9 +188,9 @@ public partial class Form1 : Form, INotifyPropertyChanged
         }
     }
 
-    [Property(AllowSet = true)] public int SetMePlease { get; set; }
+    [Property(AllowSet = true)][DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public int SetMePlease { get; set; }
 
-    [Property(AllowSet = false)] public int Counter2 { get; set; }
+    [Property(AllowSet = false)][DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)] public int Counter2 { get; set; }
 
     [RateProperty(Category = "Widgets", ExposeRate = false, ExposeTotal = true)]
     public RateCounter WidgetEvents { get; } = new RateCounter(5);
@@ -200,13 +201,12 @@ public partial class Form1 : Form, INotifyPropertyChanged
     [CollectionProperty(CollectionMode.List, Category = "All Gadgets")]
     public IList<Gadget> Gadgets
     {
-        get
-        {
+        get {
             if (!IsDisposed && IsHandleCreated && InvokeRequired)
             {
                 try
                 {
-                    return (IList<Gadget>)Invoke((Delegate)new Func<IList<Gadget>>(() => _gadgets.ToList()));
+                    return (IList<Gadget>) Invoke((Delegate) new Func<IList<Gadget>>(() => _gadgets.ToList()));
                 }
                 catch
                 {
@@ -220,13 +220,12 @@ public partial class Form1 : Form, INotifyPropertyChanged
     [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(Widget.FullName))]
     public IList<Widget> Widgets
     {
-        get
-        {
+        get {
             if (!IsDisposed && IsHandleCreated && InvokeRequired)
             {
                 try
                 {
-                    return (IList<Widget>)Invoke((Delegate)new Func<IList<Widget>>(() => _widgets.ToList()));
+                    return (IList<Widget>) Invoke((Delegate) new Func<IList<Widget>>(() => _widgets.ToList()));
                 }
                 catch
                 {
@@ -278,7 +277,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
         void sayHello() =>
             MessageBox.Show(this, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-        BeginInvoke( sayHello);
+        BeginInvoke(sayHello);
     }
 
     [DiagnosticMethod]
@@ -292,7 +291,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
         Stopwatch watch = Stopwatch.StartNew();
         void sayHello() =>
             MessageBox.Show(this, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-        Invoke( sayHello);
+        Invoke(sayHello);
         return string.Format("User clicked Ok in {0:N1} seconds", watch.Elapsed.TotalSeconds);
     }
 
@@ -569,8 +568,8 @@ public partial class Form1 : Form, INotifyPropertyChanged
         using (new TraceScope(_formLog.Info))
         {
             TraceScope.Trace($"In Trace Scope Button Click 1 InvokeRequired: {InvokeRequired}");
-            
-            
+
+
 
             Task task1 = Task.Run(async () => {
                 await Task.Delay(100);
@@ -697,9 +696,9 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 using (new TraceScope("SYNC BLAH 2"))
                 {
                     string message = $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TIMER {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$% ";
-                TraceScope.Trace(message);
-            }
-        });
+                    TraceScope.Trace(message);
+                }
+            });
             Invoke(() => {
                 using (new TraceScope("ASYNC BLAH 2"))
                 {

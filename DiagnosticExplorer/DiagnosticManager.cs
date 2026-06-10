@@ -188,10 +188,7 @@ public static class DiagnosticManager
     private static OperationSet BuildOperationSet(Type propType)
     {
         OperationSet operationSet = CreateOperationSet(propType);
-        if (operationSet != null)
-        {
-            operationSet.Id = Interlocked.Increment(ref _operationSetId).ToString();
-        }
+        operationSet?.Id = Interlocked.Increment(ref _operationSetId).ToString();
 
         return operationSet;
     }
@@ -199,10 +196,7 @@ public static class DiagnosticManager
     private static OperationSet BuildStaticOperationSet(Type propType)
     {
         OperationSet operationSet = CreateStaticOperationSet(propType);
-        if (operationSet != null)
-        {
-            operationSet.Id = Interlocked.Increment(ref _operationSetId).ToString();
-        }
+        operationSet?.Id = Interlocked.Increment(ref _operationSetId).ToString();
 
         return operationSet;
     }

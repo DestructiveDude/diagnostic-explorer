@@ -31,10 +31,7 @@ csharp_space_between_method_declaration_parameter_list_parentheses = false
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
 
-# Project-specific rule overrides:
-# Disable IDE0031 (Use null propagation) because the Roslyn analyzer code fix incorrectly
-# flags property assignments (e.g. cat?.ValueObject = val), resulting in invalid C# compiler errors.
-dotnet_diagnostic.IDE0031.severity = none
+
 
 [*.json]
 indent_style = space

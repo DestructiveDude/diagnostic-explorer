@@ -165,10 +165,7 @@ internal class CollectionGetter : PropertyGetter
             }
 
             Category cat = bag.Categories.FindByName(newPrepend);
-            if (cat != null)
-            {
-                cat.ValueObject = listObject;
-            }
+            cat?.ValueObject = listObject;
         }
     }
 

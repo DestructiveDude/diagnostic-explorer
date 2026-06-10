@@ -52,7 +52,8 @@ public abstract class AppenderProxyBase
 
     public bool IsInError
     {
-        get { lock (_stateLock)
+        get {
+            lock (_stateLock)
             {
                 return _isInError;
             }
@@ -62,12 +63,14 @@ public abstract class AppenderProxyBase
     [Property]
     public DateTime? LastError
     {
-        get { lock (_stateLock)
+        get {
+            lock (_stateLock)
             {
                 return _lastError;
             }
         }
-        set { lock (_stateLock)
+        set {
+            lock (_stateLock)
             {
                 _lastError = value;
             }
@@ -77,12 +80,14 @@ public abstract class AppenderProxyBase
     [Property]
     public DateTime? LastMessageSent
     {
-        get { lock (_stateLock)
+        get {
+            lock (_stateLock)
             {
                 return _lastMessageSent;
             }
         }
-        set { lock (_stateLock)
+        set {
+            lock (_stateLock)
             {
                 _lastMessageSent = value;
             }
@@ -111,12 +116,14 @@ public abstract class AppenderProxyBase
     [Property]
     public string LastErrorMessage
     {
-        get { lock (_stateLock)
+        get {
+            lock (_stateLock)
             {
                 return _lastErrorMessage;
             }
         }
-        set { lock (_stateLock)
+        set {
+            lock (_stateLock)
             {
                 _lastErrorMessage = value;
             }

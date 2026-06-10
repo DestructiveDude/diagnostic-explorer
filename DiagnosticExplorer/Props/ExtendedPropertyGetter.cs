@@ -86,10 +86,7 @@ internal class ExtendedPropertyGetter : PropertyGetter
                 getter.GetProperties(val, bag, newPrepend);
             }
             Category cat = bag.Categories.FindByName(newPrepend);
-            if (cat != null)
-            {
-                cat.ValueObject = val;
-            }
+            cat?.ValueObject = val;
         }
     }
 }
