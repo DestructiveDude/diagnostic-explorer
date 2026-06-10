@@ -167,7 +167,8 @@ public class LogAnalyticsRetroLoggerTests
 
         Func<Task> act = async () => await logger.Delete(["abc"]);
 
-        await act.Should().ThrowAsync<NotSupportedException>();
+        await act.Should().ThrowAsync<NotSupportedException>()
+            .WithMessage("*not supported*");
     }
 
     [Fact]

@@ -663,12 +663,12 @@ public partial class Form1 : Form, INotifyPropertyChanged
         {
             // using (var scope = new TraceScope("SYNC BLAH 1"))
             {
-                string message = $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$%";
+                string message = $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
                 TraceScope.Trace(message);
             }
             // using (var scope = new AsyncTraceScope("ASYNC BLAH 1"))
             {
-                string message = $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$%";
+                string message = $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
                 TraceScope.Trace(message);
             }
 

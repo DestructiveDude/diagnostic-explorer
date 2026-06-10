@@ -27,12 +27,13 @@ public class Operation
     {
         List<Operation> result = [];
         operationSet.Operations.ForEach(op => {
+            int i = op.Signature.IndexOf('(');
             result.Add(new Operation
             {
                 ReturnType = op.ReturnType,
                 Parameters = op.Parameters != null ? op.Parameters.Select(x => new KeyValuePair<string, string>(x.Name, x.Type)).ToList() : [],
                 Signature = op.Signature,
-                Name = op.Signature.Substring(0, op.Signature.IndexOf('('))
+                Name = i >= 0 ? op.Signature[..i] : op.Signature
             });
         });
 

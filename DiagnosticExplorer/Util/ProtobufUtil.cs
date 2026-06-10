@@ -10,7 +10,7 @@ public static class ProtobufUtil
 
     public static byte[] Compress<T>(T obj, int compressThreshold)
     {
-        MemoryStream stream = new();
+        using var stream = new MemoryStream();
         stream.WriteByte(0);
         ProtoBuf.Serializer.Serialize(stream, obj);
 

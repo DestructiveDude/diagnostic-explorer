@@ -13,15 +13,16 @@ public class LZString
 
     private static int getBaseValue(string alphabet, char character)
     {
-        if (!baseReverseDic.ContainsKey(alphabet))
+        if (!baseReverseDic.TryGetValue(alphabet, out Dictionary<char, int>? dict))
         {
-            baseReverseDic[alphabet] = [];
+            dict = [];
             for (int i = 0; i < alphabet.Length; i++)
             {
-                baseReverseDic[alphabet][alphabet[i]] = i;
+                dict[alphabet[i]] = i;
             }
+            baseReverseDic[alphabet] = dict;
         }
-        return baseReverseDic[alphabet][character];
+        return dict[character];
     }
 
     public static string compressToBase64(string input)
@@ -389,7 +390,6 @@ public class LZString
             context_enlargeIn--;
             if (context_enlargeIn == 0)
             {
-                context_enlargeIn = (int) Math.Pow(2, context_numBits);
                 context_numBits++;
             }
         }
@@ -451,7 +451,7 @@ public class LZString
     private static string? _decompress(int length, int resetValue, GetNextValue getNextValue)
     {
         Dictionary<int, string> dictionary = [];
-        int next, enlargeIn = 4, dictSize = 4, numBits = 3, i, bits, resb, maxpower, power;
+        int enlargeIn = 4, dictSize = 4, numBits = 3, i, bits, resb, maxpower, power;
         int c = 0;
         string entry = "", w;
         StringBuilder result = new StringBuilder();
@@ -478,7 +478,7 @@ public class LZString
             power <<= 1;
         }
 
-        switch (next = bits)
+        switch (bits)
         {
             case 0:
                 bits = 0;
@@ -598,25 +598,22 @@ public class LZString
                 numBits++;
             }
 
-            if (dictionary.ContainsKey(c))
+            if (dictionary.TryGetValue(c, out string? found))
             {
-                entry = dictionary[c];
+                entry = found;
+            }
+            else if (c == dictSize)
+            {
+                entry = w + w[0];
             }
             else
             {
-                if (c == dictSize)
-                {
-                    entry = w + w[0].ToString();
-                }
-                else
-                {
-                    return null;
-                }
+                return null;
             }
             result.Append(entry);
 
             //Add w+entry[0] to the dictionary.
-            dictionary[dictSize++] = w + entry[0].ToString();
+            dictionary[dictSize++] = w + entry[0];
             enlargeIn--;
             w = entry;
             if (enlargeIn == 0)
