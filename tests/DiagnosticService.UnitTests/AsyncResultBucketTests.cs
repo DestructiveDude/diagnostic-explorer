@@ -20,7 +20,7 @@ public class AsyncResultBucketTests
     {
         AsyncResultBucket bucket = new();
         using CancellationTokenSource cancel = new();
-        await cancel.CancelAsync();
+        cancel.CancelAfter(50);
 
         Func<Task> act = async () => await bucket.GetResult<string>("req-1", TimeSpan.FromSeconds(5), cancel.Token);
 

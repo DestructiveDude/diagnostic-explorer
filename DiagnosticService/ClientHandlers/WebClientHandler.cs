@@ -45,12 +45,10 @@ public class WebClientHandler
 
     public void Start(RealtimeManager realtimeManager)
     {
-        // Enqueue snapshot through _sendChain before subscribing so change/remove events
-        // that arrive immediately after subscription are serialised after the initial list.
-        DiagProcess[] processes = realtimeManager.GetProcesses().ToArray();
-        EnqueueSend(() => _client.SetProcesses(processes));
         _processSubscription = realtimeManager.ProcessChanged.Subscribe(HandleProcessesChanged);
         _processRemoveSubscription = realtimeManager.ProcessRemoved.Subscribe(HandleProcessRemoved);
+        DiagProcess[] processes = realtimeManager.GetProcesses().ToArray();
+        EnqueueSend(() => _client.SetProcesses(processes));
     }
 
     public void Stop()

@@ -24,6 +24,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Threading;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Props;
 
@@ -33,10 +34,12 @@ namespace WidgetSample;
 public class Gadget : IDisposable, INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler PropertyChanged;
+    private readonly SynchronizationContext _syncContext;
 
     public Gadget(int id)
     {
         Id = id;
+        _syncContext = SynchronizationContext.Current;
 
         Name = GetRandom(_names);
         Purpose = GetRandom(_purposes);
@@ -59,7 +62,18 @@ public class Gadget : IDisposable, INotifyPropertyChanged
 
     private void OnPropertyChanged(string propertyName)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        var handler = PropertyChanged;
+        if (handler != null)
+        {
+            if (_syncContext != null && _syncContext != SynchronizationContext.Current)
+            {
+                _syncContext.Post(state => handler(this, new PropertyChangedEventArgs(propertyName)), null);
+            }
+            else
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
     }
 
     #region IDisposable Members

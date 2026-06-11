@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Events;
 using DiagnosticExplorer.Props;
@@ -60,6 +62,15 @@ public class DiagnosticManagerTests
         }
     }
 
+    public class ThrowingOperation
+    {
+        [DiagnosticMethod]
+        public void Run()
+        {
+            throw new InvalidOperationException("Operation failed explicitly");
+        }
+    }
+
     [Fact]
     public void ExecuteOperation_UnwrapsTargetInvocationException_ForCustomParsableType()
     {
@@ -84,6 +95,30 @@ public class DiagnosticManagerTests
             m.Contains("Parse failed for value: invalid-val"));
         result.ErrorDetail.Should().Contain(nameof(CustomParseException));
         result.ErrorDetail.Should().Contain("Parse failed for value: invalid-val");
+        result.ErrorDetail.Should().NotContain(nameof(TargetInvocationException));
+    }
+
+    [Fact]
+    public void ExecuteOperation_UnwrapsTargetInvocationException_ForThrowingOperation()
+    {
+        var obj = new ThrowingOperation();
+        var registered = new RegisteredObject(obj, "TestCategory", "TestBag");
+
+        var response = DiagnosticManager.GetDiagnostics(new[] { registered });
+        response.OperationSets.Should().HaveCount(1);
+        var signature = response.OperationSets[0].Operations[0].Signature;
+
+        var result = DiagnosticManager.ExecuteOperation(
+            new[] { registered },
+            "TestCategory|TestBag",
+            signature,
+            Array.Empty<string>()
+        );
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Operation failed explicitly");
+        result.ErrorDetail.Should().Contain(nameof(InvalidOperationException));
+        result.ErrorDetail.Should().NotContain(nameof(TargetInvocationException));
     }
 
     [Fact]

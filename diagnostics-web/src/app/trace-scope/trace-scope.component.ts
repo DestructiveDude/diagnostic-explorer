@@ -11,15 +11,22 @@ export class TraceScopeComponent {
   @Input() node?: ScopeNode;
 
   // First line is "[ss.mmm] [ss.mmm] BEGIN Label": the first bracket is the scope's
-  // start offset (seconds.milliseconds), the second is its own duration in the same
-  // seconds.milliseconds form. So "[00.005] [00.028] BEGIN Persist" -> start '0.005',
-  // dur 28 (ms); "[01.005] ... BEGIN X" -> dur 1005 (ms). Hence dur = seconds*1000 + ms.
+  // start offset (seconds.milliseconds), the second is the gap since the previous line.
+  // The actual scope duration is appended at the end of the label in the form "Label (N.NNN seconds)".
+  // We parse the suffix if present to get the true duration in milliseconds; otherwise we fall back
+  // to the gap timespan.
   parse(firstLine: string): { start: string; dur: number; label: string } {
     const m = /^\[(\d{2})\.(\d{3})\]\s*\[(\d{2})\.(\d{3})\]\s*BEGIN\s*(.*)$/.exec(firstLine ?? '');
     if (!m) return { start: '', dur: 0, label: firstLine ?? '' };
     const start = `${parseInt(m[1], 10)}.${m[2]}`;
-    const dur = parseInt(m[3], 10) * 1000 + parseInt(m[4], 10);
-    return { start, dur, label: m[5].trim() };
+    let dur = parseInt(m[3], 10) * 1000 + parseInt(m[4], 10);
+    let label = m[5].trim();
+    const durMatch = /\(([\d.]+)\s*seconds\)$/.exec(label);
+    if (durMatch) {
+      dur = Math.round(parseFloat(durMatch[1]) * 1000);
+      label = label.replace(/\s*\([\d.]+\s*seconds\)$/, '').trim();
+    }
+    return { start, dur, label };
   }
 
   isBig(dur: number): boolean { return dur >= 20; }

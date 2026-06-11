@@ -119,14 +119,47 @@ public class RetroSearchLifecycleTests
     }
 
     [Fact]
-    public void LogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
+    public async Task StartRetroSearch_WhenSearchCompletes_RemovesTrackedEntry()
     {
         RetroManager manager = CreateManager();
-        OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-        using Subject<IList<DiagnosticMsg>> ownedSubject = new();
-        ISubject<IList<DiagnosticMsg>> subject = Subject.Synchronize(ownedSubject);
+        await manager.StartAsync(TestContext.Current.CancellationToken);
 
-        SetPrivateField(manager, "_logSubject", subject);
+        IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
+        mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
+            .Returns(GetEmptyAsyncEnumerable());
+        SetPrivateField(manager, "_logger", mockLogger);
+
+        IWebHubClient client = Substitute.For<IWebHubClient>();
+        RetroQuery query = new() { SearchId = 123 };
+
+        await manager.StartRetroSearch(query, "conn-123", client);
+
+        int delay = 0;
+        while (SearchMap(manager).ContainsKey("conn-123") && delay < 2000)
+        {
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+            delay += 20;
+        }
+
+        SearchMap(manager).Should().NotContainKey("conn-123");
+        await manager.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerable()
+    {
+        yield break;
+    }
+
+    [Fact]
+    public async Task LogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
+    {
+        RetroManager manager = CreateManager();
+        await manager.StartAsync(TestContext.Current.CancellationToken);
+
+        OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
+        FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
+
         using IDisposable subscription = subject.Subscribe(observer);
 
         RunConcurrentPublishes(
@@ -135,6 +168,8 @@ public class RetroSearchLifecycleTests
 
         observer.OverlapDetected.Should().BeFalse();
         observer.SeenValues.Should().Be(24);
+
+        await manager.StopAsync(TestContext.Current.CancellationToken);
     }
 
     private static RetroManager CreateManager()

@@ -25,6 +25,7 @@
 using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Threading;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Props;
 
@@ -35,6 +36,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
 {
     private static readonly string[] _names = new[] { "Widget X", "Widget Y", "Widget Z", "Widget W" };
     private readonly int _id;
+    private readonly SynchronizationContext _syncContext;
     private DateTime _dateCreated;
     private string _name;
     private Point _size;
@@ -42,6 +44,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public Widget(int id)
     {
         _id = id;
+        _syncContext = SynchronizationContext.Current;
 
         Randomise();
         string bagName = $"Widget {_id}";
@@ -122,7 +125,18 @@ public class Widget : IDisposable, INotifyPropertyChanged
 
     private void OnPropertyChanged(string propertyName)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        var handler = PropertyChanged;
+        if (handler != null)
+        {
+            if (_syncContext != null && _syncContext != SynchronizationContext.Current)
+            {
+                _syncContext.Post(state => handler(this, new PropertyChangedEventArgs(propertyName)), null);
+            }
+            else
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
     }
 
     protected void Dispose(bool disposing)

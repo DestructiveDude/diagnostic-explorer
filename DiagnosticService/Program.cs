@@ -148,7 +148,7 @@ public static class Program
             // header explicitly on the hub paths. A browser always sends Origin on the negotiate
             // POST and the WS upgrade; native clients (the .NET hosting client) send none, so an
             // absent Origin is allowed and remains gated by the API key.
-            var allowedOrigins = new HashSet<string>(settings.Security.AllowedCorsOrigins, StringComparer.OrdinalIgnoreCase);
+            var allowedOrigins = new HashSet<string>(settings.Security.AllowedCorsOrigins.Select(o => o.Trim().TrimEnd('/')), StringComparer.OrdinalIgnoreCase);
             app.Use(async (context, next) => {
                 PathString path = context.Request.Path;
                 bool isHub = path.StartsWithSegments("/web-hub") || path.StartsWithSegments("/diagnostics");
@@ -193,7 +193,7 @@ public static class Program
             }
         });
 
-        if (!app.Urls.IsReadOnly)
+        if (!app.Urls.IsReadOnly && settings.Urls != null && settings.Urls.Length > 0)
         {
             app.Urls.Clear();
 

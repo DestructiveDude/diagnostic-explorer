@@ -48,13 +48,19 @@ export class DiagHubService {
 
                 const connection = new signalR.HubConnectionBuilder()
                     .withUrl(this.baseUrl, {
-                        withCredentials: true
+                        withCredentials: true,
+                        accessTokenFactory: () => this.apiKey
                     })
                     .build();
 
                 connection.onreconnecting(err => this.handleConnectionClosed(err));
                 connection.onclose(err => this.handleConnectionClosed(err));
                 await connection.start();
+
+                // Clear the short-lived auth cookie once successfully connected.
+                if (this.apiKey) {
+                    document.cookie = 'Diag-Hub-Auth=; path=/; max-age=0; SameSite=Strict';
+                }
 
                 // Assign this.connection BEFORE emitting: subscribers (e.g. RealtimeModel's
                 // connectionStarted handler) call this.connection.invoke('Subscribe', ...). If the
@@ -77,25 +83,36 @@ export class DiagHubService {
         // await the RPC: passing the un-awaited Promise to plainToInstance produced a default
         // OperationResponse (isSuccess:false, empty errorMessage), so callers saw "Property set!"
         // even when the hub returned an error.
-        const response = await this.connection!.invoke<OperationResponse>(`SetProperty`, request);
+        if (!this.connection) {
+            return { isSuccess: false, errorMessage: "Not connected to service" } as OperationResponse;
+        }
+        const response = await this.connection.invoke<OperationResponse>(`SetProperty`, request);
         return plainToInstance(OperationResponse, response);
     }
 
     async executeOperation(request: ExecOperationRequest): Promise<OperationResponse> {
-        const response = await this.connection!.invoke<OperationResponse>(`ExecuteOperation`, request);
+        if (!this.connection) {
+            return { isSuccess: false, errorMessage: "Not connected to service" } as OperationResponse;
+        }
+        const response = await this.connection.invoke<OperationResponse>(`ExecuteOperation`, request);
         return plainToInstance(OperationResponse, response);
     }
 
     async removeProcess(id: string): Promise<void> {
-        await this.connection!.invoke('RemoveProcess', id);
+        if (!this.connection) return;
+        await this.connection.invoke('RemoveProcess', id);
     }
 
     async startRetroSearch(query: RetroQuery): Promise<void> {
-        await this.connection!.invoke('StartRetroSearch', query);
+        if (!this.connection) {
+            throw new Error("Not connected to service");
+        }
+        await this.connection.invoke('StartRetroSearch', query);
     }
 
     async cancelRetroSearch(searchId: number): Promise<void> {
-        await this.connection!.invoke('CancelRetroSearch', searchId);
+        if (!this.connection) return;
+        await this.connection.invoke('CancelRetroSearch', searchId);
     }
 
     private async handleConnectionClosed(err: Error | undefined) {
@@ -104,10 +121,12 @@ export class DiagHubService {
     }
 
     async deleteRecords(toDelete: string[]): Promise<number> {
-        return await this.connection!.invoke<number>('RetroDelete', toDelete);
+        if (!this.connection) return 0;
+        return await this.connection.invoke<number>('RetroDelete', toDelete);
     }
 
     async retroSupportsDelete(): Promise<boolean> {
-        return await this.connection!.invoke<boolean>('RetroSupportsDelete');
+        if (!this.connection) return false;
+        return await this.connection.invoke<boolean>('RetroSupportsDelete');
     }
 }

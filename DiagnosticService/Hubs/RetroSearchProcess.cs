@@ -26,7 +26,13 @@ public class RetroSearchProcess : IDisposable
 
     public void Cancel()
     {
-        _cancelToken.Cancel();
+        try
+        {
+            _cancelToken.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     public void Start()

@@ -64,18 +64,26 @@ public sealed class EventSinkStream : IDisposable
     public SystemEvent[] InitialEvents { get; }
 
     public void StreamEvent(SystemEvent evt)
-        => _eventSubject.OnNext(evt);
+    {
+        try
+        {
+            _eventSubject?.OnNext(evt);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
 
 
     public Channel<IList<SystemEvent>> EventChannel { get; }
 
     public void Dispose()
     {
+        Disposed?.Invoke(this, EventArgs.Empty);
+        Disposed = null;
+
         _eventSubscription?.Dispose();
         _innerSubject.Dispose();
         _eventSubject = null;
-
-        Disposed?.Invoke(this, EventArgs.Empty);
-        Disposed = null;
     }
 }

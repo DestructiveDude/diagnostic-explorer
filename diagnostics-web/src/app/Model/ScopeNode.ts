@@ -98,11 +98,10 @@ export class ScopeNode {
                         regions.push(newRegion);
                     }
                 }
-
                 /**
                  * No parent BEGIN, so add to the overall list of text blocks
                  */
-                if (!curCollapsibleRegion) {
+                else {
                     regions.push(newRegion);
                 }
 
@@ -136,7 +135,11 @@ export class ScopeNode {
                  * If no parent, add to the overall block list.
                  */
                 else {
-                    regions.push(newRegion);
+                    if (regions.length > 0 && regions[0].isBegin) {
+                        regions[0].addChild(newRegion);
+                    } else {
+                        regions.push(newRegion);
+                    }
                     curCollapsibleRegion = newRegion;
                 }
             } else if (curCollapsibleRegion) {
@@ -165,6 +168,9 @@ export class ScopeNode {
             }
         }
 
+        if (regions.length > 0) {
+            regions[0].expanded = true;
+        }
         return regions[0];
     }
 }

@@ -26,11 +26,18 @@ export class RetroDisplayComponent {
     private cachedSrc?: DiagnosticMsg;
     private cachedEvent?: EventModel;
 
+    private hasTraceScopeCache = new WeakMap<DiagnosticMsg, boolean>();
+
     // Only read by the template while model.selectedEvent is truthy (the @if
     // guards the app-event-detail binding), so there is no need to clear the
     // cache back to undefined.
     hasTraceScope(msg: DiagnosticMsg): boolean {
-        return ScopeNode.hasTraceScope(msg.detail || msg.message);
+        let cached = this.hasTraceScopeCache.get(msg);
+        if (cached === undefined) {
+            cached = ScopeNode.hasTraceScope(msg.detail || msg.message);
+            this.hasTraceScopeCache.set(msg, cached);
+        }
+        return cached;
     }
 
     get selectedAsEventModel(): EventModel | undefined {

@@ -89,10 +89,7 @@ input.p-inputtext:focus,
    results table — loads, that inflates the whole splitter past the viewport and
    shoves sibling panels (the detail/trace-scope pane) off the bottom of the
    screen. Forcing min-height:0 lets the splitter honour its allotted track/flex
-   size and clip+scroll internally instead. (Tailwind 3.0.2's min-h-0 utility
-   doesn't apply reliably here, hence the explicit rule.) */
-.p-splitter,
-.p-splitterpanel { min-height: 0 !important; }
+   size and clip+scroll internally instead. */
 
 /* PrimeNG paints its own theme surface on the splitter/panels — make them
    transparent so the app canvas (--bg) shows through the rail + content area. */

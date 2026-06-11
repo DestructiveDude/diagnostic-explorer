@@ -100,12 +100,16 @@ export class RealtimeModel {
     }
 
     async selectProcess(process: DiagProcess) {
+        if (this.selectedEvent) {
+            this.selectedEvent.isSelected = false;
+        }
         this.activeProcess = process;
         this.categories = [];
         this.operationSets = [];
         this.selectedEvent = undefined;
         this.activeCat = undefined;
         this.selectedIndex = 0;
+        this.traceScopeVisible = false;
 
         this.titleMessage = '';
         await this.subscribeToActiveProcess();
@@ -144,6 +148,28 @@ export class RealtimeModel {
         cats = cats.filter(c => c.subCats.length || c.eventSinks.length);
 
         this.categories = cats;
+
+        if (this.activeCat) {
+            const foundIndex = cats.findIndex(c => c.name === this.activeCat!.name);
+            if (foundIndex >= 0) {
+                this.activeCat = cats[foundIndex];
+                this.selectedIndex = foundIndex;
+            } else {
+                if (cats.length > 0) {
+                    this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, cats.length - 1));
+                    this.activeCat = cats[this.selectedIndex];
+                } else {
+                    this.selectedIndex = 0;
+                    this.activeCat = undefined;
+                }
+            }
+        } else if (cats.length > 0) {
+            this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, cats.length - 1));
+            this.activeCat = cats[this.selectedIndex];
+        } else {
+            this.selectedIndex = 0;
+            this.activeCat = undefined;
+        }
 
         this.operationSets = response.operationSets;
     }
@@ -220,6 +246,10 @@ export class RealtimeModel {
         this.allProcesses = _.orderBy(this.allProcesses, [p => p.userName, p => p.machineName, p => p.processName]);
 
         this.performProcessSearch();
+
+        if (this.activeProcess && !this.allProcesses.some(p => p.id === this.activeProcess!.id)) {
+            this.removeProcess(this.activeProcess.id);
+        }
     }
 
     public removeProcess(id: string) {

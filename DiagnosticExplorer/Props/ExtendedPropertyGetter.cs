@@ -78,13 +78,51 @@ internal class ExtendedPropertyGetter : PropertyGetter
         }
         else
         {
-            List<PropertyGetter> getters = DiagnosticManager.GetPropertyGetters(val);
-            foreach (PropertyGetter getter in getters)
+            var visited = DiagnosticManager.VisitedObjects;
+            if (visited.Contains(val))
             {
-                getter.GetProperties(val, bag, newPrepend);
+                Property p = new Property
+                {
+                    Name = "<cycle>",
+                    CanSet = false,
+                    SourceObject = obj,
+                    SourceProperty = PropInfo
+                };
+                string prependToCategory = PrependToCategory(newPrepend);
+                bag.AddProperty(p, prependToCategory);
+                return;
             }
-            Category cat = bag.Categories.FindByName(newPrepend);
-            cat?.ValueObject = val;
+            if (visited.Count > 50)
+            {
+                Property p = new Property
+                {
+                    Name = "<max depth>",
+                    CanSet = false,
+                    SourceObject = obj,
+                    SourceProperty = PropInfo
+                };
+                string prependToCategory = PrependToCategory(newPrepend);
+                bag.AddProperty(p, prependToCategory);
+                return;
+            }
+
+            visited.Add(val);
+            try
+            {
+                List<PropertyGetter> getters = DiagnosticManager.GetPropertyGetters(val);
+                foreach (PropertyGetter getter in getters)
+                {
+                    getter.GetProperties(val, bag, newPrepend);
+                }
+                if (bag.Categories.FindByName(newPrepend) is Category cat)
+                {
+                    cat.ValueObject = val;
+                }
+            }
+            finally
+            {
+                visited.Remove(val);
+            }
         }
     }
 }

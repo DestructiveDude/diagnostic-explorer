@@ -79,6 +79,15 @@ public class RealtimeManager : IHostedService
         {
             Trace.WriteLine(ex);
         }
+
+        try
+        {
+            TidyProcesses();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine(ex);
+        }
     }
 
     public void RegisterAlertLevel(string connectionId, DiagnosticMsg[] messages)
@@ -89,11 +98,15 @@ public class RealtimeManager : IHostedService
             .Max();
 
         DiagProcess? process = Processes.FindByConnectionId(connectionId);
-        if (process != null && process.AlertLevel < level)
+        if (process != null && process.AlertLevel <= level && level > 0)
         {
+            bool levelChanged = process.AlertLevel != level;
             process.AlertLevel = level;
             process.AlertLevelDate = DateTime.UtcNow;
-            ProcessChanged.OnNext(process);
+            if (levelChanged)
+            {
+                ProcessChanged.OnNext(process);
+            }
         }
     }
 
@@ -128,12 +141,14 @@ public class RealtimeManager : IHostedService
         RealtimEvents.Notice($"Client {client.ConnectionId} added");
 
         client.Disconnected += HandleClientDisconnected;
+        client.Arm();
     }
 
     private void HandleClientDisconnected(object? sender, EventArgs e)
     {
         DiagnosticClientHandler client = (DiagnosticClientHandler) sender!;
         RealtimEvents.Notice($"Client {client.ConnectionId} disconnected");
+        _diagClients.TryRemove(client.ConnectionId, out _);
         Deregister(client);
     }
 
@@ -379,6 +394,7 @@ public class RealtimeManager : IHostedService
         {
             _processes.TryRemove(proc.Id, out _);
             RemoveSubscription(proc);
+            ProcessRemoved.OnNext(proc);
         }
     }
 
@@ -505,6 +521,14 @@ public class RealtimeManager : IHostedService
 
         var subscription = _subscriptions.GetOrAdd(process, key => GetSubscription(process));
         await subscription.AddWebClient(webClient);
+
+        // Rollback if connection disconnected concurrently
+        if (!_webClients.ContainsKey(webConnectionId))
+        {
+            subscription.RemoveWebClient(webClient);
+            return false;
+        }
+
         return true;
     }
 

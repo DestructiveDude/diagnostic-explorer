@@ -310,6 +310,17 @@ public static class DiagnosticManager
     }
 
 
+    [ThreadStatic]
+    private static HashSet<object> _visitedObjects;
+
+    internal static HashSet<object> VisitedObjects => _visitedObjects ??= new HashSet<object>(new ReferenceEqualityComparer());
+
+    private class ReferenceEqualityComparer : IEqualityComparer<object>
+    {
+        public new bool Equals(object x, object y) => ReferenceEquals(x, y);
+        public int GetHashCode(object obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+    }
+
     public static PropertyBag ObjectToPropertyBag(object obj, string bagName, string bagCategory)
     {
         PropertyBag bag = new()
@@ -319,11 +330,25 @@ public static class DiagnosticManager
             SourceObject = obj
         };
 
-        List<PropertyGetter> valueGetters = GetPropertyGetters(obj);
-
-        foreach (PropertyGetter getter in valueGetters)
+        var visited = VisitedObjects;
+        visited.Clear();
+        try
         {
-            getter.GetProperties(obj, bag, null);
+            if (obj != null)
+            {
+                visited.Add(obj);
+            }
+
+            List<PropertyGetter> valueGetters = GetPropertyGetters(obj);
+
+            foreach (PropertyGetter getter in valueGetters)
+            {
+                getter.GetProperties(obj, bag, null);
+            }
+        }
+        finally
+        {
+            visited.Clear();
         }
 
         return bag;
@@ -397,7 +422,12 @@ public static class DiagnosticManager
 
     private static IEnumerable<PropertyInfo> GetInstanceProperties(Type type, DiagnosticClassAttribute inheritedAttr)
     {
-        if (type != typeof(object))
+        return GetInstanceProperties(type, inheritedAttr, new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    private static IEnumerable<PropertyInfo> GetInstanceProperties(Type type, DiagnosticClassAttribute inheritedAttr, HashSet<string> yieldedNames)
+    {
+        if (type != typeof(object) && type != null)
         {
             DiagnosticClassAttribute diagAttr = GetAttribute<DiagnosticClassAttribute>(type, false);
 
@@ -421,11 +451,14 @@ public static class DiagnosticManager
             {
                 foreach (PropertyInfo propInfo in type.GetProperties(PublicInstancePropertyFlags | BindingFlags.DeclaredOnly).Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p)))
                 {
-                    yield return propInfo;
+                    if (yieldedNames.Add(propInfo.Name))
+                    {
+                        yield return propInfo;
+                    }
                 }
             }
 
-            foreach (PropertyInfo propInfo in GetInstanceProperties(type.BaseType, diagAttr ?? inheritedAttr))
+            foreach (PropertyInfo propInfo in GetInstanceProperties(type.BaseType, diagAttr ?? inheritedAttr, yieldedNames))
             {
                 yield return propInfo;
             }

@@ -90,9 +90,6 @@ public class DiagnosticHostingService
                 return false;
             }
 
-            DiagnosticRetroAppender.SetLoggingAction(LogEvent);
-            SystemStatus.Register();
-
             Registration registration = new()
             {
                 ProcessId = Process.GetCurrentProcess().Id,
@@ -109,13 +106,15 @@ public class DiagnosticHostingService
                 .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey))
                 .ToArray();
 
+            _registrationHandlers = handlers;
+            DiagnosticRetroAppender.SetLoggingAction(LogEvent);
+            SystemStatus.Register();
+
             foreach (RegistrationHandler handler in handlers)
             {
                 handler.Start(_configureHttp);
             }
 
-            // Publish only after the full build + start succeeds.
-            _registrationHandlers = handlers;
             return true;
         }
         catch (Exception ex)
@@ -124,6 +123,7 @@ public class DiagnosticHostingService
             // not swallowed to Debug) and must not leave a half-initialized instance published.
             _log.Error("DiagnosticHostingService failed to start", ex);
             DiagnosticRetroAppender.SetLoggingAction(null);
+            _registrationHandlers = null;
             return false;
         }
     }

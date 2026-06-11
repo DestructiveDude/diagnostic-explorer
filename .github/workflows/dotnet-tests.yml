@@ -29,5 +29,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Test
+      - name: Test Core
         run: dotnet test tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj --configuration Release
+
+      - name: Test Service
+        run: dotnet test tests/DiagnosticService.UnitTests/DiagnosticService.UnitTests.csproj --configuration Release

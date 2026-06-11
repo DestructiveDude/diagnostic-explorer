@@ -19,6 +19,12 @@ export class RetroModel {
         this.watchEnabled = true;
 
         this.hubService.connectionReady.subscribe(connection => {
+            if (this.currentSearchId) {
+                this.onSearchComplete(true, false);
+                this.titleMessage = 'Search interrupted by reconnect';
+                this.messages.add({ severity: 'warn', detail: 'Search interrupted by reconnect', life: 3000 });
+            }
+
             connection.on("ProcessSearchResults", (result: RetroSearchResult) => {
                 if (this.currentSearchId === result.searchId)
                     this.appendResponse(plainToInstance(RetroSearchResult, result));
@@ -116,6 +122,16 @@ export class RetroModel {
         this.time = new Date().getHours() - 1;
         this.hours = 2;
 
+        if (this.currentSearchId) {
+            const searchId = this.currentSearchId;
+            this.onSearchComplete(true, false);
+            try {
+                await this.hubService.cancelRetroSearch(searchId);
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
         await this.search();
     }
 
@@ -123,18 +139,30 @@ export class RetroModel {
         if (this.currentSearchId) {
             const searchId = this.currentSearchId;
             this.onSearchComplete(true, false);
-            await this.hubService.cancelRetroSearch(searchId);
+            try {
+                await this.hubService.cancelRetroSearch(searchId);
+            } catch (err) {
+                console.log(err);
+            }
             return;
         }
 
         this.titleMessage = 'Searching...';
+        this.percentComplete = 0;
         let query: RetroQuery = this.createSearchQuery();
         this.results = [];
         this.filteredResults = [];
         this.currentSearchId = ++this.searchCount;
         query.searchId = this.currentSearchId;
         this.searchStartTime = new Date();
-        await this.hubService.startRetroSearch(query);
+        try {
+            await this.hubService.startRetroSearch(query);
+        } catch (err) {
+            console.log(err);
+            this.onSearchComplete(true, false);
+            this.titleMessage = `Search failed to start: ${getErrorMessage(err)}`;
+            this.messages.add({ severity: 'error', detail: getErrorMessage(err), life: 3000 });
+        }
     }
 
     async delete(): Promise<void> {

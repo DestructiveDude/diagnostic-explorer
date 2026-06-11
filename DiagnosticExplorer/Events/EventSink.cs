@@ -108,24 +108,31 @@ public class EventSink
 
     public void LogEvent(SystemEvent evt)
     {
-        // Imported events bypass the int overload, so apply the same length cap here —
-        // otherwise an arbitrarily long Message/Detail flows unbounded into the queue and
-        // protobuf serialization.
-        evt.Message = MaxLengthString(evt.Message, MaxLength);
-        evt.Detail = MaxLengthString(evt.Detail, MaxLength);
-
-        AddSingleEvent(evt);
-
-        // Atomically advance _idCount; a plain Math.Max RMW races the Interlocked.Increment
-        // in the int overload and would lose updates / yield duplicate ids.
-        long target = evt.Id + 1;
-        long current;
-        while ((current = Interlocked.Read(ref _idCount)) < target)
+        try
         {
-            if (Interlocked.CompareExchange(ref _idCount, target, current) == current)
+            // Imported events bypass the int overload, so apply the same length cap here —
+            // otherwise an arbitrarily long Message/Detail flows unbounded into the queue and
+            // protobuf serialization.
+            evt.Message = MaxLengthString(evt.Message, MaxLength);
+            evt.Detail = MaxLengthString(evt.Detail, MaxLength);
+
+            AddSingleEvent(evt);
+
+            // Atomically advance _idCount; a plain Math.Max RMW races the Interlocked.Increment
+            // in the int overload and would lose updates / yield duplicate ids.
+            long target = evt.Id + 1;
+            long current;
+            while ((current = Interlocked.Read(ref _idCount)) < target)
             {
-                break;
+                if (Interlocked.CompareExchange(ref _idCount, target, current) == current)
+                {
+                    break;
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
         }
     }
 

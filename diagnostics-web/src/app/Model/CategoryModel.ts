@@ -1,4 +1,4 @@
-﻿import {EventResponse, PropertyBag, SystemEvent} from './DiagResponse';
+import {EventResponse, PropertyBag, SystemEvent} from './DiagResponse';
 import {customMerge} from '../util/Merge';
 import {EventSinkModel} from './EventSinkModel';
 import {SubCat} from './SubCat';
@@ -52,6 +52,8 @@ export class CategoryModel {
             this.worstSev = maxLevel;
             this.worstSevDate = new Date();
             this.labelClass = this.worstSev === 0 ? '' : 'event-level-' + Level.LevelToString(this.worstSev).toLocaleLowerCase();
+        } else if (maxLevel > 0) {
+            this.worstSevDate = new Date();
         }
 
         const grouped = _.groupBy(evts, evt => evt.sinkName)

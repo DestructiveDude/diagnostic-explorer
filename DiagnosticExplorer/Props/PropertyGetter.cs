@@ -206,35 +206,82 @@ internal class PropertyGetter
 
     protected string FormatEnumerable(IEnumerable col, string separator, int maxItems)
     {
-        // Materialize once. This was Count() followed by Take() over a possibly-lazy sequence,
-        // enumerating the source twice — and for the concatenate path (col is a Select over the
-        // user's value selector) re-invoking that selector on every pass.
-        List<object> asObject = col.Cast<object>().ToList();
-        int count = asObject.Count;
-        if (count == 0)
-        {
-            return "0 items";
-        }
-
-        List<string> values = [];
         if (maxItems <= 0)
         {
             maxItems = MaxConcatItems;
         }
 
-        int remaining = count - maxItems;
+        int count = -1;
+        if (col is ICollection c)
+        {
+            count = c.Count;
+        }
+        else
+        {
+            PropertyInfo countProp = col.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+            if (countProp != null && countProp.PropertyType == typeof(int))
+            {
+                count = (int)countProp.GetValue(col);
+            }
+        }
 
-        foreach (object o in asObject.Take(maxItems))
+        if (count == 0)
+        {
+            return "0 items";
+        }
+
+        List<object> asObject;
+        int remaining;
+        int displayCount;
+
+        if (count != -1)
+        {
+            asObject = col.Cast<object>().Take(maxItems).ToList();
+            remaining = count - asObject.Count;
+            displayCount = count;
+        }
+        else
+        {
+            asObject = col.Cast<object>().Take(maxItems + 1).ToList();
+            if (asObject.Count > maxItems)
+            {
+                remaining = 1;
+                asObject.RemoveAt(maxItems);
+                displayCount = maxItems;
+            }
+            else
+            {
+                remaining = 0;
+                displayCount = asObject.Count;
+            }
+        }
+
+        if (displayCount == 0)
+        {
+            return "0 items";
+        }
+
+        List<string> values = [];
+        foreach (object o in asObject)
         {
             values.Add(FormatValue(o));
         }
 
         if (remaining > 0)
         {
-            values.Add(string.Format("... ({0} more item{1})", remaining, remaining == 1 ? "" : "s"));
+            if (count != -1)
+            {
+                values.Add(string.Format("... ({0} more item{1})", remaining, remaining == 1 ? "" : "s"));
+            }
+            else
+            {
+                values.Add("... (more items)");
+            }
         }
 
-        string pre = string.Format("{0} item{1}: ", count, count == 1 ? "" : "s");
+        string pre = count != -1
+            ? string.Format("{0} item{1}: ", count, count == 1 ? "" : "s")
+            : "Many items: ";
         return pre + string.Join(separator, values.ToArray());
     }
 

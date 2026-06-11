@@ -41,6 +41,8 @@ public class MongoRetroLogger : IRetroLogger
     static MongoRetroLogger()
     {
         BsonClassMap<DiagnosticMsg> map = new();
+        map.MapIdProperty(nameof(DiagnosticMsg.MsgId))
+            .SetSerializer(new MongoDB.Bson.Serialization.Serializers.StringSerializer(BsonType.ObjectId));
         map.MapProperty(nameof(DiagnosticMsg.Category));
         map.MapProperty(nameof(DiagnosticMsg.Date));
         map.MapProperty(nameof(DiagnosticMsg.Level));
@@ -48,6 +50,8 @@ public class MongoRetroLogger : IRetroLogger
         map.MapProperty(nameof(DiagnosticMsg.Message));
         map.MapProperty(nameof(DiagnosticMsg.Process));
         map.MapProperty(nameof(DiagnosticMsg.User));
+        map.MapProperty(nameof(DiagnosticMsg.Environment));
+        map.SetIgnoreExtraElements(true);
         BsonClassMap.RegisterClassMap(map);
 
         BsonClassMap<RetroMsg> map2 = new();
@@ -59,10 +63,12 @@ public class MongoRetroLogger : IRetroLogger
         map2.MapProperty(nameof(RetroMsg.Message));
         map2.MapProperty(nameof(RetroMsg.Process));
         map2.MapProperty(nameof(RetroMsg.User));
+        map2.SetIgnoreExtraElements(true);
         BsonClassMap.RegisterClassMap(map2);
 
         BsonClassMap<DeleteMsg> map3 = new();
         map3.MapIdProperty(nameof(DeleteMsg.RecordId));
+        map3.SetIgnoreExtraElements(true);
         BsonClassMap.RegisterClassMap(map3);
     }
 
@@ -237,6 +243,17 @@ public class MongoRetroLogger : IRetroLogger
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)
     {
         IMongoCollection<DiagnosticMsg> collection = GetLogCollection<DiagnosticMsg>();
-        await collection.InsertManyAsync(msg, options: null, cancel);
+        try
+        {
+            await collection.InsertManyAsync(msg, new InsertManyOptions { IsOrdered = false }, cancel);
+        }
+        catch (MongoBulkWriteException ex)
+        {
+            if (ex.WriteErrors.All(e => e.Category == ServerErrorCategory.DuplicateKey))
+            {
+                return;
+            }
+            throw;
+        }
     }
 }

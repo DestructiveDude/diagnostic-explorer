@@ -133,7 +133,7 @@ public class RegistrationHandler
                 }
 
                 Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
-                await adapter.LogEvents(data, cancel).ConfigureAwait(false);
+                await adapter.LogEvents(data, cancel.IsCancellationRequested ? CancellationToken.None : cancel).ConfigureAwait(false);
                 watch2.Stop();
                 Debug.WriteLine($"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms");
             }

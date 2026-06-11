@@ -370,6 +370,10 @@ public partial class Form1 : Form, INotifyPropertyChanged
         {
             BeginInvoke(new Action(SendEventsCore));
         }
+        catch (ObjectDisposedException)
+        {
+            // Handle destroyed and form disposed.
+        }
         catch (InvalidOperationException)
         {
             // Handle destroyed between the check above and the BeginInvoke - the form is
@@ -429,11 +433,6 @@ public partial class Form1 : Form, INotifyPropertyChanged
         _gadgetLog.Info("A gadget was removed");
         _formLog.Info("Form1 removed a gadget");
         GadgetEvents.Register(1);
-
-        //Force a garbage collection to get the removed gadget out of diagnostics
-        //If we had a handle to the removed item we could do this much better
-        //by disposing it
-        GC.Collect();
     }
 
     private void HandleWidgetRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
@@ -441,9 +440,6 @@ public partial class Form1 : Form, INotifyPropertyChanged
         _widgetLog.Info("A widget was removed");
         _formLog.Info("Form1 removed a widget");
         WidgetEvents.Register(1);
-
-        //Read comment in HandleGadgetRemoved above
-        GC.Collect();
     }
 
     private void bAddGadget_Click(object sender, EventArgs e)
@@ -709,6 +705,10 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 }
             });
         }
+        catch (ObjectDisposedException)
+        {
+            // Handle destroyed and form disposed.
+        }
         catch (InvalidOperationException)
         {
             // Handle destroyed between the IsHandleCreated check and Invoke - form is closing.
@@ -745,7 +745,9 @@ public partial class Form1 : Form, INotifyPropertyChanged
                     LoggingEventData data = new()
                     {
                         Message = $"Event #{i}",
-                        Level = IntToLevel(ThreadSafeRandom.Next(1, 12) * 10000)
+                        Level = IntToLevel(ThreadSafeRandom.Next(1, 12) * 10000),
+                        LoggerName = _formLog.Logger.Name,
+                        TimeStampUtc = DateTime.UtcNow
                     };
 
                     _formLog.Logger.Log(new LoggingEvent(data));
@@ -763,7 +765,14 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
     private void btnStartHosting_Click(object sender, EventArgs e)
     {
-        StartDiagnostics();
+        try
+        {
+            StartDiagnostics();
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "Hosting Service", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private static Level IntToLevel(int value)

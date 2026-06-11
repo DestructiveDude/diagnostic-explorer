@@ -25,7 +25,7 @@ internal class CollectionGetter : PropertyGetter
         _mode = attr.Mode;
 
         Type genericType = GenericObjectCache.FindGenericInterface(info.PropertyType, typeof(IDictionary<,>));
-        bool isDictionary = info.PropertyType.GetInterfaces().Contains(typeof(IDictionary));
+        bool isDictionary = typeof(IDictionary).IsAssignableFrom(info.PropertyType);
 
         if (genericType != null)
         {
@@ -75,17 +75,25 @@ internal class CollectionGetter : PropertyGetter
             return null;
         }
 
-        if (!info.PropertyType.IsGenericType)
+        Type colType = null;
+        if (info.PropertyType.IsArray)
+        {
+            colType = info.PropertyType.GetElementType();
+        }
+        else
+        {
+            Type enumerableType = GenericObjectCache.FindGenericInterface(info.PropertyType, typeof(IEnumerable<>));
+            if (enumerableType != null)
+            {
+                colType = enumerableType.GetGenericArguments()[0];
+            }
+        }
+
+        if (colType == null)
         {
             return null;
         }
 
-        if (info.PropertyType.GetGenericArguments().Length != 1)
-        {
-            return null;
-        }
-
-        Type colType = info.PropertyType.GetGenericArguments()[0];
         PropertyInfo propInfo = colType.GetProperty(name, DiagnosticManager.PublicInstancePropertyFlags);
 
         if (propInfo == null)
@@ -106,16 +114,39 @@ internal class CollectionGetter : PropertyGetter
                 return;
             }
 
-            // Materialize once: the count below and each mode branch would otherwise each
-            // re-enumerate the source (concatenate mode up to three passes via FormatEnumerable),
-            // re-running stateful/expensive/single-pass sequences and doubling side effects.
-            List<object> col = rawCol.Cast<object>().ToList();
+            int count = -1;
+            if (rawCol is ICollection c)
+            {
+                count = c.Count;
+            }
+            else
+            {
+                PropertyInfo countProp = rawCol.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+                if (countProp != null && countProp.PropertyType == typeof(int))
+                {
+                    count = (int)countProp.GetValue(rawCol);
+                }
+            }
 
-            int count = col.Count;
-
-            if (count == 0)
+            if (_mode == CollectionMode.Count && count != -1)
             {
                 bag.AddProperty(new Property(Name, FormatValue(count)), PrependToCategory(catPrepend));
+                return;
+            }
+
+            List<object> col = rawCol.Cast<object>().Take(10001).ToList();
+            int actualCount = col.Count;
+            bool wasTruncated = actualCount > 10000;
+            if (wasTruncated)
+            {
+                col.RemoveAt(10000);
+            }
+
+            int displayCount = count != -1 ? count : col.Count;
+
+            if (displayCount == 0)
+            {
+                bag.AddProperty(new Property(Name, FormatValue(0)), PrependToCategory(catPrepend));
                 return;
             }
 
@@ -123,7 +154,8 @@ internal class CollectionGetter : PropertyGetter
             {
                 case CollectionMode.Count:
                     {
-                        bag.AddProperty(new Property(Name, FormatValue(count)), PrependToCategory(catPrepend));
+                        string val = wasTruncated ? "10000+ items" : FormatValue(displayCount);
+                        bag.AddProperty(new Property(Name, val), PrependToCategory(catPrepend));
                         break;
                     }
                 case CollectionMode.Concatenate:
@@ -133,13 +165,21 @@ internal class CollectionGetter : PropertyGetter
                     }
                 case CollectionMode.List:
                     AppendAllProperties(col, bag, catPrepend);
+                    if (wasTruncated)
+                    {
+                        bag.AddProperty(new Property("...", "Truncated at 10000 items"), PrependToCategory(catPrepend));
+                    }
                     break;
                 case CollectionMode.Categories:
                     AppendSeparateCategories(col, bag, catPrepend);
+                    if (wasTruncated)
+                    {
+                        bag.AddProperty(new Property("...", "Truncated at 10000 items"), CombineCategories(catPrepend, "..."));
+                    }
                     break;
             }
         }
-        catch (Exception ex) // May get exception if the collection is modified during iteration
+        catch (Exception ex)
         {
             string error = $"<{ex.Message}>";
             bag.AddProperty(new Property(Name, error), PrependToCategory(catPrepend));
@@ -151,7 +191,40 @@ internal class CollectionGetter : PropertyGetter
         int index = 0;
         foreach (object listObject in col)
         {
-            object catPropVal = GetNextPropVal(listObject, _catFunc, index++);
+            if (listObject == null)
+            {
+                continue;
+            }
+
+            var visited = DiagnosticManager.VisitedObjects;
+            if (visited.Contains(listObject))
+            {
+                Property p = new Property
+                {
+                    Name = "<cycle>",
+                    CanSet = false,
+                    SourceObject = listObject
+                };
+                string cycleCategory = $"Item {index++}";
+                string cyclePrepend = CombineCategories(catPrepend, cycleCategory);
+                bag.AddProperty(p, cyclePrepend);
+                continue;
+            }
+            if (visited.Count > 50)
+            {
+                Property p = new Property
+                {
+                    Name = "<max depth>",
+                    CanSet = false,
+                    SourceObject = listObject
+                };
+                string depthCategory = $"Item {index++}";
+                string depthPrepend = CombineCategories(catPrepend, depthCategory);
+                bag.AddProperty(p, depthPrepend);
+                continue;
+            }
+
+            object catPropVal = GetNextPropVal(listObject, _catFunc ?? _nameFunc, index++);
             string valCategory = Convert.ToString(catPropVal);
             if (!string.IsNullOrEmpty(Category))
             {
@@ -160,13 +233,23 @@ internal class CollectionGetter : PropertyGetter
 
             string newPrepend = CombineCategories(catPrepend, valCategory);
 
-            foreach (PropertyGetter getter in DiagnosticManager.GetPropertyGetters(listObject))
+            visited.Add(listObject);
+            try
             {
-                getter.GetProperties(listObject, bag, newPrepend);
-            }
+                foreach (PropertyGetter getter in DiagnosticManager.GetPropertyGetters(listObject))
+                {
+                    getter.GetProperties(listObject, bag, newPrepend);
+                }
 
-            Category cat = bag.Categories.FindByName(newPrepend);
-            cat?.ValueObject = listObject;
+                if (bag.Categories.FindByName(newPrepend) is Category cat)
+                {
+                    cat.ValueObject = listObject;
+                }
+            }
+            finally
+            {
+                visited.Remove(listObject);
+            }
         }
     }
 
@@ -178,8 +261,12 @@ internal class CollectionGetter : PropertyGetter
             object objectValue = obj;
             string name = Convert.ToString(GetNextPropVal(obj, _nameFunc, index++));
             string val = _valueFunc == null ? FormatValue(obj) : GetValue(obj, _valueFunc, out objectValue);
-            string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out objectValue);
-            string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out objectValue);
+            
+            object dummy1 = obj;
+            string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out dummy1);
+            
+            object dummy2 = obj;
+            string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out dummy2);
 
             Property prop = new Property(name, val, desc)
             {
@@ -193,7 +280,16 @@ internal class CollectionGetter : PropertyGetter
     {
         if (_valueFunc != null)
         {
-            col = col.Cast<object>().Select(_valueFunc);
+            col = col.Cast<object>().Select(item => {
+                try
+                {
+                    return _valueFunc(item);
+                }
+                catch (Exception ex)
+                {
+                    return $"<{ex.Message}>";
+                }
+            });
         }
 
         string val = FormatEnumerable(col, _separator, _maxItems);
@@ -207,6 +303,13 @@ internal class CollectionGetter : PropertyGetter
             return $"{Name} {index}";
         }
 
-        return propFunc(obj);
+        try
+        {
+            return propFunc(obj);
+        }
+        catch (Exception ex)
+        {
+            return $"<{ex.Message}>";
+        }
     }
 }

@@ -33,4 +33,7 @@ public class DiagnosticMsg
     [ProtoMember(8)]
     public string Environment { get; set; }
 
+    [ProtoMember(9)]
+    public string MsgId { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 24);
+
 }

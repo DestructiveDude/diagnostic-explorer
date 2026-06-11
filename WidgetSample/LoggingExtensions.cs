@@ -8,20 +8,24 @@ public static class LoggingExtensions
 {
     public static void Notice(this ILog log, string message, params object[] args)
     {
-        log.Logger.Log(new LoggingEvent(BuildData(message, null, args)));
+        log.Logger.Log(new LoggingEvent(BuildData(log, message, null, args)));
     }
 
-    // Overload that actually attaches the exception. The string-only overload above treats a
-    // trailing Exception as a string.Format arg and silently drops it (the demo's bNotice_Click
-    // hit exactly that anti-pattern); callers with an exception should use this overload.
+    // Overload that attaches the exception.
     public static void Notice(this ILog log, string message, Exception exception, params object[] args)
     {
-        log.Logger.Log(new LoggingEvent(BuildData(message, exception, args)));
+        log.Logger.Log(new LoggingEvent(BuildData(log, message, exception, args)));
     }
 
-    private static LoggingEventData BuildData(string message, Exception exception, object[] args)
+    private static LoggingEventData BuildData(ILog log, string message, Exception exception, object[] args)
     {
-        LoggingEventData data = new() { Message = message, Level = Level.Notice };
+        LoggingEventData data = new()
+        {
+            Message = message,
+            Level = Level.Notice,
+            LoggerName = log.Logger.Name,
+            TimeStampUtc = DateTime.UtcNow
+        };
 
         if (args?.Length > 0)
         {

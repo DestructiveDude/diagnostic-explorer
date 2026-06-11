@@ -112,9 +112,27 @@ public class RetroManager : IHostedService
 
     private async Task RunLoop(CancellationToken cancel)
     {
-        await foreach (var messages in WriteChannel.Reader.ReadAllAsync(cancel))
+        try
         {
-            await TryLog(messages, cancel);
+            await foreach (var messages in WriteChannel.Reader.ReadAllAsync(cancel))
+            {
+                try
+                {
+                    await TryLog(messages, cancel);
+                }
+                catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _log.Error("Uncaught exception in retro-logging worker loop", ex);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected shutdown
         }
     }
 
@@ -144,7 +162,7 @@ public class RetroManager : IHostedService
                     EventsWritten.Register(messages.Count);
                     return;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!cancel.IsCancellationRequested)
                 {
                     _log.Error(ex);
                     await Task.Delay(TimeSpan.FromSeconds(1), cancel);
@@ -182,17 +200,22 @@ public class RetroManager : IHostedService
 
     public Task StartRetroSearch(RetroQuery query, string connectionId, IWebHubClient client)
     {
-        if (_searches.TryRemove(connectionId, out RetroSearchProcess? existingSearch))
-        {
-            existingSearch.Cancel();
-        }
-
         RetroEvents.Info($"Retro search starting for connection {connectionId}",
             JsonSerializer.SerializeToElement(query).ToString());
 
         RetroSearchProcess search = new(this, connectionId, client, query);
-        _searches.TryAdd(connectionId, search);
         search.Finished += HandleSearchFinished;
+
+        RetroSearchProcess? displaced = null;
+        _searches.AddOrUpdate(connectionId,
+            key => search,
+            (key, old) => {
+                displaced = old;
+                return search;
+            });
+
+        displaced?.Cancel();
+
         search.Start();
         return Task.CompletedTask;
     }
@@ -218,10 +241,12 @@ public class RetroManager : IHostedService
         // Remove the finished search so completed searches don't linger in the registry until the
         // connection starts another or disconnects. Pair-remove so a newer search that already
         // replaced this entry is left intact. (A3)
-        _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search));
+        if (_searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search)))
+        {
+            search.Dispose();
+        }
         RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
             JsonSerializer.SerializeToElement(search.Query).ToString());
-        search.Dispose();
     }
 
     public Task CancelConnectionSearch(string connectionId)
@@ -242,7 +267,7 @@ public class RetroManager : IHostedService
             && running.Query.SearchId == searchId)
         {
             running.Cancel();
-            _searches.TryRemove(connectionId, out _);
+            _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(connectionId, running));
         }
 
         return Task.CompletedTask;

@@ -24,6 +24,10 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
         _client = client;
         _callerContext = callerContext;
         ConnectionId = callerContext.ConnectionId;
+    }
+
+    public void Arm()
+    {
         _callerContext.ConnectionAborted.Register(() => Disconnected?.Invoke(this, EventArgs.Empty));
     }
 

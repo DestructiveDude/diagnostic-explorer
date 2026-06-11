@@ -33,6 +33,7 @@ internal class DateGetter : PropertyGetter
     private readonly bool _exposeDate = true;
     private readonly bool _exposeElapsed;
     private readonly bool _exposeTimeUntil;
+    private readonly bool _isUtc;
 
     public DateGetter(PropertyInfo prop, DatePropertyAttribute attr, bool isStatic) : base(prop, isStatic)
     {
@@ -41,6 +42,7 @@ internal class DateGetter : PropertyGetter
             _exposeDate = attr.ExposeDate;
             _exposeElapsed = attr.ExposeElapsed;
             _exposeTimeUntil = attr.ExposeTimeUntil;
+            _isUtc = attr.IsUTC;
         }
     }
 
@@ -61,9 +63,16 @@ internal class DateGetter : PropertyGetter
         {
             var value = GetFunc(obj);
             dateVal = value is DateTimeOffset off ? off.LocalDateTime : (DateTime?) value;
-            if (dateVal != null && dateVal.Value.Kind == DateTimeKind.Utc)
+            if (dateVal != null)
             {
-                dateVal = dateVal.Value.ToLocalTime();
+                if (_isUtc && dateVal.Value.Kind == DateTimeKind.Unspecified)
+                {
+                    dateVal = DateTime.SpecifyKind(dateVal.Value, DateTimeKind.Utc).ToLocalTime();
+                }
+                else if (dateVal.Value.Kind == DateTimeKind.Utc)
+                {
+                    dateVal = dateVal.Value.ToLocalTime();
+                }
             }
         }
         catch (Exception ex)
