@@ -316,11 +316,12 @@ public class RegistrationHandler
 
             _logChannel?.Writer.Complete();
 
-            _stopToken?.Cancel();
+            CancellationTokenSource stopToken = _stopToken;
+            _stopToken = null;
+            stopToken?.Cancel();
 
             _registrationLoop = null;
             _loggingTask = null;
-            _stopToken = null;
 
             // Drain both background tasks before tearing the connection down. (M26)
             try
@@ -357,6 +358,8 @@ public class RegistrationHandler
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await Deregister(cts.Token);
+
+            stopToken?.Dispose();
         }
         finally
         {

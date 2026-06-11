@@ -45,7 +45,7 @@ public class DiagnosticHostingService
     }
 
 
-    public Task StartAsync(CancellationToken cancel)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         Debug.WriteLine($"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}");
         if (_options.Enabled)
@@ -56,7 +56,7 @@ public class DiagnosticHostingService
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancel)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
         Interlocked.CompareExchange(ref _instance, null, this);
         return StopHosting();

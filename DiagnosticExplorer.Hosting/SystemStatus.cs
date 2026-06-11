@@ -96,7 +96,7 @@ internal class SystemStatus
     {
         get {
             using Process p = Process.GetCurrentProcess();
-            return DateTime.Now - p.StartTime;
+            return DateTime.UtcNow - p.StartTime.ToUniversalTime();
         }
     }
 

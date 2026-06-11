@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace DiagnosticExplorer.Hosting;
 
-internal class HubServerAdapter : IDiagnosticHubClient
+internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(HubServerAdapter));
 
@@ -168,14 +168,14 @@ internal class HubServerAdapter : IDiagnosticHubClient
         });
     }
 
-    public Task ExecuteOperation(string requestId, string path, string operation, string[] args)
+    public Task ExecuteOperation(string requestId, string path, string operation, string[] arguments)
     {
         return Task.Run(async () => {
             RpcResult<OperationResponse> result = null;
 
             try
             {
-                OperationResponse response = DiagnosticManager.ExecuteOperation(path, operation, args);
+                OperationResponse response = DiagnosticManager.ExecuteOperation(path, operation, arguments);
                 result = RpcResult<OperationResponse>.Success(requestId, response);
             }
             catch (Exception ex)

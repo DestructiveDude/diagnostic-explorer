@@ -140,7 +140,6 @@ public class EventSink
     {
         while (Events.TryDequeue(out _))
         {
-            ;
         }
 
         Interlocked.Exchange(ref _idCount, 0);

@@ -44,19 +44,19 @@ public class MultiErrorHandler : IErrorHandler
         }
     }
 
-    public void Error(string message, Exception exception)
+    public void Error(string message, Exception e)
     {
         foreach (IErrorHandler handler in _handlers)
         {
-            handler.Error(message, exception);
+            handler.Error(message, e);
         }
     }
 
-    public void Error(string message, Exception exception, ErrorCode errorCode)
+    public void Error(string message, Exception e, ErrorCode errorCode)
     {
         foreach (IErrorHandler handler in _handlers)
         {
-            handler.Error(message, exception, errorCode);
+            handler.Error(message, e, errorCode);
         }
     }
 
@@ -117,14 +117,14 @@ public class AppenderProxyErrorHandler : IErrorHandler
         Record(message, null);
     }
 
-    public void Error(string message, Exception exception)
+    public void Error(string message, Exception e)
     {
-        Record(message, exception);
+        Record(message, e);
     }
 
-    public void Error(string message, Exception exception, ErrorCode errorCode)
+    public void Error(string message, Exception e, ErrorCode errorCode)
     {
-        Record(message, exception);
+        Record(message, e);
     }
 
     private void Record(string message, Exception exception)

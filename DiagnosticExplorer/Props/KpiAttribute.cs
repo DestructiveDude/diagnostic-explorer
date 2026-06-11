@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace DiagnosticExplorer.Props;
 
@@ -22,8 +23,8 @@ public class KpiAttribute : Attribute
 
     public KpiAttribute(string minSample, string maxSample)
     {
-        SampleMinInterval = TimeSpan.Parse(minSample);
-        SampleMaxInterval = TimeSpan.Parse(maxSample);
+        SampleMinInterval = TimeSpan.Parse(minSample, CultureInfo.InvariantCulture);
+        SampleMaxInterval = TimeSpan.Parse(maxSample, CultureInfo.InvariantCulture);
     }
 
     public KpiAttribute(KpiTargetProperty target)
@@ -34,8 +35,8 @@ public class KpiAttribute : Attribute
     public KpiAttribute(KpiTargetProperty target, string minSample, string maxSample)
     {
         Target = target;
-        SampleMinInterval = TimeSpan.Parse(minSample);
-        SampleMaxInterval = TimeSpan.Parse(maxSample);
+        SampleMinInterval = TimeSpan.Parse(minSample, CultureInfo.InvariantCulture);
+        SampleMaxInterval = TimeSpan.Parse(maxSample, CultureInfo.InvariantCulture);
     }
 
     public KpiTargetProperty? Target { get; set; }

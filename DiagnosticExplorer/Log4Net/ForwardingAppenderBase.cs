@@ -67,18 +67,18 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
         DiagnosticManager.Unregister(this);
     }
 
-    public override void AddAppender(IAppender newAppender)
+    public override void AddAppender(IAppender appender)
     {
-        base.AddAppender(newAppender);
-        if (Proxies != null && newAppender != null)
+        base.AddAppender(appender);
+        if (Proxies != null && appender != null)
         {
             lock (_lock)
             {
-                if (!Proxies.Any(p => ReferenceEquals(p.RawAppender, newAppender)))
+                if (!Proxies.Any(p => ReferenceEquals(p.RawAppender, appender)))
                 {
                     var newProxies = new List<AppenderProxy>(Proxies)
                     {
-                        new AppenderProxy(newAppender, FailTimeout)
+                        new AppenderProxy(appender, FailTimeout)
                     };
                     Proxies = newProxies;
                 }
