@@ -1,0 +1,23 @@
+{
+  "stryker-config": {
+    "solution": "DiagnosticExplorer.sln",
+    "project": "ConsoleApp/ConsoleApp.csproj",
+    "test-projects": [
+      "tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj",
+      "tests/DiagnosticService.UnitTests/DiagnosticService.UnitTests.csproj"
+    ],
+    "reporters": ["progress", "html", "json"],
+    "report-file-name": "mutation-report",
+    "mutation-level": "Standard",
+    "coverage-analysis": "off",
+    "test-runner": "mtp",
+    "concurrency": 4,
+    "thresholds": {
+      "high": 80,
+      "low": 70,
+      "break": 0
+    },
+    "test-case-filter": "Category!=Integration",
+    "mutate": ["**/*.cs"]
+  }
+}

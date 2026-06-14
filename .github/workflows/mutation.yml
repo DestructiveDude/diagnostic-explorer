@@ -1,0 +1,56 @@
+name: mutation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  stryker:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore DiagnosticExplorer.sln
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+
+      - name: Tool restore
+        run: dotnet tool restore
+
+      - name: Mutation tests
+        run: dotnet stryker --config-file stryker-config.json
+
+      - name: Summarize mutation report
+        if: always()
+        shell: pwsh
+        run: >
+          .\scripts\summarize-stryker.ps1
+          -ReportPath StrykerOutput/mutation-report.json
+          -JsonOutputPath StrykerOutput/mutation-summary.json
+          -MarkdownOutputPath StrykerOutput/mutation-summary.md |
+          Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-summary
+          path: StrykerOutput/mutation-summary.*
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-report
+          path: StrykerOutput/mutation-report.*

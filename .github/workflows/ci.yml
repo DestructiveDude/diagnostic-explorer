@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: false
+        default: fixportal-dev
+        type: choice
+        options:
+          - fixportal-dev
+          - fixportal-prod
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Lint workflow
+        uses: raven-actions/actionlint@v2
+        with:
+          shellcheck: true
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore DiagnosticExplorer.sln
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+
+      - name: Build
+        run: dotnet build DiagnosticExplorer.sln --configuration Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test DiagnosticExplorer.sln
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory ./TestResults
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore

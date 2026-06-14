@@ -1,101 +1,118 @@
-<#
-.SYNOPSIS
-    Summarize a StrykerJS mutation-report.json into compact JSON and Markdown.
-
-.DESCRIPTION
-    Reads the Stryker JSON report, tallies mutant statuses per file, computes the
-    mutation score (detected / (detected + survived + no-coverage), where detected
-    = killed + timeout), and emits a per-file table plus totals. The Markdown is
-    written to the host (so CI can append it to $GITHUB_STEP_SUMMARY) and,
-    optionally, to files.
-
-.PARAMETER ReportPath
-    Path to Stryker's mutation-report.json.
-
-.PARAMETER JsonOutputPath
-    Optional path to write the compact JSON summary.
-
-.PARAMETER MarkdownOutputPath
-    Optional path to write the Markdown summary.
-#>
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)]
     [string] $ReportPath,
+
     [string] $JsonOutputPath,
+
     [string] $MarkdownOutputPath
 )
 
 $ErrorActionPreference = 'Stop'
 
-$report = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
-
-function Get-Score {
-    param([int] $Killed, [int] $Timeout, [int] $Survived, [int] $NoCoverage)
-    $detected = $Killed + $Timeout
-    $valid = $detected + $Survived + $NoCoverage
-    if ($valid -eq 0) { return $null }
-    return [math]::Round(($detected / $valid) * 100, 2)
+if (-not (Test-Path -LiteralPath $ReportPath)) {
+    throw "Stryker report not found: $ReportPath"
 }
 
-$rows = foreach ($file in $report.files.PSObject.Properties) {
-    $mutants = @($file.Value.mutants)
-    $killed = @($mutants | Where-Object status -eq 'Killed').Count
-    $survived = @($mutants | Where-Object status -eq 'Survived').Count
-    $timeout = @($mutants | Where-Object status -eq 'Timeout').Count
-    $noCoverage = @($mutants | Where-Object status -eq 'NoCoverage').Count
-    $ignored = @($mutants | Where-Object status -eq 'Ignored').Count
+$report = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
+$files = @($report.files.PSObject.Properties)
+$allStatuses = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
+$rows = foreach ($file in $files) {
+    $mutants = @($file.Value.mutants)
+    foreach ($mutant in $mutants) {
+        [void]$allStatuses.Add([string]$mutant.status)
+    }
     [pscustomobject]@{
-        file       = $file.Name
-        score      = Get-Score -Killed $killed -Timeout $timeout -Survived $survived -NoCoverage $noCoverage
-        killed     = $killed
-        survived   = $survived
-        timeout    = $timeout
-        noCoverage = $noCoverage
-        ignored    = $ignored
-        total      = $mutants.Count
+        file     = [System.IO.Path]::GetFileName($file.Name)
+        killed   = @($mutants | Where-Object status -eq 'Killed').Count
+        survived = @($mutants | Where-Object status -eq 'Survived').Count
+        ignored  = @($mutants | Where-Object status -eq 'Ignored').Count
+        total    = $mutants.Count
     }
 }
 
-$rows = @($rows | Sort-Object file)
-
-$totals = [pscustomobject]@{
-    score      = Get-Score `
-        -Killed     (($rows | Measure-Object killed -Sum).Sum) `
-        -Timeout    (($rows | Measure-Object timeout -Sum).Sum) `
-        -Survived   (($rows | Measure-Object survived -Sum).Sum) `
-        -NoCoverage (($rows | Measure-Object noCoverage -Sum).Sum)
-    killed     = ($rows | Measure-Object killed -Sum).Sum
-    survived   = ($rows | Measure-Object survived -Sum).Sum
-    timeout    = ($rows | Measure-Object timeout -Sum).Sum
-    noCoverage = ($rows | Measure-Object noCoverage -Sum).Sum
-    ignored    = ($rows | Measure-Object ignored -Sum).Sum
-    total      = ($rows | Measure-Object total -Sum).Sum
+$killed = @($rows | Measure-Object -Property killed -Sum).Sum
+$survived = @($rows | Measure-Object -Property survived -Sum).Sum
+$ignored = @($rows | Measure-Object -Property ignored -Sum).Sum
+$total = @($rows | Measure-Object -Property total -Sum).Sum
+$tested = $total - $ignored
+$score = if ($tested -eq 0) { 0 } else { [math]::Round(($killed / $tested) * 100, 1) }
+$hotspots = @(
+    $rows |
+        Where-Object survived -gt 0 |
+        Sort-Object -Property @{ Expression = 'survived'; Descending = $true }, file |
+        Select-Object -First 5
+)
+$statusTotals = [ordered]@{}
+foreach ($status in ($allStatuses | Sort-Object)) {
+    $statusTotals[$status] = @(
+        $files |
+            ForEach-Object { @($_.Value.mutants | Where-Object status -eq $status).Count } |
+            Measure-Object -Sum
+    ).Sum
 }
 
-$summary = [pscustomobject]@{
-    totals = $totals
-    files  = $rows
+$summary = [ordered]@{
+    killed       = $killed
+    survived     = $survived
+    ignored      = $ignored
+    tested       = $tested
+    score        = $score
+    statusTotals = $statusTotals
+    hotspots     = $hotspots
 }
+
+$markdown = @(
+    '### Stryker mutation summary'
+    ''
+    "| Metric | Value |"
+    "| --- | ---: |"
+    "| Killed | $killed |"
+    "| Survived | $survived |"
+    "| Ignored | $ignored |"
+    "| Tested mutants | $tested |"
+    "| Score (killed/tested) | $score% |"
+    ''
+)
+
+$extraStatuses = @($statusTotals.GetEnumerator() | Where-Object { $_.Key -notin @('Killed', 'Survived', 'Ignored') -and $_.Value -gt 0 })
+if ($extraStatuses.Count -gt 0) {
+    $markdown += "| Additional status | Count |"
+    $markdown += "| --- | ---: |"
+    foreach ($entry in $extraStatuses) {
+        $markdown += "| $($entry.Key) | $($entry.Value) |"
+    }
+    $markdown += ''
+}
+
+if ($hotspots.Count -gt 0) {
+    $markdown += "| File | Killed | Survived | Ignored |"
+    $markdown += "| --- | ---: | ---: | ---: |"
+    foreach ($hotspot in $hotspots) {
+        $markdown += "| $($hotspot.file) | $($hotspot.killed) | $($hotspot.survived) | $($hotspot.ignored) |"
+    }
+}
+else {
+    $markdown += "No surviving mutants."
+}
+
+$markdownText = ($markdown -join [Environment]::NewLine) + [Environment]::NewLine
 
 if ($JsonOutputPath) {
-    $summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $JsonOutputPath -Encoding utf8
+    $directory = Split-Path -Parent $JsonOutputPath
+    if ($directory) {
+        [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    }
+    $summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $JsonOutputPath
 }
-
-$lines = [System.Collections.Generic.List[string]]::new()
-$lines.Add("## Angular mutation summary")
-$lines.Add("")
-$lines.Add("**Overall mutation score: $($totals.score)%** — killed $($totals.killed), survived $($totals.survived), timeout $($totals.timeout), no-coverage $($totals.noCoverage), ignored $($totals.ignored) (total $($totals.total)).")
-$lines.Add("")
-$lines.Add("| File | Score % | Killed | Survived | Timeout | No cover | Total |")
-$lines.Add("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
-foreach ($r in $rows) {
-    $lines.Add("| $($r.file) | $($r.score) | $($r.killed) | $($r.survived) | $($r.timeout) | $($r.noCoverage) | $($r.total) |")
-}
-$markdown = $lines -join "`n"
 
 if ($MarkdownOutputPath) {
-    $markdown | Set-Content -LiteralPath $MarkdownOutputPath -Encoding utf8
+    $directory = Split-Path -Parent $MarkdownOutputPath
+    if ($directory) {
+        [System.IO.Directory]::CreateDirectory($directory) | Out-Null
+    }
+    $markdownText | Set-Content -LiteralPath $MarkdownOutputPath
 }
 
-$markdown
+$markdownText
