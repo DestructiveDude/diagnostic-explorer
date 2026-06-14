@@ -22,10 +22,13 @@
     </PackageReference>
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="AwesomeAssertions" Version="9.4.0" />
+    <PackageReference Include="FixPortal.CodeStyle.ArchRules" Version="0.1.2" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" Version="0.13.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\DiagnosticExplorer\DiagnosticExplorer.csproj" />
+    <ProjectReference Include="..\..\DiagnosticExplorer.Hosting\DiagnosticExplorer.Hosting.csproj" />
   </ItemGroup>
 
 </Project>
