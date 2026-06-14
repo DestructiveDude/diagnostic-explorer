@@ -21,20 +21,20 @@
   </ItemGroup>
 
   <ItemGroup>
-	  <PackageReference Include="Azure.Identity" Version="1.21.0" />
-	  <PackageReference Include="Azure.Monitor.Ingestion" Version="1.2.0" />
-	  <PackageReference Include="Azure.Monitor.Query" Version="1.7.1" />
-	  <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.0" />
-	  <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.SlowCheetah" Version="4.0.50">
+	  <PackageReference Include="Azure.Identity" />
+	  <PackageReference Include="Azure.Monitor.Ingestion" />
+	  <PackageReference Include="Azure.Monitor.Query" />
+	  <PackageReference Include="Microsoft.AspNetCore.SpaProxy" />
+	  <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
+    <PackageReference Include="Microsoft.VisualStudio.SlowCheetah">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="MongoDB.Driver" Version="2.29.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="SharpCompress" Version="0.48.1" />
-    <PackageReference Include="Snappier" Version="1.3.1" />
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="Snappier" />
   </ItemGroup>
 
   <ItemGroup>

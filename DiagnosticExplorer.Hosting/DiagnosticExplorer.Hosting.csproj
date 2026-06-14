@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net10.0;net6.0;net48</TargetFrameworks>
+		<TargetFramework>net10.0</TargetFramework>
 		<Version>3.2.2</Version>
 		<AssemblyVersion>3.2.2.0</AssemblyVersion>
 		<FileVersion>3.2.2.0</FileVersion>
@@ -14,17 +14,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
-		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.7" />
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" />
 	</ItemGroup>
 
 
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="6.0.0" />
-		<PackageReference Include="System.Reactive" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+		<PackageReference Include="System.Reactive" />
 	</ItemGroup>
 
 </Project>
