@@ -5,7 +5,7 @@ Findings) for this repo. Substitutes for the missing dismiss UI — a finding pr
 `dismissed` or `fixed` does not need re-investigation when it resurfaces.
 
 Scan source: GitHub Code Quality (CodeQL default setup, Code Quality mode — no REST API; web UI only).
-Last triage: 2026-06-10 (batch23).
+Last triage: 2026-06-15 (batch24).
 
 | Finding | Status | Reason | Rationale | First seen |
 |---|---|---|---|---|
@@ -35,3 +35,11 @@ Last triage: 2026-06-10 (batch23).
 | `WidgetSample/Form1.cs:666,671` — encoding-artifact (SCOPE TASK strings) | fixed | — | Replaced U+FFFD garbled characters with `###$%` ASCII marker pattern | 2026-06-10 |
 | `tests/DiagnosticService.UnitTests/LogAnalyticsRetroLoggerTests.cs:164` — Delete test missing message assertion | fixed | — | Added `.WithMessage("*not supported*")` to `ThrowAsync<NotSupportedException>` | 2026-06-10 |
 | Generic catch — all `catch (Exception)` in diagnostic/logging infrastructure (~105 instances) | dismissed | by-design | Appenders must not throw (log4net contract); diagnostic walkers must degrade gracefully; `Dispose()` methods must not throw. Every catch logs or degrades to an error string. Files: DiagnosticHostingService, WebApiUtil, EventSink, DiagnosticManager, AppenderProxy, AsyncProcessor, SmtpAppender, DateGetter, CollectionGetter, ExtendedPropertyGetter, RateGetter, RateCounter, PropertyGetter, TraceScope, HubServerAdapter, RegistrationHandler, DiagnosticSubscription, WebClientHandler, MongoRetroLogger, RealtimeManager, RetroSearchProcess, LoggingExtensions, Form1 | 2026-06-10 |
+| `DiagnosticService/ClientHandlers/WebClientHandler.cs:180` — manual-dispose-in-finally | fixed | — | Replaced `eventStreamCancel.Dispose()` in finally with `using (eventStreamCancel)` wrapper | 2026-06-15 |
+| `DiagnosticExplorer/Events/EventSink.cs:149` — empty-while-body | dismissed | by-design | Queue drain pattern; `TryDequeue` is the side-effecting predicate — empty body is intentional | 2026-06-15 |
+| `DiagnosticExplorer/Events/EventSinkStream.cs:72` — empty-catch-ObjectDisposedException | dismissed | by-design | Race between subject disposal and stream event delivery; swallowing is correct (same as HubServerAdapter.cs:81) | 2026-06-15 |
+| `DiagnosticService/Hubs/RetroSearchProcess.cs:33` — empty-catch-ObjectDisposedException | dismissed | by-design | CTS may be disposed before Cancel() is called during teardown; swallowing is correct | 2026-06-15 |
+| `DiagnosticExplorer/DiagnosticManager.cs:452` — implicit-foreach-filter | dismissed | false positive | `yieldedNames.Add()` is a side-effecting predicate; cannot lift to `.Where()` without breaking add-on-first-seen semantics; outer `.Where(p => ShouldIncludeProperty(...))` is already present | 2026-06-15 |
+| `DiagnosticExplorer.Hosting/SystemStatus.cs:67,76` — wrong-category-label (AI Finding) | fixed | — | `VirtualMemory` and `Memory` had `Category = "CPU"`; corrected to `"Memory"` | 2026-06-15 |
+| `tests/DiagnosticService.UnitTests/RetroSearchLifecycleTests.cs` — polling-loop + missing-cleanup (AI Finding) | fixed | — | Replaced 2s polling loop with `TaskCompletionSource` in `StartRetroSearch` test; added try-finally `StopAsync` guard to both async tests | 2026-06-15 |
+| GitHub CI workflows (ci.yml, dotnet-tests.yml, mutation-web.yml) — missing-permissions (CodeQL) | fixed | — | Added `permissions: contents: read` at workflow level | 2026-06-15 |

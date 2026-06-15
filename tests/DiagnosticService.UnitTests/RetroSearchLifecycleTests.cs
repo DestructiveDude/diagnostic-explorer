@@ -123,26 +123,26 @@ public class RetroSearchLifecycleTests
     {
         RetroManager manager = CreateManager();
         await manager.StartAsync(TestContext.Current.CancellationToken);
-
-        IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
-        mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
-            .Returns(GetEmptyAsyncEnumerable());
-        SetPrivateField(manager, "_logger", mockLogger);
-
-        IWebHubClient client = Substitute.For<IWebHubClient>();
-        RetroQuery query = new() { SearchId = 123 };
-
-        await manager.StartRetroSearch(query, "conn-123", client);
-
-        int delay = 0;
-        while (SearchMap(manager).ContainsKey("conn-123") && delay < 2000)
+        try
         {
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-            delay += 20;
-        }
+            TaskCompletionSource<bool> searchCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
+            mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
+                .Returns(GetEmptyAsyncEnumerableWithCompletion(searchCompleted));
+            SetPrivateField(manager, "_logger", mockLogger);
 
-        SearchMap(manager).Should().NotContainKey("conn-123");
-        await manager.StopAsync(TestContext.Current.CancellationToken);
+            IWebHubClient client = Substitute.For<IWebHubClient>();
+            RetroQuery query = new() { SearchId = 123 };
+
+            await manager.StartRetroSearch(query, "conn-123", client);
+            await searchCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+            SearchMap(manager).Should().NotContainKey("conn-123");
+        }
+        finally
+        {
+            await manager.StopAsync(TestContext.Current.CancellationToken);
+        }
     }
 
     private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerable()
@@ -150,26 +150,43 @@ public class RetroSearchLifecycleTests
         yield break;
     }
 
+    private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerableWithCompletion(TaskCompletionSource<bool> completion)
+    {
+        try
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+        finally
+        {
+            completion.TrySetResult(true);
+        }
+    }
+
     [Fact]
     public async Task LogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
         RetroManager manager = CreateManager();
         await manager.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
+            FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
 
-        OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-        FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
+            using IDisposable subscription = subject.Subscribe(observer);
 
-        using IDisposable subscription = subject.Subscribe(observer);
+            RunConcurrentPublishes(
+                count: 24,
+                publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
 
-        RunConcurrentPublishes(
-            count: 24,
-            publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
-
-        observer.OverlapDetected.Should().BeFalse();
-        observer.SeenValues.Should().Be(24);
-
-        await manager.StopAsync(TestContext.Current.CancellationToken);
+            observer.OverlapDetected.Should().BeFalse();
+            observer.SeenValues.Should().Be(24);
+        }
+        finally
+        {
+            await manager.StopAsync(TestContext.Current.CancellationToken);
+        }
     }
 
     private static RetroManager CreateManager()

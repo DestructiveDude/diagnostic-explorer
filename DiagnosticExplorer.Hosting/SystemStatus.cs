@@ -64,7 +64,7 @@ internal class SystemStatus
     }
 
 
-    [Property(Category = "CPU", FormatString = "{0:N2}")]
+    [Property(Category = "Memory", FormatString = "{0:N2}")]
     public double VirtualMemory
     {
         get {
@@ -73,7 +73,7 @@ internal class SystemStatus
         }
     }
 
-    [Property(Category = "CPU", FormatString = "{0:N2}")]
+    [Property(Category = "Memory", FormatString = "{0:N2}")]
     public double Memory
     {
         get {

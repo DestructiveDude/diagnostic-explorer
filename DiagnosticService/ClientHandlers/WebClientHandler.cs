@@ -163,21 +163,22 @@ public class WebClientHandler
 
     private async Task ObserveEventStream(string id, Task eventStreamTask, CancellationTokenSource eventStreamCancel)
     {
-        try
+        using (eventStreamCancel)
         {
-            await eventStreamTask;
-        }
-        finally
-        {
-            lock (_eventStreamLock)
+            try
             {
-                if (_eventStreams.TryGetValue(id, out var state) && ReferenceEquals(state.Task, eventStreamTask))
+                await eventStreamTask;
+            }
+            finally
+            {
+                lock (_eventStreamLock)
                 {
-                    _eventStreams.TryRemove(id, out _);
+                    if (_eventStreams.TryGetValue(id, out var state) && ReferenceEquals(state.Task, eventStreamTask))
+                    {
+                        _eventStreams.TryRemove(id, out _);
+                    }
                 }
             }
-
-            eventStreamCancel.Dispose();
         }
     }
 
