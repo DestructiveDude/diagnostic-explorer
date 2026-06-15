@@ -17,6 +17,9 @@ on:
           - fixportal-dev
           - fixportal-prod
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false

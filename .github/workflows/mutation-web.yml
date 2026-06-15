@@ -15,6 +15,9 @@ on:
       - '.github/workflows/mutation-web.yml'
       - 'scripts/summarize-stryker.ps1'
 
+permissions:
+  contents: read
+
 jobs:
   stryker-web:
     runs-on: blacksmith-4vcpu-ubuntu-2404
