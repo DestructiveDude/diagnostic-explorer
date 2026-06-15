@@ -38,16 +38,16 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore DiagnosticExplorer.sln
+        run: dotnet restore DiagnosticExplorer.slnx
         env:
-          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: dotnet build DiagnosticExplorer.sln --configuration Release --no-restore
+        run: dotnet build DiagnosticExplorer.slnx --configuration Release --no-restore
 
       - name: Test
         run: >
-          dotnet test DiagnosticExplorer.sln
+          dotnet test DiagnosticExplorer.slnx
           --configuration Release
           --no-build
           --logger "trx;LogFileName=test-results.trx"

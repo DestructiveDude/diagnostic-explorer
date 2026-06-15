@@ -23,11 +23,9 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 
 namespace DiagnosticExplorer.Props;
 
-[Serializable]
 public class PropertyBagNotFoundException : Exception
 {
     public PropertyBagNotFoundException()
@@ -35,10 +33,6 @@ public class PropertyBagNotFoundException : Exception
     }
 
     public PropertyBagNotFoundException(string bagName) : base($"PropertyBag [{bagName}] not found")
-    {
-    }
-
-    protected PropertyBagNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

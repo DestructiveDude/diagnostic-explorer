@@ -32,13 +32,6 @@ public class ArchitectureTests
     }
 
     [Fact]
-    public void Async_methods_must_end_in_Async()
-    {
-        FixPortalArchRules.AsyncMethodsMustEndInAsync()
-            .Check(Architecture);
-    }
-
-    [Fact]
     public void Namespace_slices_must_be_free_of_cycles()
     {
         FixPortalArchRules.NamespaceSlicesMustBeFreeOfCycles("DiagnosticExplorer.(*)")

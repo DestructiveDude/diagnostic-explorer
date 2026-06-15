@@ -28,10 +28,8 @@
   <ItemGroup>
     <PackageReference Include="log4net" />
     <PackageReference Include="protobuf-net" />
-    <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Reactive" />
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="System.Threading.Channels" />
+
   </ItemGroup>
 
 </Project>
