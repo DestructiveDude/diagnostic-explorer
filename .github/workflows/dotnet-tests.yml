@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 env:
   GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
