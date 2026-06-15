@@ -125,19 +125,32 @@ public class RetroSearchLifecycleTests
         await manager.StartAsync(TestContext.Current.CancellationToken);
         try
         {
-            TaskCompletionSource<bool> searchCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
             IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
             mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
-                .Returns(GetEmptyAsyncEnumerableWithCompletion(searchCompleted));
+                .Returns(GetEmptyAsyncEnumerable());
             SetPrivateField(manager, "_logger", mockLogger);
 
             IWebHubClient client = Substitute.For<IWebHubClient>();
             RetroQuery query = new() { SearchId = 123 };
 
             await manager.StartRetroSearch(query, "conn-123", client);
-            await searchCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
 
-            SearchMap(manager).Should().NotContainKey("conn-123");
+            // Subscribe to Finished on the in-flight process to signal completion without polling.
+            // Double-check after subscribing to handle the race where Finished fires first and
+            // HandleSearchFinished removes the map entry before we subscribe.
+            var map = SearchMap(manager);
+            TaskCompletionSource<bool> searchDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (map.TryGetValue("conn-123", out var searchProcess))
+            {
+                searchProcess.Finished += (_, _) => searchDone.TrySetResult(true);
+            }
+            if (!map.ContainsKey("conn-123"))
+            {
+                searchDone.TrySetResult(true);
+            }
+
+            await searchDone.Task.WaitAsync(TestContext.Current.CancellationToken);
+            map.Should().NotContainKey("conn-123");
         }
         finally
         {
@@ -148,19 +161,6 @@ public class RetroSearchLifecycleTests
     private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerable()
     {
         yield break;
-    }
-
-    private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerableWithCompletion(TaskCompletionSource<bool> completion)
-    {
-        try
-        {
-            await Task.CompletedTask;
-            yield break;
-        }
-        finally
-        {
-            completion.TrySetResult(true);
-        }
     }
 
     [Fact]
