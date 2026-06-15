@@ -17,6 +17,8 @@ ARG BUILD_CONFIGURATION=Release
 ARG GITHUB_PACKAGES_TOKEN
 WORKDIR /src
 COPY ["nuget.config", "./"]
+COPY ["Directory.Packages.props", "./"]
+COPY ["Directory.Build.props", "./"]
 COPY ["DiagnosticService/Diagnostic.Service.csproj", "DiagnosticService/"]
 COPY ["DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj", "DiagnosticExplorer.Hosting/"]
 COPY ["DiagnosticExplorer/DiagnosticExplorer.csproj", "DiagnosticExplorer/"]
