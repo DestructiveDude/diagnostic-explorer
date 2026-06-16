@@ -1,7 +1,7 @@
 {
   "stryker-config": {
     "solution": "DiagnosticExplorer.slnx",
-    "project": "ConsoleApp/ConsoleApp.csproj",
+    "project": "DiagnosticService/Diagnostic.Service.csproj",
     "test-projects": [
       "tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj",
       "tests/DiagnosticService.UnitTests/DiagnosticService.UnitTests.csproj"

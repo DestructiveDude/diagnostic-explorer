@@ -135,21 +135,20 @@ public class RetroSearchLifecycleTests
 
             await manager.StartRetroSearch(query, "conn-123", client);
 
-            // Subscribe to Finished on the in-flight process to signal completion without polling.
-            // Double-check after subscribing to handle the race where Finished fires first and
-            // HandleSearchFinished removes the map entry before we subscribe.
+            // The search runs on a background task and the manager drops the tracked entry on
+            // completion. Poll for that removal with a bounded timeout rather than subscribing to
+            // Finished and re-checking the map: that had a TOCTOU window (Finished could fire and
+            // HandleSearchFinished remove the entry before the subscription), leaving the wait to
+            // block to the runner timeout. The bounded poll fails fast instead of hanging.
             var map = SearchMap(manager);
-            TaskCompletionSource<bool> searchDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (map.TryGetValue("conn-123", out var searchProcess))
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
+            while (map.ContainsKey("conn-123"))
             {
-                searchProcess.Finished += (_, _) => searchDone.TrySetResult(true);
-            }
-            if (!map.ContainsKey("conn-123"))
-            {
-                searchDone.TrySetResult(true);
+                timeoutCts.Token.ThrowIfCancellationRequested();
+                await Task.Delay(20, timeoutCts.Token);
             }
 
-            await searchDone.Task.WaitAsync(TestContext.Current.CancellationToken);
             map.Should().NotContainKey("conn-123");
         }
         finally

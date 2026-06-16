@@ -43,7 +43,7 @@ jobs:
           $report = Join-Path $latest.FullName 'reports/mutation-report.json'
           $jsonSummary = Join-Path $latest.FullName 'reports/mutation-summary.json'
           $mdSummary = Join-Path $latest.FullName 'reports/mutation-summary.md'
-          .\scripts\summarize-stryker.ps1 -ReportPath $report -JsonOutputPath $jsonSummary -MarkdownOutputPath $mdSummary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          ./scripts/summarize-stryker.ps1 -ReportPath $report -JsonOutputPath $jsonSummary -MarkdownOutputPath $mdSummary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - uses: actions/upload-artifact@v7
         if: always()

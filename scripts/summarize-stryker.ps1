@@ -24,20 +24,29 @@ $rows = foreach ($file in $files) {
         [void]$allStatuses.Add([string]$mutant.status)
     }
     [pscustomobject]@{
-        file     = [System.IO.Path]::GetFileName($file.Name)
-        killed   = @($mutants | Where-Object status -eq 'Killed').Count
-        survived = @($mutants | Where-Object status -eq 'Survived').Count
-        ignored  = @($mutants | Where-Object status -eq 'Ignored').Count
-        total    = $mutants.Count
+        file       = [System.IO.Path]::GetFileName($file.Name)
+        killed     = @($mutants | Where-Object status -eq 'Killed').Count
+        survived   = @($mutants | Where-Object status -eq 'Survived').Count
+        timeout    = @($mutants | Where-Object status -eq 'Timeout').Count
+        noCoverage = @($mutants | Where-Object status -eq 'NoCoverage').Count
+        ignored    = @($mutants | Where-Object status -eq 'Ignored').Count
+        total      = $mutants.Count
     }
 }
 
 $killed = @($rows | Measure-Object -Property killed -Sum).Sum
 $survived = @($rows | Measure-Object -Property survived -Sum).Sum
+$timeout = @($rows | Measure-Object -Property timeout -Sum).Sum
+$noCoverage = @($rows | Measure-Object -Property noCoverage -Sum).Sum
 $ignored = @($rows | Measure-Object -Property ignored -Sum).Sum
 $total = @($rows | Measure-Object -Property total -Sum).Sum
-$tested = $total - $ignored
-$score = if ($tested -eq 0) { 0 } else { [math]::Round(($killed / $tested) * 100, 1) }
+# Stryker mutation score = detected / valid, where a Timeout counts as detected (a real
+# kill) and NoCoverage counts against the denominator. CompileError/RuntimeError/Ignored
+# are excluded as invalid. The prior killed/(total-ignored) both dropped Timeout from the
+# numerator and counted invalid mutants in the denominator, deflating the score.
+$detected = $killed + $timeout
+$valid = $detected + $survived + $noCoverage
+$score = if ($valid -eq 0) { 0 } else { [math]::Round(($detected / $valid) * 100, 1) }
 $hotspots = @(
     $rows |
         Where-Object survived -gt 0 |
@@ -56,8 +65,11 @@ foreach ($status in ($allStatuses | Sort-Object)) {
 $summary = [ordered]@{
     killed       = $killed
     survived     = $survived
+    timeout      = $timeout
+    noCoverage   = $noCoverage
     ignored      = $ignored
-    tested       = $tested
+    detected     = $detected
+    valid        = $valid
     score        = $score
     statusTotals = $statusTotals
     hotspots     = $hotspots
@@ -70,9 +82,10 @@ $markdown = @(
     "| --- | ---: |"
     "| Killed | $killed |"
     "| Survived | $survived |"
+    "| Timeout | $timeout |"
+    "| No coverage | $noCoverage |"
     "| Ignored | $ignored |"
-    "| Tested mutants | $tested |"
-    "| Score (killed/tested) | $score% |"
+    "| Mutation score (detected/valid) | $score% |"
     ''
 )
 

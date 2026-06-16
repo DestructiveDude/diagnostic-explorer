@@ -23,7 +23,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  # true: with push on all branches + PRs there is no deploy job to protect, so a newer
+  # commit on the same ref should supersede an in-flight run rather than stack redundant ones.
+  cancel-in-progress: true
 
 jobs:
   backend:
