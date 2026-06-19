@@ -32,7 +32,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using DiagnosticExplorer.Util;
 using log4net;
 using ATraceItem = DiagnosticExplorer.Trace.TraceItem<DiagnosticExplorer.Trace.TraceScope>;
 
@@ -104,10 +103,9 @@ public class TraceScope : IDisposable
     {
         try
         {
-            using (_traceItemsLock.WriteGuard())
-            {
-                _traceItems.Add(traceItem);
-            }
+            _traceItemsLock.EnterWriteLock();
+            try { _traceItems.Add(traceItem); }
+            finally { _traceItemsLock.ExitWriteLock(); }
         }
         catch (ObjectDisposedException)
         {
@@ -187,7 +185,8 @@ public class TraceScope : IDisposable
             return;
         }
 
-        using (_traceItemsLock.ReadGuard())
+        _traceItemsLock.EnterReadLock();
+        try
         {
             if (_traceItems.Count == 0)
             {
@@ -217,6 +216,10 @@ public class TraceScope : IDisposable
 
                 WriteEndScope(writer, scopeStart, ref lastMessage);
             }
+        }
+        finally
+        {
+            _traceItemsLock.ExitReadLock();
         }
     }
 

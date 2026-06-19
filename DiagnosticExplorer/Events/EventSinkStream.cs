@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Channels;
-using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer.Events;
 
@@ -26,7 +26,9 @@ public sealed class EventSinkStream : IDisposable
 
         _innerSubject = new Subject<SystemEvent>();
         _eventSubject = Subject.Synchronize(_innerSubject);
-        _eventSubscription = _eventSubject.BufferWhenAvailable(buffer)
+        _eventSubscription = _eventSubject
+            .Publish(sp => sp.GroupByUntil(_ => true, _ => Observable.Timer(buffer))
+                .SelectMany(i => i.ToList()))
             .Subscribe(WriteEvents, () => EventChannel?.Writer.Complete());
 
         EventChannel = Channel.CreateBounded<IList<SystemEvent>>(

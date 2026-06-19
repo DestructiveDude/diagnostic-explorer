@@ -168,7 +168,7 @@ public class DiagnosticHostingService
 
     public static void Start(string url, Action<HttpConnectionOptions> configureHttp = null)
     {
-        DiagnosticOptions options = new(url);
+        DiagnosticOptions options = new() { Uri = url };
         TryStart(new DiagnosticHostingService(options, configureHttp));
     }
 

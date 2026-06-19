@@ -488,7 +488,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
         catch (Exception ex)
         {
             string msg = "Notice something went a little wrong.";
-            _formLog.Notice(msg, ex);
+            _formLog.Warn(msg, ex);
             // MessageBox.Show(this, msg + "  Check diagnostics for a full stack trace.");
         }
     }
