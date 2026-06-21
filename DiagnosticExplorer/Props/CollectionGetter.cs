@@ -262,11 +262,8 @@ internal class CollectionGetter : PropertyGetter
             string name = Convert.ToString(GetNextPropVal(obj, _nameFunc, index++));
             string val = _valueFunc == null ? FormatValue(obj) : GetValue(obj, _valueFunc, out objectValue);
             
-            object dummy1 = obj;
-            string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out dummy1);
-            
-            object dummy2 = obj;
-            string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out dummy2);
+            string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out _);
+            string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out _);
 
             Property prop = new Property(name, val, desc)
             {
