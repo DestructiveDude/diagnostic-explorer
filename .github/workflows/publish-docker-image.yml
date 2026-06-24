@@ -57,7 +57,7 @@ jobs:
           npm run build
 
       - name: Setup Blacksmith Builder
-        uses: useblacksmith/setup-docker-builder@v1
+        uses: useblacksmith/setup-docker-builder@ab5c1da94f53f5cd75c1038092aa276dddfccbba # v1
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -85,7 +85,7 @@ jobs:
             type=sha,prefix=sha-,format=short
 
       - name: Build and push
-        uses: useblacksmith/build-push-action@v2
+        uses: useblacksmith/build-push-action@fb9e3e6a9299c78462bfadd0d93352c316adc9b8 # v2
         with:
           context: .
           file: Docker/Dockerfile
