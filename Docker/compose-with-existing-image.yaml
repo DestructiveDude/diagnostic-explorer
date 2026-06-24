@@ -15,7 +15,7 @@
 #   DIAGEXPLORER_IMAGE_NAME  - registry path of the image
 #                              (default: ghcr.io/cell001nz/diagnostic-explorer)
 #                              Override to pull from a fork's GHCR, e.g.
-#                              ghcr.io/destructivedude/diagnostic-explorer.
+#                              ghcr.io/chris-fixportal/diagnostic-explorer.
 #   DIAGEXPLORER_IMAGE_TAG   - which published image tag  (default: latest)
 #                              `latest` tracks main; pin to `v3.1.37` /
 #                              `sha-abc1234` for a specific build.
