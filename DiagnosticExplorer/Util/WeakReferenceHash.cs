@@ -34,15 +34,8 @@ public class WeakReferenceHash<T> where T : class
 
     public void Add(string name, T obj)
     {
-        if (name == null)
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
-
-        if (obj == null)
-        {
-            throw new ArgumentNullException(nameof(obj));
-        }
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(obj);
 
         // Check-then-act under the same lock: SortedDictionary is not safe for a read racing a write,
         // and the duplicate check must be atomic with the insert. (B3)
@@ -68,10 +61,7 @@ public class WeakReferenceHash<T> where T : class
 
     public void Remove(string name)
     {
-        if (name == null)
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
+        ArgumentNullException.ThrowIfNull(name);
 
         lock (items)
         {

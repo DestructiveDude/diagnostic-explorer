@@ -16,10 +16,7 @@ public class FallbackAppender : ForwardingAppenderBase
 
     protected override void Append(LoggingEvent loggingEvent)
     {
-        if (loggingEvent == null)
-        {
-            throw new ArgumentNullException(nameof(loggingEvent));
-        }
+        ArgumentNullException.ThrowIfNull(loggingEvent);
 
         EventsIn.Register(1);
 
@@ -28,10 +25,7 @@ public class FallbackAppender : ForwardingAppenderBase
 
     protected override void Append(LoggingEvent[] loggingEvents)
     {
-        if (loggingEvents == null)
-        {
-            throw new ArgumentNullException(nameof(loggingEvents));
-        }
+        ArgumentNullException.ThrowIfNull(loggingEvents);
 
         if (loggingEvents.Length == 0)
         {

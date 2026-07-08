@@ -205,10 +205,7 @@ public static class DiagnosticManager
 
     private static OperationSet CreateOperationSet(Type propType)
     {
-        if (propType == null)
-        {
-            throw new ArgumentNullException(nameof(propType));
-        }
+        ArgumentNullException.ThrowIfNull(propType);
 
         if (propType.FullName == null)
         {
@@ -232,10 +229,7 @@ public static class DiagnosticManager
 
     private static OperationSet CreateStaticOperationSet(Type propType)
     {
-        if (propType == null)
-        {
-            throw new ArgumentNullException(nameof(propType));
-        }
+        ArgumentNullException.ThrowIfNull(propType);
 
         if (propType.FullName == null)
         {
@@ -505,10 +499,7 @@ public static class DiagnosticManager
 
     public static Type GetUnderlyingType(Type t)
     {
-        if (t == null)
-        {
-            throw new ArgumentNullException(nameof(t));
-        }
+        ArgumentNullException.ThrowIfNull(t);
 
         if (!t.IsGenericType)
         {

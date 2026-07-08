@@ -39,18 +39,12 @@ public class EventSinkRepo : IDisposable
 
     public EventSinkStream CreateSinkStream(TimeSpan buffer, int bufferSize)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(EventSinkRepo));
-        }
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         _eventStreamLock.EnterWriteLock();
         try
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(EventSinkRepo));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             EventSinkStream stream = new(_sinks.Values.SelectMany(sink => sink.Events).ToArray(), buffer, bufferSize);
             _sinkStreams.Add(stream);

@@ -29,10 +29,7 @@ public class AsyncResultBucket
 
     public void SetResult(RpcResult result, object returnValue)
     {
-        if (result == null)
-        {
-            throw new ArgumentNullException(nameof(result));
-        }
+        ArgumentNullException.ThrowIfNull(result);
 
         if (_results.TryGetValue(result.RequestId, out var completionSource))
         {
@@ -60,10 +57,7 @@ public class AsyncResultBucket
 
     public async Task<T> GetResult<T>(string requestId, TimeSpan timeout, CancellationToken cancel)
     {
-        if (requestId == null)
-        {
-            throw new ArgumentNullException(nameof(requestId));
-        }
+        ArgumentNullException.ThrowIfNull(requestId);
 
         var completionSource = _results.GetOrAdd(requestId, _ => new TaskCompletionSource<object>());
         try

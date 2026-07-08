@@ -4,8 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- FixPortal -->
-    <PackageVersion Include="FixPortal.CodeStyle" Version="0.1.1" />
-    <PackageVersion Include="FixPortal.CodeStyle.ArchRules" Version="0.1.2" />
+    <PackageVersion Include="FixPortal.CodeStyle" Version="0.1.6" />
+    <PackageVersion Include="FixPortal.CodeStyle.ArchRules" Version="0.1.6" />
     <!-- Test -->
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

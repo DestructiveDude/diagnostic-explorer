@@ -92,10 +92,7 @@ public static class PropertyExtensions
 
     public static Property FindByName(this IEnumerable<Property> list, string name)
     {
-        if (list == null)
-        {
-            throw new ArgumentNullException(nameof(list));
-        }
+        ArgumentNullException.ThrowIfNull(list);
 
         return list.FirstOrDefault(x => _ignoreCase.Equals(x.Name, name));
     }

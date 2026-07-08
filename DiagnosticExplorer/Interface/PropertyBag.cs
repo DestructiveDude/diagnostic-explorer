@@ -49,10 +49,7 @@ public class PropertyBag
 
     public void AddProperty(Property property, string category)
     {
-        if (property == null)
-        {
-            throw new ArgumentNullException(nameof(property));
-        }
+        ArgumentNullException.ThrowIfNull(property);
 
         Category cat = FindOrCreateCategory(category);
         cat.Properties.Add(property);

@@ -22,10 +22,7 @@ public class MultiErrorHandler : IErrorHandler
 
     public void AddHandler(IErrorHandler handler)
     {
-        if (handler == null)
-        {
-            throw new ArgumentNullException(nameof(handler));
-        }
+        ArgumentNullException.ThrowIfNull(handler);
 
         lock (_sync)
         {

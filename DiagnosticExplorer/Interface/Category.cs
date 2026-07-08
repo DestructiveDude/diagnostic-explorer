@@ -37,10 +37,7 @@ public static class CategoryExtensions
 
     public static Category FindByName(this IEnumerable<Category> list, string name)
     {
-        if (list == null)
-        {
-            throw new ArgumentNullException(nameof(list));
-        }
+        ArgumentNullException.ThrowIfNull(list);
 
         return list.FirstOrDefault(x => _ignoreCase.Equals(x.Name, name));
     }

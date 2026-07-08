@@ -50,10 +50,7 @@ public static class RegisteredObjectExtensions
 
     public static RegisteredObject FindByCategoryAndName(this IEnumerable<RegisteredObject> list, string category, string name)
     {
-        if (list == null)
-        {
-            throw new ArgumentNullException(nameof(list));
-        }
+        ArgumentNullException.ThrowIfNull(list);
 
         return list.FirstOrDefault(x => _ignoreCase.Equals(x.BagCategory, category) && _ignoreCase.Equals(x.BagName, name));
     }

@@ -31,10 +31,7 @@ internal static class TypeUtil
     /// <exception cref="ArgumentNullException">if t is Null</exception>
     public static bool IsNullable(Type t)
     {
-        if (t == null)
-        {
-            throw new ArgumentNullException(nameof(t));
-        }
+        ArgumentNullException.ThrowIfNull(t);
 
         return t.IsValueType && t.IsGenericType
                      && t.GetGenericTypeDefinition() == typeof(Nullable<>);
