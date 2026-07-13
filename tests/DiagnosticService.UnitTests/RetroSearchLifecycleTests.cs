@@ -175,9 +175,13 @@ public class RetroSearchLifecycleTests
 
             using IDisposable subscription = subject.Subscribe(observer);
 
-            RunConcurrentPublishes(
+            Task[] publishes = StartConcurrentPublishes(
                 count: 24,
                 publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
+
+            observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
+            observer.ReleaseCallbacks();
+            await Task.WhenAll(publishes);
 
             observer.OverlapDetected.Should().BeFalse();
             observer.SeenValues.Should().Be(24);
@@ -230,9 +234,9 @@ public class RetroSearchLifecycleTests
         field.SetValue(target, value);
     }
 
-    private static void RunConcurrentPublishes(int count, Action<int> publish)
+    private static Task[] StartConcurrentPublishes(int count, Action<int> publish)
     {
-        using ManualResetEventSlim start = new(false);
+        ManualResetEventSlim start = new(false);
         Task[] tasks = Enumerable.Range(0, count)
             .Select(index => Task.Run(() => {
                 start.Wait();
@@ -241,16 +245,28 @@ public class RetroSearchLifecycleTests
             .ToArray();
 
         start.Set();
-        Task.WhenAll(tasks).GetAwaiter().GetResult();
+        return tasks;
     }
 
     private sealed class OverlapDetectingObserver<T> : IObserver<T>
     {
+        private readonly ManualResetEventSlim _callbackEntered = new(false);
+        private readonly ManualResetEventSlim _releaseCallbacks = new(false);
         private int _activeNotifications;
         private int _seenValues;
 
         public bool OverlapDetected { get; private set; }
         public int SeenValues => _seenValues;
+
+        public void WaitUntilCallbackEntered(CancellationToken cancellationToken)
+        {
+            _callbackEntered.Wait(cancellationToken);
+        }
+
+        public void ReleaseCallbacks()
+        {
+            _releaseCallbacks.Set();
+        }
 
         public void OnCompleted()
         {
@@ -269,8 +285,9 @@ public class RetroSearchLifecycleTests
 
             try
             {
+                _callbackEntered.Set();
+                _releaseCallbacks.Wait();
                 Interlocked.Increment(ref _seenValues);
-                Thread.Sleep(10);
             }
             finally
             {
