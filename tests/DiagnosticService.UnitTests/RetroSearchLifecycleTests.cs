@@ -169,7 +169,7 @@ public class RetroSearchLifecycleTests
         await manager.StartAsync(TestContext.Current.CancellationToken);
         try
         {
-            OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
+            using OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
             FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
             var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
 
@@ -179,8 +179,15 @@ public class RetroSearchLifecycleTests
                 count: 24,
                 publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
 
-            observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
-            observer.ReleaseCallbacks();
+            try
+            {
+                observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
+            }
+            finally
+            {
+                observer.ReleaseCallbacks();
+            }
+
             await Task.WhenAll(publishes);
 
             observer.OverlapDetected.Should().BeFalse();
@@ -245,10 +252,11 @@ public class RetroSearchLifecycleTests
             .ToArray();
 
         start.Set();
+        _ = Task.WhenAll(tasks).ContinueWith(_ => start.Dispose(), TaskScheduler.Default);
         return tasks;
     }
 
-    private sealed class OverlapDetectingObserver<T> : IObserver<T>
+    private sealed class OverlapDetectingObserver<T> : IObserver<T>, IDisposable
     {
         private readonly ManualResetEventSlim _callbackEntered = new(false);
         private readonly ManualResetEventSlim _releaseCallbacks = new(false);
@@ -286,13 +294,19 @@ public class RetroSearchLifecycleTests
             try
             {
                 _callbackEntered.Set();
-                _releaseCallbacks.Wait();
+                _releaseCallbacks.Wait(TimeSpan.FromSeconds(30));
                 Interlocked.Increment(ref _seenValues);
             }
             finally
             {
                 Interlocked.Decrement(ref _activeNotifications);
             }
+        }
+
+        public void Dispose()
+        {
+            _callbackEntered.Dispose();
+            _releaseCallbacks.Dispose();
         }
     }
 

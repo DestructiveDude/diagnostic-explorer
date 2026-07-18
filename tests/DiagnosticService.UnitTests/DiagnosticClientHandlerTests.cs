@@ -15,7 +15,7 @@ public class DiagnosticClientHandlerTests
     public async Task SetEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
         DiagnosticClientHandler handler = CreateHandler();
-        OverlapDetectingObserver<SystemEvent[]> observer = new();
+        using OverlapDetectingObserver<SystemEvent[]> observer = new();
 
         using IDisposable subscription = handler.EventsSet.Subscribe(observer);
 
@@ -23,8 +23,15 @@ public class DiagnosticClientHandlerTests
             count: 24,
             publish: index => handler.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } }));
 
-        observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
-        observer.ReleaseCallbacks();
+        try
+        {
+            observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            observer.ReleaseCallbacks();
+        }
+
         await Task.WhenAll(publishes);
 
         observer.OverlapDetected.Should().BeFalse();
@@ -35,7 +42,7 @@ public class DiagnosticClientHandlerTests
     public async Task StreamEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
         DiagnosticClientHandler handler = CreateHandler();
-        OverlapDetectingObserver<SystemEvent[]> observer = new();
+        using OverlapDetectingObserver<SystemEvent[]> observer = new();
 
         using IDisposable subscription = handler.EventsStreamed.Subscribe(observer);
 
@@ -43,8 +50,15 @@ public class DiagnosticClientHandlerTests
             count: 24,
             publish: index => handler.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } }));
 
-        observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
-        observer.ReleaseCallbacks();
+        try
+        {
+            observer.WaitUntilCallbackEntered(TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            observer.ReleaseCallbacks();
+        }
+
         await Task.WhenAll(publishes);
 
         observer.OverlapDetected.Should().BeFalse();
@@ -72,10 +86,11 @@ public class DiagnosticClientHandlerTests
             .ToArray();
 
         start.Set();
+        _ = Task.WhenAll(tasks).ContinueWith(_ => start.Dispose(), TaskScheduler.Default);
         return tasks;
     }
 
-    private sealed class OverlapDetectingObserver<T> : IObserver<T>
+    private sealed class OverlapDetectingObserver<T> : IObserver<T>, IDisposable
     {
         private readonly ManualResetEventSlim _callbackEntered = new(false);
         private readonly ManualResetEventSlim _releaseCallbacks = new(false);
@@ -113,7 +128,7 @@ public class DiagnosticClientHandlerTests
             try
             {
                 _callbackEntered.Set();
-                _releaseCallbacks.Wait();
+                _releaseCallbacks.Wait(TimeSpan.FromSeconds(30));
                 lock (_seenValues)
                 {
                     _seenValues.Add(value);
@@ -123,6 +138,12 @@ public class DiagnosticClientHandlerTests
             {
                 Interlocked.Decrement(ref _activeNotifications);
             }
+        }
+
+        public void Dispose()
+        {
+            _callbackEntered.Dispose();
+            _releaseCallbacks.Dispose();
         }
     }
 }
