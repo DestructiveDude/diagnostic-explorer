@@ -30,9 +30,8 @@ public class DiagnosticClientHandlerTests
         finally
         {
             observer.ReleaseCallbacks();
+            await Task.WhenAll(publishes);
         }
-
-        await Task.WhenAll(publishes);
 
         observer.OverlapDetected.Should().BeFalse();
         observer.SeenValues.Should().HaveCount(24);
@@ -57,9 +56,8 @@ public class DiagnosticClientHandlerTests
         finally
         {
             observer.ReleaseCallbacks();
+            await Task.WhenAll(publishes);
         }
-
-        await Task.WhenAll(publishes);
 
         observer.OverlapDetected.Should().BeFalse();
         observer.SeenValues.Should().HaveCount(24);

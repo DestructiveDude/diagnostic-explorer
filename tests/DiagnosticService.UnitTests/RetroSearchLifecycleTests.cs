@@ -186,9 +186,8 @@ public class RetroSearchLifecycleTests
             finally
             {
                 observer.ReleaseCallbacks();
+                await Task.WhenAll(publishes);
             }
-
-            await Task.WhenAll(publishes);
 
             observer.OverlapDetected.Should().BeFalse();
             observer.SeenValues.Should().Be(24);
