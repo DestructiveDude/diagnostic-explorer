@@ -7,15 +7,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Target environment
-        required: false
-        default: fixportal-dev
-        type: choice
-        options:
-          - fixportal-dev
-          - fixportal-prod
 
 permissions:
   contents: read
@@ -23,9 +14,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # true: with push on all branches + PRs there is no deploy job to protect, so a newer
-  # commit on the same ref should supersede an in-flight run rather than stack redundant ones.
-  cancel-in-progress: true
+  # No deploy job to protect, so a newer commit should supersede an in-flight branch run —
+  # but never cancel a main or tag run (an unconditional true would cancel those too).
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
