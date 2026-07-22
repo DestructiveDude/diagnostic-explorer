@@ -221,7 +221,7 @@ internal class PropertyGetter
             PropertyInfo countProp = col.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
             if (countProp != null && countProp.PropertyType == typeof(int))
             {
-                count = (int)countProp.GetValue(col);
+                count = (int) countProp.GetValue(col);
             }
         }
 

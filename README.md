@@ -121,7 +121,7 @@ different store.
 
 ```bash
 # Library + service + samples:
-dotnet build DiagnosticExplorer.sln -c Release
+dotnet build DiagnosticExplorer.slnx -c Release
 
 # Angular dashboard (Node 20.19+ / 22 for Angular 21):
 cd diagnostics-web
@@ -135,10 +135,9 @@ range for Tailwind lags the installed Tailwind 3).
 
 ### .NET unit tests
 
-The core library is covered by an xUnit v3 suite under
-`tests/DiagnosticExplorer.UnitTests` (NSubstitute + AwesomeAssertions). It is
-part of `DiagnosticExplorer.sln` and runs on every push/PR via the
-`dotnet-tests` GitHub Actions workflow.
+The core library and service are covered by xUnit v3 suites under `tests/`
+(NSubstitute + AwesomeAssertions). Both are part of `DiagnosticExplorer.slnx`
+and run on every push/PR via GitHub Actions.
 
 Coverage spans the public surface — `PropertyBag`/`Property`/`Category`,
 `ProtobufUtil` wire round-tripping, the JSON converters, `AttributeUtil`,
@@ -149,11 +148,12 @@ entry in `DiagnosticExplorer.csproj`; the generated attribute ships in the
 assembly but only names the test project, so it exposes nothing else.
 
 ```bash
-dotnet test tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj
+dotnet test DiagnosticExplorer.slnx -c Release
 ```
 
-The test project targets `net8.0` and references only the `netstandard2.0`
-core library, so it runs cross-platform without the Windows-only samples.
+Both test projects target `net10.0` and run cross-platform. In Visual Studio,
+open `DiagnosticExplorer.slnx`, build the solution, then use **Test Explorer >
+Run All** to run both suites.
 
 ### Frontend tests and mutation analysis
 
@@ -183,7 +183,7 @@ so a Release build produces the NuGet packages under each project's
 Vulnerability check:
 
 ```bash
-dotnet list DiagnosticExplorer.sln package --vulnerable --include-transitive
+dotnet list DiagnosticExplorer.slnx package --vulnerable --include-transitive
 ```
 
 (Should report no vulnerable packages as of `3.2.1`.)

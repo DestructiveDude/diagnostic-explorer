@@ -2,9 +2,9 @@ using ArchUnitNET.Domain;
 using ArchUnitNET.Fluent;
 using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
-using FixPortal.CodeStyle.ArchRules;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Hosting;
+using FixPortal.CodeStyle.ArchRules;
 using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
 namespace DiagnosticExplorer.UnitTests;

@@ -124,7 +124,7 @@ internal class CollectionGetter : PropertyGetter
                 PropertyInfo countProp = rawCol.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
                 if (countProp != null && countProp.PropertyType == typeof(int))
                 {
-                    count = (int)countProp.GetValue(rawCol);
+                    count = (int) countProp.GetValue(rawCol);
                 }
             }
 
@@ -261,7 +261,7 @@ internal class CollectionGetter : PropertyGetter
             object objectValue = obj;
             string name = Convert.ToString(GetNextPropVal(obj, _nameFunc, index++));
             string val = _valueFunc == null ? FormatValue(obj) : GetValue(obj, _valueFunc, out objectValue);
-            
+
             string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out _);
             string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out _);
 

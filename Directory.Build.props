@@ -1,7 +1,7 @@
 <Project>
-  <!-- SonarAnalyzer applied to every project as a private analyzer asset (this repo
-       does not use central package management). Cognitive-complexity (S3776) gate is
-       tuned in .editorconfig; findings are warnings, not build-breaking. -->
+  <!-- SonarAnalyzer is applied to every project as a private analyzer asset and
+       centrally versioned in Directory.Packages.props. Cognitive-complexity (S3776)
+       is tuned in .editorconfig; findings are warnings, not build-breaking. -->
   <PropertyGroup>
     <!-- TreatWarningsAsErrors is enabled solution-wide here (every project inherits it)
          rather than repeated per-csproj. Compiler (CS) warnings break the build; Sonar

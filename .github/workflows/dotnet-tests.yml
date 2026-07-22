@@ -1,8 +1,7 @@
-# Unit tests for the .NET core library (DiagnosticExplorer).
+# Unit tests for the .NET core library and diagnostic service.
 #
-# Runs the xUnit v3 suite under tests/DiagnosticExplorer.UnitTests. Scoped to the
-# test project (which pulls in only the netstandard2.0 core library) so the run
-# stays on ubuntu and doesn't drag in the Windows-only WidgetSample.
+# Runs both xUnit v3 suites directly so the job stays on Ubuntu without building
+# the Windows-only WidgetSample.
 name: dotnet-tests
 
 on:
@@ -26,10 +25,13 @@ env:
 jobs:
   unit-tests:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-dotnet@2016bd2012dba4e32de620c46fe006a3ac9f0602 # v5.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 

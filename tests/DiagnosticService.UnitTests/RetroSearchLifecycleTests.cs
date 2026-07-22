@@ -171,7 +171,7 @@ public class RetroSearchLifecycleTests
         {
             using OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
             FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
+            var subject = (IObservable<IList<DiagnosticMsg>>) field.GetValue(manager)!;
 
             using IDisposable subscription = subject.Subscribe(observer);
 
