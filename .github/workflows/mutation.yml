@@ -2,6 +2,8 @@ name: mutation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -10,6 +12,7 @@ permissions:
 jobs:
   stryker:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v6
