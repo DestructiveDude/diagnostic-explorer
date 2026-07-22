@@ -2,8 +2,8 @@
 #
 # Runs the Jest unit suite, then Stryker mutation analysis, and publishes a
 # compact Markdown summary to the run's job summary plus the full HTML/JSON
-# report as an artifact. Informational only: continue-on-error keeps it from
-# blocking merges while the suite's mutation score is brought up.
+# report as an artifact. The score is informational; infrastructure and report
+# failures remain visible.
 name: mutation-web
 
 on:
@@ -21,7 +21,6 @@ permissions:
 jobs:
   stryker-web:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    continue-on-error: true
     defaults:
       run:
         working-directory: diagnostics-web
@@ -57,3 +56,4 @@ jobs:
         with:
           name: mutation-web-report
           path: diagnostics-web/reports/mutation/**
+          if-no-files-found: error

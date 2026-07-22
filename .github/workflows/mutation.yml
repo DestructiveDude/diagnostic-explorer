@@ -2,8 +2,12 @@ name: mutation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '15 3 * * *'
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,7 +16,6 @@ permissions:
 jobs:
   stryker:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v6
@@ -56,3 +59,4 @@ jobs:
         with:
           name: mutation-report
           path: StrykerOutput/**
+          if-no-files-found: error
