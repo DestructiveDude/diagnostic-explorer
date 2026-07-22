@@ -92,6 +92,11 @@ the same scope automatically.
 
 Two compose files under `Docker/`:
 
+Before using the local-build compose file, set `GITHUB_PACKAGES_TOKEN` in the
+current shell to a GitHub token with `read:packages` access to the FixPortal
+package feed. Compose mounts it only for the restore step; it is not stored in
+the image.
+
 ```bash
 # Build the image locally and bring up service + MongoDB:
 docker compose -f Docker/compose-and-create-image.yaml up -d --build
@@ -107,6 +112,7 @@ compose file. Most-useful:
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `GITHUB_PACKAGES_TOKEN` | required for local builds | Read the private FixPortal analyzer packages during image restore |
 | `DIAGEXPLORER_HOST_PORT` | `2803` | Host-side port mapping if 2803 is in use locally |
 | `MONGO_USERNAME` / `MONGO_PASSWORD` | `admin` / `password123` | Mongo root credentials |
 | `DIAGEXPLORER_IMAGE_NAME` | `ghcr.io/cell001nz/diagnostic-explorer` | Repoint at a fork's GHCR namespace |

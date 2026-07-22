@@ -14,7 +14,6 @@ RUN npm run build
 # Stage 2 — build the .NET service.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
-ARG GITHUB_PACKAGES_TOKEN
 WORKDIR /src
 COPY ["nuget.config", "./"]
 COPY ["Directory.Packages.props", "./"]
@@ -22,7 +21,8 @@ COPY ["Directory.Build.props", "./"]
 COPY ["DiagnosticService/Diagnostic.Service.csproj", "DiagnosticService/"]
 COPY ["DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj", "DiagnosticExplorer.Hosting/"]
 COPY ["DiagnosticExplorer/DiagnosticExplorer.csproj", "DiagnosticExplorer/"]
-RUN dotnet restore "DiagnosticService/Diagnostic.Service.csproj" -p:MaxCpuCount=1
+RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN \
+    dotnet restore "DiagnosticService/Diagnostic.Service.csproj" -p:MaxCpuCount=1
 COPY . .
 RUN dotnet publish "DiagnosticService/Diagnostic.Service.csproj" \
     -c $BUILD_CONFIGURATION \

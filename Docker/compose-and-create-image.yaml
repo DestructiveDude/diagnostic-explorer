@@ -5,6 +5,7 @@
 #   docker compose -f Docker/compose-and-create-image.yaml up -d --build
 #
 # Environment variable overrides (set in your shell or a sibling .env file):
+#   GITHUB_PACKAGES_TOKEN    - token with read:packages  (REQUIRED for image build)
 #   MONGO_USERNAME           - mongo root user           (default: admin)
 #   MONGO_PASSWORD           - mongo root password       (REQUIRED — no default)
 #   DIAGEXPLORER_HOST_PORT   - host-side port for 2803   (default: 2803)
@@ -44,6 +45,9 @@ services:
     build:
       context: ..
       dockerfile: Docker/Dockerfile
+      secrets:
+        - source: github_packages_token
+          target: GITHUB_PACKAGES_TOKEN
     image: diagnostic-explorer:local
     container_name: diagnostic-service
     restart: unless-stopped
@@ -66,3 +70,7 @@ volumes:
 networks:
   diagnostic-network:
     driver: bridge
+
+secrets:
+  github_packages_token:
+    environment: GITHUB_PACKAGES_TOKEN
