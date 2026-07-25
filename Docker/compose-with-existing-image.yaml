@@ -7,6 +7,8 @@
 # Environment variable overrides (set in your shell or a sibling .env file):
 #   MONGO_USERNAME           - mongo root user             (default: admin)
 #   MONGO_PASSWORD           - mongo root password         (REQUIRED — no default)
+#   MONGO_HOST_PORT          - host-side port for 27017    (default: 27017)
+#                              Override if a native mongod already holds 27017.
 #   DIAGEXPLORER_HOST_PORT   - host-side port for 2803     (default: 2803)
 #                              Override (e.g. 2903) if another process on
 #                              the host is already bound to 2803 -- for
@@ -34,7 +36,7 @@ services:
     ports:
       # Bound to loopback only: the app reaches Mongo over the internal diagnostic-network,
       # so the host mapping is for local tooling, not for exposing the DB to the network.
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb

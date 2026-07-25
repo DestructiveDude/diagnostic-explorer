@@ -114,7 +114,8 @@ compose file. Most-useful:
 |---|---|---|
 | `GITHUB_PACKAGES_TOKEN` | required for local builds | Read the private FixPortal analyzer packages during image restore |
 | `DIAGEXPLORER_HOST_PORT` | `2803` | Host-side port mapping if 2803 is in use locally |
-| `MONGO_USERNAME` / `MONGO_PASSWORD` | `admin` / `password123` | Mongo root credentials |
+| `MONGO_USERNAME` / `MONGO_PASSWORD` | `admin` / none (required) | Mongo root credentials |
+| `MONGO_HOST_PORT` | `27017` | Host-side port mapping if a native `mongod` already holds 27017 |
 | `DIAGEXPLORER_IMAGE_NAME` | `ghcr.io/cell001nz/diagnostic-explorer` | Repoint at a fork's GHCR namespace |
 | `DIAGEXPLORER_IMAGE_TAG` | `latest` | Pin to a specific GHCR tag (e.g. `3.1.38`) |
 

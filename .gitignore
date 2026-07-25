@@ -65,6 +65,9 @@ packages
 # Generated NuGet packages
 nupkg/
 
+# Local compose env (holds MONGO_PASSWORD)
+.env
+
 # AI Agent directories and knowledge graphs
 .agents/
 .understand-anything/
