@@ -56,8 +56,13 @@ packages
 *.mov
 *.wmv
 
-# Claude Code per-developer settings
-.claude/
+# Claude Code per-developer settings.
+# `.claude/*` (not `.claude/`) — git cannot re-include a file whose parent DIRECTORY is
+# excluded, so the review policy below would be unreachable if this ignored the directory.
+.claude/*
+# The review policy decides which AI reviewers a PR must pass, so it is committed even though
+# the rest of .claude/ is local scratch. Removing this negation silently reverts every PR to NORMAL.
+!.claude/review-policy.json
 
 # Superpowers runtime (brainstorm mockups etc.); docs/superpowers/ stays tracked
 .superpowers/

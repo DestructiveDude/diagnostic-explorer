@@ -1,0 +1,51 @@
+{
+  "$comment": [
+    "Decides which AI reviewers a PR must pass. It is itself a reviewed artefact: change it in a PR, never ad hoc.",
+    "Rules: any file matching 'high' => HIGH. Every file matching 'low' => LOW. Anything else => NORMAL.",
+    "The first three high entries are the REVIEW CONTROL PLANE and stay HIGH in every repo — this file",
+    "chooses reviewers, .coderabbit.yaml can silence one, and .gitignore re-excluding .claude/ makes this",
+    "file vanish and silently reverts the repo to NORMAL.",
+    "",
+    "Repo-specific reasoning:",
+    "- This repo SHIPS A CONTAINER IMAGE (publish-docker-image.yml), so Docker/**, Dockerfile and",
+    "  .dockerignore are on a deploy path and are HIGH. Do not copy that judgement to a repo that",
+    "  only pulls service containers in CI.",
+    "- infra/** and **/*.bicep provision the hosting.",
+    "- scripts/** and stryker-config.json can weaken the gate itself.",
+    "- Dependency manifests (Directory.Packages.props, **/*.csproj, diagnostics-web/package*.json) are",
+    "  deliberately NOT high: they are what Dependabot edits, and CodeRabbit declines to review",
+    "  bot-authored PRs, so classing them HIGH requires a reviewer that will never run.",
+    "  Dependency PRs are excluded from AI code review outright: CodeRabbit refuses bot authors, and",
+    "  Gitar's bot review is deliberately off. Reviewing every bump would exhaust both budgets, so CI",
+    "  plus Dependabot's own advisory data is what actually gates them.",
+    "- 'low' holds documentation only; no deployed artefact is built from it."
+  ],
+
+  "version": 1,
+
+  "high": [
+    ".claude/review-policy.json",
+    ".coderabbit.yaml",
+    ".gitignore",
+    ".github/workflows/**",
+    ".github/dependabot.yml",
+    "infra/**",
+    "**/*.bicep",
+    "Docker/**",
+    "**/Dockerfile",
+    ".dockerignore",
+    "scripts/**",
+    "stryker-config.json",
+    "nuget.config",
+    "Directory.Build.props",
+    "DiagnosticExplorer.slnx"
+  ],
+
+  "low": [
+    "docs/**",
+    "**/*.md",
+    ".editorconfig",
+    ".gitattributes",
+    ".vscode/**"
+  ]
+}
