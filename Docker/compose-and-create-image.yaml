@@ -51,8 +51,10 @@ services:
     image: diagnostic-explorer:local
     container_name: diagnostic-service
     restart: unless-stopped
+    # Bound to loopback only, matching mongodb above: the service is reached from this
+    # host, so publishing to all interfaces would offer it to the LAN.
     ports:
-      - "${DIAGEXPLORER_HOST_PORT:-2803}:2803"
+      - "127.0.0.1:${DIAGEXPLORER_HOST_PORT:-2803}:2803"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:2803
