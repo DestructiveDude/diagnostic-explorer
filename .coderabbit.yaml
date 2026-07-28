@@ -1,0 +1,26 @@
+# CodeRabbit meters reviews per developer identity across every repo in a rolling 7-day window and
+# degrades from 30 reviews/7d, so it is the scarce reviewer and is spent deliberately, not by
+# default. Gitar carries routine review load; CodeRabbit is requested only where the tier says so.
+language: en-GB
+
+reviews:
+  auto_review:
+    # OFF deliberately. The PR gate in .claude/review-policy.json decides which reviewers a PR needs,
+    # and CodeRabbit is reserved for HIGH-tier changes; leaving auto-review on would review every PR
+    # regardless of tier and defeat the point of tiering. HIGH-tier PRs get an on-demand
+    # "@coderabbitai review", which works with auto-review disabled.
+    enabled: false
+    drafts: false
+    # Dependency PRs are deliberately out of AI code review on BOTH vendors — Gitar's bot review is
+    # switched off as well. Reviewing every bump exhausts the allowance and starves the changes that
+    # need it; CI plus Dependabot's own advisory data is what gates them. CodeRabbit already declines
+    # bot-authored PRs ("Review skipped: bot user not eligible for review"), so this states the
+    # intent rather than leaving it incidental to a vendor behaviour that could change.
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+
+  path_filters:
+    # Generated or vendored: lock file, mutation-run output, build output.
+    - "!diagnostics-web/package-lock.json"
+    - "!StrykerOutput/**"
