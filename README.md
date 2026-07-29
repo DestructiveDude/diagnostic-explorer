@@ -195,6 +195,36 @@ dotnet list DiagnosticExplorer.slnx package --vulnerable --include-transitive
 
 (Should report no vulnerable packages as of `3.2.1`.)
 
+## Contributing / local checks
+
+Run the same commands CI uses before pushing:
+
+```bash
+# Restore repository-local .NET tools (CSharpier, Stryker)
+dotnet tool restore
+
+# Verify C# formatting (run `dotnet csharpier format .` to auto-fix)
+dotnet csharpier check .
+
+# Release build
+dotnet build DiagnosticExplorer.slnx --configuration Release
+
+# .NET test suite
+dotnet test DiagnosticExplorer.slnx --configuration Release --no-build
+
+# Roslyn formatter/analyzer verification
+dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore
+
+# JetBrains InspectCode static analysis
+jb inspectcode --stdout --format=Text --severity=WARNING --no-build --verbosity=OFF DiagnosticExplorer.slnx
+
+# Frontend install, test, and build
+cd diagnostics-web
+npm ci
+npm test
+npm run build
+```
+
 ## Container image
 
 Published to `ghcr.io/cell001nz/diagnostic-explorer` by the GitHub
