@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Diagnostic.Service;
 
-public static class Program
+public class Program
 {
     public static void Main(string[] args)
     {

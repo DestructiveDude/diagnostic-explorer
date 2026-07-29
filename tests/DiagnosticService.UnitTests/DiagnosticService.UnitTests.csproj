@@ -10,7 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="System.Reactive" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -26,6 +29,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\DiagnosticService\Diagnostic.Service.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy the service's settings file so Program.cs finds it via AppDomain.CurrentDomain.BaseDirectory in hosted tests. -->
+    <Content Include="..\..\DiagnosticService\Config\settings.json" Link="Config\settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
