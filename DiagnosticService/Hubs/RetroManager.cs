@@ -37,6 +37,7 @@ public class RetroManager : IHostedService
         _writeChannel ?? throw new InvalidOperationException("RetroManager has not been started");
 
     private readonly IHostApplicationLifetime _lifetime;
+    private int _stopCalled;
 
     public RetroManager(IHostApplicationLifetime lifetime, IOptions<DiagServiceSettings> config)
     {
@@ -90,6 +91,13 @@ public class RetroManager : IHostedService
 
     public async Task StopAsync(CancellationToken cancel)
     {
+        // Hosted-service StopAsync can be invoked more than once during host disposal; the
+        // channel/Rx teardown is not idempotent by default, so guard against re-entrancy.
+        if (Interlocked.Exchange(ref _stopCalled, 1) == 1)
+        {
+            return;
+        }
+
         // Stop accepting input, then let the drain loop flush what's already queued before the
         // host tears the process down. Previously StopAsync returned immediately without awaiting
         // the drain or disposing the Rx subscription, so queued messages were lost on recycle.
@@ -100,11 +108,18 @@ public class RetroManager : IHostedService
         _ownedLogSubject?.Dispose();
         _ownedLogSubject = null;
 
-        _writeChannel?.Writer.Complete();
+        try
+        {
+            _writeChannel?.Writer.Complete();
+        }
+        catch (ChannelClosedException)
+        {
+            // Already completed by a prior stop or a faulted worker; safe to ignore.
+        }
 
         if (_loggingTask != null)
         {
-            await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5)));
+            await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5), cancel));
         }
 
         (_logger as IDisposable)?.Dispose();
