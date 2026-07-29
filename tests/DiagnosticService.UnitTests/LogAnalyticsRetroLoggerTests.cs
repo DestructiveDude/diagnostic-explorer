@@ -12,23 +12,25 @@ namespace DiagnosticService.UnitTests;
 /// </summary>
 public class LogAnalyticsRetroLoggerTests
 {
-    private static RetroQuery BaseQuery() => new()
-    {
-        SearchId = 1,
-        MaxRecords = 100,
-        MinLevel = 2,
-        StartDate = new DateTime(2026, 6, 7, 0, 0, 0, DateTimeKind.Utc),
-        EndDate = new DateTime(2026, 6, 7, 12, 0, 0, DateTimeKind.Utc),
-    };
+    private static RetroQuery BaseQuery() =>
+        new()
+        {
+            SearchId = 1,
+            MaxRecords = 100,
+            MinLevel = 2,
+            StartDate = new DateTime(2026, 6, 7, 0, 0, 0, DateTimeKind.Utc),
+            EndDate = new DateTime(2026, 6, 7, 12, 0, 0, DateTimeKind.Utc),
+        };
 
-    private static LogAnalyticsSettings ValidOptions() => new()
-    {
-        DceEndpoint = "https://dce-diag-dev.eastus2-1.ingest.monitor.azure.com",
-        DcrImmutableId = "dcr-0123456789abcdef0123456789abcdef",
-        StreamName = "Custom-DiagRetro_CL",
-        TableName = "DiagRetro_CL",
-        WorkspaceId = "11111111-1111-1111-1111-111111111111",
-    };
+    private static LogAnalyticsSettings ValidOptions() =>
+        new()
+        {
+            DceEndpoint = "https://dce-diag-dev.eastus2-1.ingest.monitor.azure.com",
+            DcrImmutableId = "dcr-0123456789abcdef0123456789abcdef",
+            StreamName = "Custom-DiagRetro_CL",
+            TableName = "DiagRetro_CL",
+            WorkspaceId = "11111111-1111-1111-1111-111111111111",
+        };
 
     [Fact]
     public void BuildKql_EmitsTableTimeWindowLevelAndOrderedTop()
@@ -55,15 +57,26 @@ public class LogAnalyticsRetroLoggerTests
     [InlineData("User", "alice")]
     [InlineData("Process", "ems.exe")]
     [InlineData("Message", "timeout")]
-    public void BuildKql_WithTextFilter_EmitsCaseInsensitiveRegexClause(string field, string pattern)
+    public void BuildKql_WithTextFilter_EmitsCaseInsensitiveRegexClause(
+        string field,
+        string pattern
+    )
     {
         RetroQuery query = BaseQuery();
         switch (field)
         {
-            case "Machine": query.Machine = pattern; break;
-            case "User": query.User = pattern; break;
-            case "Process": query.Process = pattern; break;
-            case "Message": query.Message = pattern; break;
+            case "Machine":
+                query.Machine = pattern;
+                break;
+            case "User":
+                query.User = pattern;
+                break;
+            case "Process":
+                query.Process = pattern;
+                break;
+            case "Message":
+                query.Message = pattern;
+                break;
         }
 
         string kql = LogAnalyticsRetroLogger.BuildKql(query, "DiagRetro_CL");
@@ -108,12 +121,12 @@ public class LogAnalyticsRetroLoggerTests
     // Patterns that compile under .NET but use constructs RE2 (KQL `matches regex`) rejects —
     // they must be caught up front, not deferred to a query-time RequestFailedException.
     [Theory]
-    [InlineData("a(?=b)")]   // lookahead
-    [InlineData("a(?!b)")]   // negative lookahead
-    [InlineData("(?<=a)b")]  // lookbehind
-    [InlineData("(?<!a)b")]  // negative lookbehind
-    [InlineData("(?>ab)")]   // atomic group
-    [InlineData("(a)\\1")]   // numeric backreference
+    [InlineData("a(?=b)")] // lookahead
+    [InlineData("a(?!b)")] // negative lookahead
+    [InlineData("(?<=a)b")] // lookbehind
+    [InlineData("(?<!a)b")] // negative lookbehind
+    [InlineData("(?>ab)")] // atomic group
+    [InlineData("(a)\\1")] // numeric backreference
     [InlineData("(?<g>a)\\k<g>")] // named backreference
     public void BuildKql_WithRe2IncompatiblePattern_Throws(string pattern)
     {
@@ -127,9 +140,9 @@ public class LogAnalyticsRetroLoggerTests
 
     // Valid patterns that ARE supported by RE2 must not be over-rejected by the guard.
     [Theory]
-    [InlineData("srv\\d+")]      // ordinary regex
-    [InlineData("a\\.b")]        // escaped metacharacter
-    [InlineData("\\p{Lu}")]      // Unicode property class — RE2 supports these
+    [InlineData("srv\\d+")] // ordinary regex
+    [InlineData("a\\.b")] // escaped metacharacter
+    [InlineData("\\p{Lu}")] // Unicode property class — RE2 supports these
     [InlineData("(?<name>abc)")] // named capture group (no backreference)
     public void BuildKql_WithRe2CompatiblePattern_DoesNotThrow(string pattern)
     {
@@ -167,8 +180,7 @@ public class LogAnalyticsRetroLoggerTests
 
         Func<Task> act = async () => await logger.Delete(["abc"]);
 
-        await act.Should().ThrowAsync<NotSupportedException>()
-            .WithMessage("*not supported*");
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*not supported*");
     }
 
     [Fact]

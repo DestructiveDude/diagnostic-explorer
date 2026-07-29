@@ -8,7 +8,7 @@ namespace Diagnostic.Service.Common;
 public enum AuthMode
 {
     None,
-    ApiKey
+    ApiKey,
 }
 
 /// <summary>

@@ -62,12 +62,17 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     // Reject them up front with a clear message instead. (Note: RE2 *does* support \p{...} Unicode
     // classes and (?<name>) named groups, so those are intentionally not rejected.)
     private static readonly Regex Re2Incompatible = new(
-        @"\(\?<?[=!]" +   // lookahead / lookbehind:  (?=) (?!) (?<=) (?<!)
-        @"|\(\?>" +       // atomic group:            (?>...)
-        @"|\(\?\(" +      // conditional:             (?(...)...)
-        @"|\\[1-9]" +     // numeric backreference:   \1 .. \9
-        @"|\\k<",         // named backreference:     \k<name>
-        RegexOptions.Compiled);
+        @"\(\?<?[=!]"
+            + // lookahead / lookbehind:  (?=) (?!) (?<=) (?<!)
+            @"|\(\?>"
+            + // atomic group:            (?>...)
+            @"|\(\?\("
+            + // conditional:             (?(...)...)
+            @"|\\[1-9]"
+            + // numeric backreference:   \1 .. \9
+            @"|\\k<", // named backreference:     \k<name>
+        RegexOptions.Compiled
+    );
 
     private readonly LogAnalyticsSettings _options;
     private readonly Lazy<LogsIngestionClient> _ingestion;
@@ -89,7 +94,8 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         // backend never blocks startup.
         TokenCredential credential = new DefaultAzureCredential();
         _ingestion = new Lazy<LogsIngestionClient>(() =>
-            new LogsIngestionClient(new Uri(_options.DceEndpoint), credential));
+            new LogsIngestionClient(new Uri(_options.DceEndpoint), credential)
+        );
         _query = new Lazy<LogsQueryClient>(() => new LogsQueryClient(credential));
     }
 
@@ -97,7 +103,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException($"LogAnalytics:{name} is required for the Log Analytics Retro backend.");
+            throw new ArgumentException(
+                $"LogAnalytics:{name} is required for the Log Analytics Retro backend."
+            );
         }
     }
 
@@ -109,9 +117,12 @@ public class LogAnalyticsRetroLogger : IRetroLogger
     // UI also gates this off via SupportsDelete (see WebHub.RetroSupportsDelete), so it should
     // never actually be invoked under the Log Analytics backend.
     public Task<long> Delete(string[] idList) =>
-        Task.FromException<long>(new NotSupportedException(
-            "Delete is not supported by the Log Analytics Retro backend (append-only store). " +
-            "Use workspace/table retention policies to age records out."));
+        Task.FromException<long>(
+            new NotSupportedException(
+                "Delete is not supported by the Log Analytics Retro backend (append-only store). "
+                    + "Use workspace/table retention policies to age records out."
+            )
+        );
 
     public async Task WriteMessages(ICollection<DiagnosticMsg> msg, CancellationToken cancel)
     {
@@ -126,32 +137,46 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         // It does NOT shift the clock — do not "convert" with ToUniversalTime() here or an
         // already-UTC value would be double-adjusted.
         List<Dictionary<string, object?>> entries = msg.Select(m => new Dictionary<string, object?>
-        {
-            ["TimeGenerated"] = DateTime.SpecifyKind(m.Date, DateTimeKind.Utc),
-            ["Level"] = m.Level,
-            ["Machine"] = m.Machine,
-            ["Process"] = m.Process,
-            ["User"] = m.User,
-            ["Category"] = m.Category,
-            ["Message"] = m.Message,
-            ["Environment"] = m.Environment,
-        }).ToList();
+            {
+                ["TimeGenerated"] = DateTime.SpecifyKind(m.Date, DateTimeKind.Utc),
+                ["Level"] = m.Level,
+                ["Machine"] = m.Machine,
+                ["Process"] = m.Process,
+                ["User"] = m.User,
+                ["Category"] = m.Category,
+                ["Message"] = m.Message,
+                ["Environment"] = m.Environment,
+            })
+            .ToList();
 
         // UploadAsync batches + gzips internally and throws an aggregate on partial failure.
-        await _ingestion.Value
-            .UploadAsync(_options.DcrImmutableId, _options.StreamName, entries, cancellationToken: cancel)
+        await _ingestion
+            .Value.UploadAsync(
+                _options.DcrImmutableId,
+                _options.StreamName,
+                entries,
+                cancellationToken: cancel
+            )
             .ConfigureAwait(false);
     }
 
-    public async IAsyncEnumerable<RetroMsg[]> GetMessages(RetroQuery query, [EnumeratorCancellation] CancellationToken cancel)
+    public async IAsyncEnumerable<RetroMsg[]> GetMessages(
+        RetroQuery query,
+        [EnumeratorCancellation] CancellationToken cancel
+    )
     {
         string kql = BuildKql(query, _options.TableName);
 
         DateTime start = DateTime.SpecifyKind(query.StartDate, DateTimeKind.Utc);
         DateTime end = DateTime.SpecifyKind(query.EndDate, DateTimeKind.Utc);
 
-        Response<LogsQueryResult> response = await _query.Value
-            .QueryWorkspaceAsync(_options.WorkspaceId, kql, new QueryTimeRange(start, end), cancellationToken: cancel)
+        Response<LogsQueryResult> response = await _query
+            .Value.QueryWorkspaceAsync(
+                _options.WorkspaceId,
+                kql,
+                new QueryTimeRange(start, end),
+                cancellationToken: cancel
+            )
             .ConfigureAwait(false);
 
         LogsTable table = response.Value.Table;
@@ -177,20 +202,21 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         }
     }
 
-    private static RetroMsg MapRow(LogsTableRow row) => new()
-    {
-        Level = row.GetInt32("Level") ?? 0,
-        Date = row.GetDateTimeOffset("TimeGenerated")?.UtcDateTime ?? default,
-        Machine = row.GetString("Machine") ?? "",
-        Process = row.GetString("Process") ?? "",
-        User = row.GetString("User") ?? "",
-        Category = row.GetString("Category") ?? "",
-        Message = row.GetString("Message") ?? "",
-        // DiagnosticMsg carries no app-level id and Log Analytics rows have no addressable key,
-        // so synthesise a unique id per row. MsgId (= RecordId.ToString()) only needs to be
-        // unique within a result set for UI selection; delete is unsupported here anyway.
-        RecordId = ObjectId.GenerateNewId(),
-    };
+    private static RetroMsg MapRow(LogsTableRow row) =>
+        new()
+        {
+            Level = row.GetInt32("Level") ?? 0,
+            Date = row.GetDateTimeOffset("TimeGenerated")?.UtcDateTime ?? default,
+            Machine = row.GetString("Machine") ?? "",
+            Process = row.GetString("Process") ?? "",
+            User = row.GetString("User") ?? "",
+            Category = row.GetString("Category") ?? "",
+            Message = row.GetString("Message") ?? "",
+            // DiagnosticMsg carries no app-level id and Log Analytics rows have no addressable key,
+            // so synthesise a unique id per row. MsgId (= RecordId.ToString()) only needs to be
+            // unique within a result set for UI selection; delete is unsupported here anyway.
+            RecordId = ObjectId.GenerateNewId(),
+        };
 
     /// <summary>
     /// Builds the KQL for a Retro query. Public + static for unit testing. Filter patterns are
@@ -210,7 +236,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         StringBuilder sb = new();
         sb.Append(tableName);
         // Half-open window to match the Mongo backend (Date >= start && Date < end).
-        sb.Append($"\n| where TimeGenerated >= datetime({start}) and TimeGenerated < datetime({end})");
+        sb.Append(
+            $"\n| where TimeGenerated >= datetime({start}) and TimeGenerated < datetime({end})"
+        );
         sb.Append($"\n| where Level >= {query.MinLevel}");
         AppendRegexFilter(sb, "Machine", query.Machine);
         AppendRegexFilter(sb, "User", query.User);
@@ -234,7 +262,8 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
     private static string Dt(DateTime value) =>
-        DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        DateTime
+            .SpecifyKind(value, DateTimeKind.Utc)
             .ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ", CultureInfo.InvariantCulture);
 
     private static void ValidateFilterPattern(string? value, string field)
@@ -246,7 +275,9 @@ public class LogAnalyticsRetroLogger : IRetroLogger
 
         if (value.Length > MaxFilterPatternLength)
         {
-            throw new ArgumentException($"{field} search pattern exceeds {MaxFilterPatternLength} characters");
+            throw new ArgumentException(
+                $"{field} search pattern exceeds {MaxFilterPatternLength} characters"
+            );
         }
 
         try
@@ -255,15 +286,19 @@ public class LogAnalyticsRetroLogger : IRetroLogger
         }
         catch (ArgumentException ex)
         {
-            throw new ArgumentException($"{field} search is not a valid regular expression: {ex.Message}", ex);
+            throw new ArgumentException(
+                $"{field} search is not a valid regular expression: {ex.Message}",
+                ex
+            );
         }
 
         if (Re2Incompatible.IsMatch(value))
         {
             throw new ArgumentException(
-                $"{field} search uses a regular-expression construct (lookaround, atomic group, " +
-                "conditional or backreference) that the Log Analytics backend does not support. " +
-                "Rewrite the pattern without it.");
+                $"{field} search uses a regular-expression construct (lookaround, atomic group, "
+                    + "conditional or backreference) that the Log Analytics backend does not support. "
+                    + "Rewrite the pattern without it."
+            );
         }
     }
 }

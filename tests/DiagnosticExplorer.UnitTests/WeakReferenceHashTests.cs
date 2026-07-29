@@ -91,8 +91,22 @@ public class WeakReferenceHashTests
         var hash = new WeakReferenceHash<Item>();
         var created = 0;
 
-        var first = hash.GetItem("alpha", () => { created++; return new Item(); });
-        var second = hash.GetItem("alpha", () => { created++; return new Item(); });
+        var first = hash.GetItem(
+            "alpha",
+            () =>
+            {
+                created++;
+                return new Item();
+            }
+        );
+        var second = hash.GetItem(
+            "alpha",
+            () =>
+            {
+                created++;
+                return new Item();
+            }
+        );
 
         created.Should().Be(1);
         second.Should().BeSameAs(first);

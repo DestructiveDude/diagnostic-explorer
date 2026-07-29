@@ -12,13 +12,21 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
 {
     private readonly IDiagnosticHubClient _client;
     private readonly HubCallerContext _callerContext;
-    private readonly ISubject<SystemEvent[]> _eventsSet = Subject.Synchronize(new Subject<SystemEvent[]>());
-    private readonly ISubject<SystemEvent[]> _eventsStreamed = Subject.Synchronize(new Subject<SystemEvent[]>());
+    private readonly ISubject<SystemEvent[]> _eventsSet = Subject.Synchronize(
+        new Subject<SystemEvent[]>()
+    );
+    private readonly ISubject<SystemEvent[]> _eventsStreamed = Subject.Synchronize(
+        new Subject<SystemEvent[]>()
+    );
     public event EventHandler? Disconnected;
     public IObservable<SystemEvent[]> EventsSet => _eventsSet;
     public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
 
-    public DiagnosticClientHandler(HubCallerContext callerContext, IDiagnosticHubClient client, AsyncResultBucket responses)
+    public DiagnosticClientHandler(
+        HubCallerContext callerContext,
+        IDiagnosticHubClient client,
+        AsyncResultBucket responses
+    )
         : base(responses)
     {
         _client = client;
@@ -28,14 +36,19 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
 
     public void Arm()
     {
-        _callerContext.ConnectionAborted.Register(() => Disconnected?.Invoke(this, EventArgs.Empty));
+        _callerContext.ConnectionAborted.Register(() =>
+            Disconnected?.Invoke(this, EventArgs.Empty)
+        );
     }
 
     public string ConnectionId { get; }
 
     public async Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        byte[] data = await SendRequest<byte[]>(cancel, requestId => _client.GetDiagnostics(requestId));
+        byte[] data = await SendRequest<byte[]>(
+            cancel,
+            requestId => _client.GetDiagnostics(requestId)
+        );
         return ProtobufUtil.Decompress<DiagnosticResponse>(data);
     }
 
@@ -44,12 +57,22 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
     // released immediately rather than lingering until the round-trip timeout elapses.
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return SendRequest<OperationResponse>(_callerContext.ConnectionAborted, requestId => _client.SetProperty(requestId, path, value));
+        return SendRequest<OperationResponse>(
+            _callerContext.ConnectionAborted,
+            requestId => _client.SetProperty(requestId, path, value)
+        );
     }
 
-    public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
+    public Task<OperationResponse> ExecuteOperation(
+        string path,
+        string operation,
+        string[] arguments
+    )
     {
-        return SendRequest<OperationResponse>(_callerContext.ConnectionAborted, requestId => _client.ExecuteOperation(requestId, path, operation, arguments));
+        return SendRequest<OperationResponse>(
+            _callerContext.ConnectionAborted,
+            requestId => _client.ExecuteOperation(requestId, path, operation, arguments)
+        );
     }
 
     public async Task SubscribeEvents()

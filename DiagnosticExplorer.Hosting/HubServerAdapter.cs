@@ -26,20 +26,31 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
     {
         _hubConn = hubConn;
 
-        _hubConn.On<string>(nameof(IDiagnosticHubClient.GetDiagnostics),
-            async (requestId) => await GetDiagnostics(requestId));
+        _hubConn.On<string>(
+            nameof(IDiagnosticHubClient.GetDiagnostics),
+            async (requestId) => await GetDiagnostics(requestId)
+        );
 
-        _hubConn.On<string, string, string>(nameof(IDiagnosticHubClient.SetProperty),
-            async (requestId, context, value) => await SetProperty(requestId, context, value));
+        _hubConn.On<string, string, string>(
+            nameof(IDiagnosticHubClient.SetProperty),
+            async (requestId, context, value) => await SetProperty(requestId, context, value)
+        );
 
-        _hubConn.On<string, string, string, string[]>(nameof(IDiagnosticHubClient.ExecuteOperation),
-            async (requestId, path, operation, args) => await ExecuteOperation(requestId, path, operation, args));
+        _hubConn.On<string, string, string, string[]>(
+            nameof(IDiagnosticHubClient.ExecuteOperation),
+            async (requestId, path, operation, args) =>
+                await ExecuteOperation(requestId, path, operation, args)
+        );
 
-        _hubConn.On(nameof(IDiagnosticHubClient.SubscribeEvents),
-            async () => await SubscribeEvents());
+        _hubConn.On(
+            nameof(IDiagnosticHubClient.SubscribeEvents),
+            async () => await SubscribeEvents()
+        );
 
-        _hubConn.On(nameof(IDiagnosticHubClient.UnsubscribeEvents),
-            async () => await UnsubscribeEvents());
+        _hubConn.On(
+            nameof(IDiagnosticHubClient.UnsubscribeEvents),
+            async () => await UnsubscribeEvents()
+        );
     }
 
     public Task SubscribeEvents()
@@ -77,7 +88,10 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
             return;
         }
 
-        try { cts.Cancel(); }
+        try
+        {
+            cts.Cancel();
+        }
         catch (ObjectDisposedException) { }
 
         // Dispose the CTS only after the stream task observes cancellation and completes, so we
@@ -94,17 +108,28 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
     private async Task SendEventStream(CancellationToken cancel)
     {
-        using EventSinkStream stream = EventSinkRepo.Default.CreateSinkStream(TimeSpan.FromMilliseconds(50), 100);
+        using EventSinkStream stream = EventSinkRepo.Default.CreateSinkStream(
+            TimeSpan.FromMilliseconds(50),
+            100
+        );
 
         try
         {
             SystemEvent[] initial = stream.InitialEvents;
-            await _hubConn.InvokeCoreAsync<string>(nameof(IDiagnosticHubServer.SetEvents), new object[] { initial }, cancel);
+            await _hubConn.InvokeCoreAsync<string>(
+                nameof(IDiagnosticHubServer.SetEvents),
+                new object[] { initial },
+                cancel
+            );
 
             while (await stream.EventChannel.Reader.WaitToReadAsync(cancel))
             {
                 IList<SystemEvent> item = await stream.EventChannel.Reader.ReadAsync(cancel);
-                await _hubConn.InvokeCoreAsync<string>(nameof(IDiagnosticHubServer.StreamEvents), new object[] { item }, cancel);
+                await _hubConn.InvokeCoreAsync<string>(
+                    nameof(IDiagnosticHubServer.StreamEvents),
+                    new object[] { item },
+                    cancel
+                );
             }
         }
         catch (OperationCanceledException)
@@ -125,10 +150,10 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
         UnsubscribeEvents();
     }
 
-
     public Task GetDiagnostics(string requestId)
     {
-        return Task.Run(async () => {
+        return Task.Run(async () =>
+        {
             RpcResult<byte[]> result = null;
             try
             {
@@ -143,13 +168,17 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
                 result = RpcResult<byte[]>.Fail(requestId, ex);
             }
 
-            await _hubConn.InvokeCoreAsync<string>(nameof(IDiagnosticHubServer.GetDiagnosticsReturn), new object[] { result });
+            await _hubConn.InvokeCoreAsync<string>(
+                nameof(IDiagnosticHubServer.GetDiagnosticsReturn),
+                new object[] { result }
+            );
         });
     }
 
     public Task SetProperty(string requestId, string path, string value)
     {
-        return Task.Run(async () => {
+        return Task.Run(async () =>
+        {
             RpcResult<OperationResponse> result = null;
 
             try
@@ -163,19 +192,32 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
             }
             finally
             {
-                await _hubConn.InvokeCoreAsync<string>(nameof(IDiagnosticHubServer.SetPropertyReturn), new object[] { result });
+                await _hubConn.InvokeCoreAsync<string>(
+                    nameof(IDiagnosticHubServer.SetPropertyReturn),
+                    new object[] { result }
+                );
             }
         });
     }
 
-    public Task ExecuteOperation(string requestId, string path, string operation, string[] arguments)
+    public Task ExecuteOperation(
+        string requestId,
+        string path,
+        string operation,
+        string[] arguments
+    )
     {
-        return Task.Run(async () => {
+        return Task.Run(async () =>
+        {
             RpcResult<OperationResponse> result = null;
 
             try
             {
-                OperationResponse response = DiagnosticManager.ExecuteOperation(path, operation, arguments);
+                OperationResponse response = DiagnosticManager.ExecuteOperation(
+                    path,
+                    operation,
+                    arguments
+                );
                 result = RpcResult<OperationResponse>.Success(requestId, response);
             }
             catch (Exception ex)
@@ -184,14 +226,22 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
             }
             finally
             {
-                await _hubConn.InvokeCoreAsync<string>(nameof(IDiagnosticHubServer.ExecuteOperationReturn), new object[] { result });
+                await _hubConn.InvokeCoreAsync<string>(
+                    nameof(IDiagnosticHubServer.ExecuteOperationReturn),
+                    new object[] { result }
+                );
             }
         });
     }
 
-    public async Task<RegistrationResponse> Register(Registration registration, CancellationToken cancel = default)
+    public async Task<RegistrationResponse> Register(
+        Registration registration,
+        CancellationToken cancel = default
+    )
     {
-        RpcResult<RegistrationResponse> response = await _hubConn.InvokeCoreAsync<RpcResult<RegistrationResponse>>(nameof(IDiagnosticHubServer.Register), new object[] { registration }, cancel);
+        RpcResult<RegistrationResponse> response = await _hubConn.InvokeCoreAsync<
+            RpcResult<RegistrationResponse>
+        >(nameof(IDiagnosticHubServer.Register), new object[] { registration }, cancel);
         if (!response.IsSuccess)
         {
             throw new ApplicationException(response.Message);
@@ -204,7 +254,11 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
     {
         if (_hubConn != null)
         {
-            RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.Deregister), new object[] { registration }, cancel);
+            RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(
+                nameof(IDiagnosticHubServer.Deregister),
+                new object[] { registration },
+                cancel
+            );
             if (!response.IsSuccess)
             {
                 throw new ApplicationException(response.Message);
@@ -214,7 +268,11 @@ internal class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
     public async Task LogEvents(byte[] eventData, CancellationToken cancel = default)
     {
-        RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(nameof(IDiagnosticHubServer.LogEvents), new object[] { eventData }, cancel);
+        RpcResult response = await _hubConn.InvokeCoreAsync<RpcResult>(
+            nameof(IDiagnosticHubServer.LogEvents),
+            new object[] { eventData },
+            cancel
+        );
 
         if (!response.IsSuccess)
         {

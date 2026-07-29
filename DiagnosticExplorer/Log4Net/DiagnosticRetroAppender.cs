@@ -21,7 +21,6 @@ public class DiagnosticRetroAppender : AppenderSkeleton
         _loggingAction = action;
     }
 
-
     public DiagnosticRetroAppender()
     {
         // Version can be null for an assembly built without a version → guard with ?. (the
@@ -50,13 +49,12 @@ public class DiagnosticRetroAppender : AppenderSkeleton
             Environment = Environment,
             Category = loggingEvent.LoggerName,
             Process = $"{_process} {_version}",
-            Message = GetMessage(loggingEvent)
+            Message = GetMessage(loggingEvent),
         };
 
         EventsIn.Register(1);
         _loggingAction?.Invoke(msg);
     }
-
 
     [RateProperty(ExposeRate = false, ExposeTotal = true)]
     public RateCounter EventsIn { get; set; } = new RateCounter(3);
@@ -78,5 +76,4 @@ public class DiagnosticRetroAppender : AppenderSkeleton
         base.OnClose();
         DiagnosticManager.Unregister(this);
     }
-
 }

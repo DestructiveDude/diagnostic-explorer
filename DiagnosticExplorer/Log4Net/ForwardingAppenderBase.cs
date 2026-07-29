@@ -7,15 +7,12 @@ using log4net.Appender;
 
 namespace DiagnosticExplorer.Log4Net;
 
-
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppender
 {
     protected readonly object _lock = new();
 
-    protected ForwardingAppenderBase()
-    {
-    }
+    protected ForwardingAppenderBase() { }
 
     /// <summary>
     /// Wraps the appenders in the corresponding <see cref="AppenderProxy"/>
@@ -29,7 +26,10 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
             FailTimeout = Appenders.Count == 1 ? TimeSpan.Zero : TimeSpan.FromMinutes(5);
         }
 
-        Proxies = Appenders.Cast<IAppender>().Select(a => new AppenderProxy(a, FailTimeout)).ToList();
+        Proxies = Appenders
+            .Cast<IAppender>()
+            .Select(a => new AppenderProxy(a, FailTimeout))
+            .ToList();
         DiagnosticManager.Register(this, Name, "Log4Net");
     }
 
@@ -78,7 +78,7 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
                 {
                     var newProxies = new List<AppenderProxy>(Proxies)
                     {
-                        new AppenderProxy(appender, FailTimeout)
+                        new AppenderProxy(appender, FailTimeout),
                     };
                     Proxies = newProxies;
                 }
@@ -93,7 +93,9 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
         {
             lock (_lock)
             {
-                var newProxies = Proxies.Where(p => !ReferenceEquals(p.RawAppender, removed)).ToList();
+                var newProxies = Proxies
+                    .Where(p => !ReferenceEquals(p.RawAppender, removed))
+                    .ToList();
                 Proxies = newProxies;
             }
         }
@@ -107,7 +109,9 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
         {
             lock (_lock)
             {
-                var newProxies = Proxies.Where(p => !ReferenceEquals(p.RawAppender, removed)).ToList();
+                var newProxies = Proxies
+                    .Where(p => !ReferenceEquals(p.RawAppender, removed))
+                    .ToList();
                 Proxies = newProxies;
             }
         }
@@ -125,5 +129,4 @@ public abstract class ForwardingAppenderBase : log4net.Appender.ForwardingAppend
             }
         }
     }
-
 }

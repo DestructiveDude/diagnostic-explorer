@@ -3,23 +3,19 @@ using System.Globalization;
 
 namespace DiagnosticExplorer.Props;
 
-
 public enum KpiTargetProperty
 {
     Date,
     DateElapsed,
     DateTimeUntil,
     Rate,
-    RateTotal
+    RateTotal,
 }
 
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 public class KpiAttribute : Attribute
 {
-    public KpiAttribute()
-    {
-
-    }
+    public KpiAttribute() { }
 
     public KpiAttribute(string minSample, string maxSample)
     {

@@ -17,10 +17,7 @@ public class AsyncFallbackAppender : FallbackAppender, IDisposable
 
         InitializeAppenders();
 
-        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend)
-        {
-            Fix = Fix
-        };
+        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend) { Fix = Fix };
         _processor.Start();
     }
 
@@ -32,7 +29,6 @@ public class AsyncFallbackAppender : FallbackAppender, IDisposable
 
     [Property]
     public int MaxQueueSize { get; set; } = 1000;
-
 
     [Property]
     public int? CurrentQueueSize => _processor?.QueueSize;
@@ -50,7 +46,6 @@ public class AsyncFallbackAppender : FallbackAppender, IDisposable
         }
     }
 
-
     private void SetAppenderFixFlags(IAppender appender)
     {
         if (appender is BufferingAppenderSkeleton bufferingAppender)
@@ -58,7 +53,6 @@ public class AsyncFallbackAppender : FallbackAppender, IDisposable
             bufferingAppender.Fix = Fix;
         }
     }
-
 
     protected override void Append(LoggingEvent loggingEvent)
     {
@@ -101,12 +95,10 @@ public class AsyncFallbackAppender : FallbackAppender, IDisposable
         }
     }
 
-
     // Use C# destructor syntax for finalization code.
     ~AsyncFallbackAppender()
     {
         // Simply call Dispose(false).
         Dispose(false);
     }
-
 }

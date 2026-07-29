@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -56,8 +56,11 @@ public class RateCounter
         // advances; negative throws OverflowException at the array allocation below.
         if (secondsAverage <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(secondsAverage), secondsAverage,
-                "secondsAverage must be greater than zero.");
+            throw new ArgumentOutOfRangeException(
+                nameof(secondsAverage),
+                secondsAverage,
+                "secondsAverage must be greater than zero."
+            );
         }
 
         _counts = new int[secondsAverage];
@@ -72,7 +75,6 @@ public class RateCounter
             }
         }
     }
-
 
     private void Increment()
     {
@@ -100,7 +102,9 @@ public class RateCounter
             if (sampleCollectedHandler != null)
             {
                 RateSampleEventArgs args = new RateSampleEventArgs(Rate, GetRates(_times.Length));
-                foreach (EventHandler<RateSampleEventArgs> handler in sampleCollectedHandler.GetInvocationList())
+                foreach (
+                    EventHandler<RateSampleEventArgs> handler in sampleCollectedHandler.GetInvocationList()
+                )
                 {
                     // Delegate.BeginInvoke throws PlatformNotSupportedException on .NET Core/5+.
                     // Task.Run gives the same fire-and-forget async dispatch portably.
@@ -133,7 +137,7 @@ public class RateCounter
 
         lock (_counts)
         {
-            _total += (ulong) count;
+            _total += (ulong)count;
             _counts[_index % _counts.Length] += count;
         }
     }
@@ -173,9 +177,27 @@ public class RateCounter
 
     // Read under the same lock the writers (CalcRate/Register) hold: Rate (double) and Total
     // (ulong) are 64-bit, so an unlocked read can tear on a 32-bit host.
-    public double Rate { get { lock (_counts) { return _rate; } } }
+    public double Rate
+    {
+        get
+        {
+            lock (_counts)
+            {
+                return _rate;
+            }
+        }
+    }
 
-    public ulong Total { get { lock (_counts) { return _total; } } }
+    public ulong Total
+    {
+        get
+        {
+            lock (_counts)
+            {
+                return _total;
+            }
+        }
+    }
 
     private static void Run(object state, ElapsedEventArgs e)
     {
@@ -187,7 +209,7 @@ public class RateCounter
                 for (int i = _counters.Count - 1; i >= 0; i--)
                 {
                     WeakReference r = _counters[i];
-                    RateCounter counter = (RateCounter) r.Target;
+                    RateCounter counter = (RateCounter)r.Target;
                     if (counter == null)
                     {
                         _counters.RemoveAt(i);

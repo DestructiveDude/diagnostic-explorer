@@ -12,8 +12,8 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class PropertyGetterTests
 {
-    private static IEnumerable<string?> AllValues(PropertyBag bag)
-        => bag.Categories.SelectMany(c => c.Properties).Select(p => p.Value);
+    private static IEnumerable<string?> AllValues(PropertyBag bag) =>
+        bag.Categories.SelectMany(c => c.Properties).Select(p => p.Value);
 
     private sealed class ThrowingRate
     {

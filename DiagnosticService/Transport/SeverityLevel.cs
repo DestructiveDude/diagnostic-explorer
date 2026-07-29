@@ -12,5 +12,5 @@ public enum SeverityLevel
     Severe = 80000,
     Critical = 90000,
     Fatal = 110000,
-    Emergency = 120000
+    Emergency = 120000,
 }

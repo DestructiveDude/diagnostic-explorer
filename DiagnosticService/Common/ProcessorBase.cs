@@ -16,7 +16,6 @@ public class ProcessorBase
 
     public string Type => GetType().Name;
 
-
     [RateProperty(ExposeTotal = true, ExposeRate = true)]
     public RateCounter Received { get; } = new RateCounter(5);
 

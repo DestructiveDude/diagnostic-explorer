@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -51,7 +51,6 @@ public class EventSink
     public string Name { get; }
 
     public string Category { get; }
-
 
     private long _idCount;
 
@@ -96,7 +95,7 @@ public class EventSink
                 SinkName = Name,
                 SinkCategory = Category,
                 Message = MaxLengthString(message, MaxLength),
-                Detail = MaxLengthString(detail, MaxLength)
+                Detail = MaxLengthString(detail, MaxLength),
             };
             AddSingleEvent(evt);
         }
@@ -145,9 +144,7 @@ public class EventSink
 
     public void Clear()
     {
-        while (Events.TryDequeue(out _))
-        {
-        }
+        while (Events.TryDequeue(out _)) { }
 
         Interlocked.Exchange(ref _idCount, 0);
     }
@@ -209,5 +206,4 @@ public class EventSink
 
         return s.Substring(0, maxLength);
     }
-
 }

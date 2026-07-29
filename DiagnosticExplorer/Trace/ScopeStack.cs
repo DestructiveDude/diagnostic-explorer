@@ -4,9 +4,7 @@ internal sealed class ScopeStack
 {
     public static ScopeStack Empty { get; } = new();
 
-    private ScopeStack()
-    {
-    }
+    private ScopeStack() { }
 
     private ScopeStack(TraceScope current, ScopeStack parent)
     {

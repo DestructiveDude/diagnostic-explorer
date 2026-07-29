@@ -5,7 +5,6 @@ namespace Diagnostic.Service.Transport;
 
 public class RetroMsg
 {
-
     public int Level { get; set; }
 
     public DateTime Date { get; set; }

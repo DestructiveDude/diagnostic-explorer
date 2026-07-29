@@ -13,7 +13,8 @@ namespace WidgetSample;
 internal static class ThreadSafeRandom
 {
 #if NET48
-    [ThreadStatic] private static Random _local;
+    [ThreadStatic]
+    private static Random _local;
 
     // Seed per thread from a Guid so threads created close together don't share a
     // time-based seed and therefore the same sequence.

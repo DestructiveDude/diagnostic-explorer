@@ -16,10 +16,7 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         base.ActivateOptions();
 
         InitializeAppenders();
-        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend)
-        {
-            Fix = Fix
-        };
+        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend) { Fix = Fix };
         _processor.Start();
     }
 
@@ -40,7 +37,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
     [Property]
     public int? CurrentQueueSize => _processor?.QueueSize;
 
-
     private void InitializeAppenders()
     {
         foreach (var appender in Appenders)
@@ -49,7 +45,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         }
     }
 
-
     private void SetAppenderFixFlags(IAppender appender)
     {
         if (appender is BufferingAppenderSkeleton bufferingAppender)
@@ -57,7 +52,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
             bufferingAppender.Fix = Fix;
         }
     }
-
 
     protected override void Append(LoggingEvent loggingEvent)
     {
@@ -72,7 +66,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         var processor = _processor;
         processor?.Append(loggingEvents);
     }
-
 
     protected override void OnClose()
     {
@@ -100,7 +93,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
             _disposed = true;
         }
     }
-
 
     // Use C# destructor syntax for finalization code.
     ~AsyncForwardingAppender()

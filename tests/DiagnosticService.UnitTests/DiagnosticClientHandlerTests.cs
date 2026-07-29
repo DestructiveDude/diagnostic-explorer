@@ -21,7 +21,9 @@ public class DiagnosticClientHandlerTests
 
         Task[] publishes = StartConcurrentPublishes(
             count: 24,
-            publish: index => handler.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } }));
+            publish: index =>
+                handler.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } })
+        );
 
         try
         {
@@ -47,7 +49,9 @@ public class DiagnosticClientHandlerTests
 
         Task[] publishes = StartConcurrentPublishes(
             count: 24,
-            publish: index => handler.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } }));
+            publish: index =>
+                handler.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } })
+        );
 
         try
         {
@@ -76,11 +80,15 @@ public class DiagnosticClientHandlerTests
     private static Task[] StartConcurrentPublishes(int count, Action<int> publish)
     {
         ManualResetEventSlim start = new(false);
-        Task[] tasks = Enumerable.Range(0, count)
-            .Select(index => Task.Run(() => {
-                start.Wait();
-                publish(index);
-            }))
+        Task[] tasks = Enumerable
+            .Range(0, count)
+            .Select(index =>
+                Task.Run(() =>
+                {
+                    start.Wait();
+                    publish(index);
+                })
+            )
             .ToArray();
 
         start.Set();
@@ -108,13 +116,9 @@ public class DiagnosticClientHandlerTests
             _releaseCallbacks.Set();
         }
 
-        public void OnCompleted()
-        {
-        }
+        public void OnCompleted() { }
 
-        public void OnError(Exception error)
-        {
-        }
+        public void OnError(Exception error) { }
 
         public void OnNext(T value)
         {

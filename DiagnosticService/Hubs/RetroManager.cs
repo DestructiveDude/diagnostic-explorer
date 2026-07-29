@@ -36,7 +36,6 @@ public class RetroManager : IHostedService
     private Channel<IList<DiagnosticMsg>> WriteChannel =>
         _writeChannel ?? throw new InvalidOperationException("RetroManager has not been started");
 
-
     private readonly IHostApplicationLifetime _lifetime;
 
     public RetroManager(IHostApplicationLifetime lifetime, IOptions<DiagServiceSettings> config)
@@ -47,7 +46,6 @@ public class RetroManager : IHostedService
         _lifetime = lifetime;
     }
 
-
     public Task StartAsync(CancellationToken cancel)
     {
         DiagnosticManager.Register(this, "Retro Manager", "Retro");
@@ -56,27 +54,29 @@ public class RetroManager : IHostedService
 
         // 10k batches is a real backlog cap (1_000_000 batches x up-to-50 msgs was effectively
         // unbounded, so DropWrite never engaged and memory was uncapped during a logger outage).
-        _writeChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(new BoundedChannelOptions(10_000)
-        {
-            SingleReader = true,
-            FullMode = BoundedChannelFullMode.DropWrite,
-        });
-
+        _writeChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(
+            new BoundedChannelOptions(10_000)
+            {
+                SingleReader = true,
+                FullMode = BoundedChannelFullMode.DropWrite,
+            }
+        );
 
         _ownedLogSubject = new Subject<IList<DiagnosticMsg>>();
         _logSubject = Subject.Synchronize(_ownedLogSubject);
 
         // Keep the subscription so StopAsync can dispose it (was discarded → leaked across restarts).
-        _logSubscription = _logSubject.SelectMany(list => list)
+        _logSubscription = _logSubject
+            .SelectMany(list => list)
             .Buffer(TimeSpan.FromSeconds(1), 50)
             .Where(evts => evts.Count != 0)
-            .Subscribe(evts => {
+            .Subscribe(evts =>
+            {
                 if (_writeChannel.Writer.TryWrite(evts))
                 {
                     Interlocked.Add(ref _writeQueueSize, evts.Count);
                 }
             });
-
 
         _logger = Options.CreateRetroLogger();
 
@@ -136,7 +136,6 @@ public class RetroManager : IHostedService
         }
     }
 
-
     public long WriteQueueSize => _writeQueueSize;
     public int ItemsInQueue => WriteChannel.Reader.CanCount ? WriteChannel.Reader.Count : -1;
 
@@ -148,7 +147,6 @@ public class RetroManager : IHostedService
 
     [RateProperty(ExposeTotal = false, ExposeRate = true)]
     public RateCounter EventsWritten { get; set; } = new(3);
-
 
     private async Task TryLog(IList<DiagnosticMsg> messages, CancellationToken cancel)
     {
@@ -183,7 +181,6 @@ public class RetroManager : IHostedService
         return Logger.GetMessages(query, cancel);
     }
 
-
     public void LogEvents(IList<DiagnosticMsg> messages)
     {
         ISubject<IList<DiagnosticMsg>>? logSubject = _logSubject;
@@ -200,26 +197,30 @@ public class RetroManager : IHostedService
 
     public Task StartRetroSearch(RetroQuery query, string connectionId, IWebHubClient client)
     {
-        RetroEvents.Info($"Retro search starting for connection {connectionId}",
-            JsonSerializer.SerializeToElement(query).ToString());
+        RetroEvents.Info(
+            $"Retro search starting for connection {connectionId}",
+            JsonSerializer.SerializeToElement(query).ToString()
+        );
 
         RetroSearchProcess search = new(this, connectionId, client, query);
         search.Finished += HandleSearchFinished;
 
         RetroSearchProcess? displaced = null;
-        _searches.AddOrUpdate(connectionId,
+        _searches.AddOrUpdate(
+            connectionId,
             key => search,
-            (key, old) => {
+            (key, old) =>
+            {
                 displaced = old;
                 return search;
-            });
+            }
+        );
 
         displaced?.Cancel();
 
         search.Start();
         return Task.CompletedTask;
     }
-
 
     /// <summary>
     /// Whether the active backend supports interactive per-record delete. Surfaced to the web
@@ -237,16 +238,22 @@ public class RetroManager : IHostedService
 
     private void HandleSearchFinished(object? sender, EventArgs e)
     {
-        RetroSearchProcess search = (RetroSearchProcess) sender!;
+        RetroSearchProcess search = (RetroSearchProcess)sender!;
         // Remove the finished search so completed searches don't linger in the registry until the
         // connection starts another or disconnects. Pair-remove so a newer search that already
         // replaced this entry is left intact. (A3)
-        if (_searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search)))
+        if (
+            _searches.TryRemove(
+                new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search)
+            )
+        )
         {
             search.Dispose();
         }
-        RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
-            JsonSerializer.SerializeToElement(search.Query).ToString());
+        RetroEvents.Info(
+            $"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
+            JsonSerializer.SerializeToElement(search.Query).ToString()
+        );
     }
 
     public Task CancelConnectionSearch(string connectionId)
@@ -263,15 +270,17 @@ public class RetroManager : IHostedService
 
     public Task CancelRetroSearch(int searchId, string connectionId)
     {
-        if (_searches.TryGetValue(connectionId, out RetroSearchProcess? running)
-            && running.Query.SearchId == searchId)
+        if (
+            _searches.TryGetValue(connectionId, out RetroSearchProcess? running)
+            && running.Query.SearchId == searchId
+        )
         {
             running.Cancel();
-            _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(connectionId, running));
+            _searches.TryRemove(
+                new KeyValuePair<string, RetroSearchProcess>(connectionId, running)
+            );
         }
 
         return Task.CompletedTask;
     }
-
-
 }

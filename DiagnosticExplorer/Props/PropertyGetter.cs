@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -38,10 +38,7 @@ internal class PropertyGetter
 {
     public const int MaxConcatItems = 10;
 
-    protected PropertyGetter()
-    {
-
-    }
+    protected PropertyGetter() { }
 
     public PropertyGetter(PropertyInfo propInfo, bool isStatic)
     {
@@ -62,10 +59,10 @@ internal class PropertyGetter
             Description = descAttr.Description;
         }
 
-        DiagnosticClassAttribute classAttr = propInfo.DeclaringType
-            .GetCustomAttributes(typeof(DiagnosticClassAttribute), true)
-            .Cast<DiagnosticClassAttribute>().
-                FirstOrDefault();
+        DiagnosticClassAttribute classAttr = propInfo
+            .DeclaringType.GetCustomAttributes(typeof(DiagnosticClassAttribute), true)
+            .Cast<DiagnosticClassAttribute>()
+            .FirstOrDefault();
 
         if (classAttr != null && classAttr.AllPropertiesSettable)
         {
@@ -104,11 +101,16 @@ internal class PropertyGetter
             UnaryExpression objToType = Expression.Convert(objParam, propInfo.DeclaringType);
             Expression propExp = Expression.Property(objToType, propInfo);
             Expression resultToObj = Expression.Convert(propExp, typeof(object));
-            return (Func<object, object>) Expression.Lambda(resultToObj, objParam).Compile();
+            return (Func<object, object>)Expression.Lambda(resultToObj, objParam).Compile();
         }
         catch (Exception ex)
         {
-            string msg = string.Format("Property {0}.{1}: {2}", propInfo.DeclaringType.Name, propInfo.Name, ex.Message);
+            string msg = string.Format(
+                "Property {0}.{1}: {2}",
+                propInfo.DeclaringType.Name,
+                propInfo.Name,
+                ex.Message
+            );
             return obj => msg;
         }
     }
@@ -140,7 +142,7 @@ internal class PropertyGetter
             ValueObject = objectValue,
             CanSet = CanSet,
             SourceObject = obj,
-            SourceProperty = PropInfo
+            SourceProperty = PropInfo,
         };
 
         string prependToCategory = PrependToCategory(catPrepend);
@@ -218,10 +220,11 @@ internal class PropertyGetter
         }
         else
         {
-            PropertyInfo countProp = col.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo countProp = col.GetType()
+                .GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
             if (countProp != null && countProp.PropertyType == typeof(int))
             {
-                count = (int) countProp.GetValue(col);
+                count = (int)countProp.GetValue(col);
             }
         }
 
@@ -271,7 +274,9 @@ internal class PropertyGetter
         {
             if (count != -1)
             {
-                values.Add(string.Format("... ({0} more item{1})", remaining, remaining == 1 ? "" : "s"));
+                values.Add(
+                    string.Format("... ({0} more item{1})", remaining, remaining == 1 ? "" : "s")
+                );
             }
             else
             {
@@ -279,9 +284,10 @@ internal class PropertyGetter
             }
         }
 
-        string pre = count != -1
-            ? string.Format("{0} item{1}: ", count, count == 1 ? "" : "s")
-            : "Many items: ";
+        string pre =
+            count != -1
+                ? string.Format("{0} item{1}: ", count, count == 1 ? "" : "s")
+                : "Many items: ";
         return pre + string.Join(separator, values.ToArray());
     }
 
@@ -353,9 +359,14 @@ internal class PropertyGetter
             format += ".{5:D2}";
         }
 
-        return string.Format(format, sign,
-            Math.Abs(span.Days), Math.Abs(span.Hours),
-            Math.Abs(span.Minutes), Math.Abs(span.Seconds),
-            Math.Abs(span.Milliseconds));
+        return string.Format(
+            format,
+            sign,
+            Math.Abs(span.Days),
+            Math.Abs(span.Hours),
+            Math.Abs(span.Minutes),
+            Math.Abs(span.Seconds),
+            Math.Abs(span.Milliseconds)
+        );
     }
 }

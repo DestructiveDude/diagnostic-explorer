@@ -10,7 +10,8 @@ namespace DiagnosticExplorer.Log4Net;
 
 public struct AppendResult
 {
-    public AppendResult(bool success) : this()
+    public AppendResult(bool success)
+        : this()
     {
         Success = success;
     }
@@ -42,7 +43,6 @@ public abstract class AppenderProxyBase
     private DateTime? _lastError;
     private DateTime? _lastMessageSent;
 
-
     public AppenderProxyBase(TimeSpan timeout)
     {
         _timeout = timeout;
@@ -50,7 +50,8 @@ public abstract class AppenderProxyBase
 
     public bool IsInError
     {
-        get {
+        get
+        {
             lock (_stateLock)
             {
                 return _isInError;
@@ -61,13 +62,15 @@ public abstract class AppenderProxyBase
     [Property]
     public DateTime? LastError
     {
-        get {
+        get
+        {
             lock (_stateLock)
             {
                 return _lastError;
             }
         }
-        set {
+        set
+        {
             lock (_stateLock)
             {
                 _lastError = value;
@@ -78,13 +81,15 @@ public abstract class AppenderProxyBase
     [Property]
     public DateTime? LastMessageSent
     {
-        get {
+        get
+        {
             lock (_stateLock)
             {
                 return _lastMessageSent;
             }
         }
-        set {
+        set
+        {
             lock (_stateLock)
             {
                 _lastMessageSent = value;
@@ -114,13 +119,15 @@ public abstract class AppenderProxyBase
     [Property]
     public string LastErrorMessage
     {
-        get {
+        get
+        {
             lock (_stateLock)
             {
                 return _lastErrorMessage;
             }
         }
-        set {
+        set
+        {
             lock (_stateLock)
             {
                 _lastErrorMessage = value;
@@ -153,7 +160,8 @@ public abstract class AppenderProxyBase
     [Property]
     public string StatusMessage
     {
-        get {
+        get
+        {
             lock (_stateLock)
             {
                 if (_isHalfOpen)
@@ -176,7 +184,12 @@ public abstract class AppenderProxyBase
     {
         if (time.TotalMinutes >= 60)
         {
-            return string.Format("{0:D2}:{1:D2}:{2:D2}", (int) time.TotalHours, time.Minutes, time.Seconds);
+            return string.Format(
+                "{0:D2}:{1:D2}:{2:D2}",
+                (int)time.TotalHours,
+                time.Minutes,
+                time.Seconds
+            );
         }
 
         if (time.TotalSeconds < 60)
@@ -184,7 +197,7 @@ public abstract class AppenderProxyBase
             return string.Format("{0} seconds", time.Seconds);
         }
 
-        return string.Format("{0}m {1:D2}s", (int) time.TotalMinutes, time.Seconds);
+        return string.Format("{0}m {1:D2}s", (int)time.TotalMinutes, time.Seconds);
     }
 
     protected bool DoAppend(Func<AppendResult> appendAction)
@@ -293,14 +306,13 @@ public abstract class AppenderProxyBase
     }
 }
 
-
-
 [DiagnosticClass(AttributedPropertiesOnly = true)]
 public class SmtpAppenderProxy : AppenderProxyBase
 {
     private readonly SmtpAppender _appender;
 
-    public SmtpAppenderProxy(SmtpAppender appender, string smtpHost, TimeSpan timeout) : base(timeout)
+    public SmtpAppenderProxy(SmtpAppender appender, string smtpHost, TimeSpan timeout)
+        : base(timeout)
     {
         _appender = appender;
         SmtpHost = smtpHost;
@@ -318,7 +330,14 @@ public class SmtpAppenderProxy : AppenderProxyBase
         try
         {
             using SmtpClient smtpClient = new SmtpClient();
-            if (!string.IsNullOrEmpty(SmtpHost) && !string.Equals(SmtpHost, SmtpAppender.DefaultHostName, StringComparison.CurrentCultureIgnoreCase))
+            if (
+                !string.IsNullOrEmpty(SmtpHost)
+                && !string.Equals(
+                    SmtpHost,
+                    SmtpAppender.DefaultHostName,
+                    StringComparison.CurrentCultureIgnoreCase
+                )
+            )
             {
                 smtpClient.Host = SmtpHost;
             }
@@ -332,15 +351,22 @@ public class SmtpAppenderProxy : AppenderProxyBase
 
             // Require TLS when sending Basic-auth credentials so username/password don't traverse
             // the wire in clear; otherwise honour the configured EnableSsl. (M13)
-            smtpClient.EnableSsl = _appender.EnableSsl
-                || _appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic;
+            smtpClient.EnableSsl =
+                _appender.EnableSsl
+                || _appender.Authentication
+                    == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic;
 
             if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic)
             {
                 // Perform basic authentication
-                smtpClient.Credentials = new NetworkCredential(_appender.Username, _appender.Password);
+                smtpClient.Credentials = new NetworkCredential(
+                    _appender.Username,
+                    _appender.Password
+                );
             }
-            else if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Ntlm)
+            else if (
+                _appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Ntlm
+            )
             {
                 // Perform integrated authentication (NTLM)
                 smtpClient.Credentials = CredentialCache.DefaultNetworkCredentials;
@@ -365,20 +391,27 @@ public class AppenderProxy : AppenderProxyBase
     /// an error while appending
     /// </summary>
     /// <param name="timeout">Duration to wait before attempting to append again after an error</param>
-    public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout) : base(timeout)
+    public AppenderProxy(IAppender appenderToWrap, TimeSpan timeout)
+        : base(timeout)
     {
         RawAppender = appenderToWrap ?? throw new ArgumentNullException(nameof(appenderToWrap));
 
-        if (appenderToWrap is AsyncFallbackAppender ||
-            appenderToWrap is AsyncForwardingAppender ||
-            appenderToWrap is AsyncSmtpAppender)
+        if (
+            appenderToWrap is AsyncFallbackAppender
+            || appenderToWrap is AsyncForwardingAppender
+            || appenderToWrap is AsyncSmtpAppender
+        )
         {
-            throw new ArgumentException($"Cannot wrap async appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' inside AppenderProxy. Failover and quarantine are not supported for asynchronous appenders.");
+            throw new ArgumentException(
+                $"Cannot wrap async appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' inside AppenderProxy. Failover and quarantine are not supported for asynchronous appenders."
+            );
         }
 
         if (appenderToWrap is not AppenderSkeleton convertedAppender)
         {
-            throw new ArgumentException($"Appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' does not inherit from AppenderSkeleton. AppenderProxy requires AppenderSkeleton targets to track errors.");
+            throw new ArgumentException(
+                $"Appender '{appenderToWrap.Name}' of type '{appenderToWrap.GetType().Name}' does not inherit from AppenderSkeleton. AppenderProxy requires AppenderSkeleton targets to track errors."
+            );
         }
 
         Appender = convertedAppender;
@@ -403,19 +436,22 @@ public class AppenderProxy : AppenderProxyBase
     /// <returns>Whether the append was successful</returns>
     public bool TryAppend(LoggingEvent[] loggingEvents)
     {
-        return DoAppend(() => FireAppendAction(() => {
-            if (Appender != null)
+        return DoAppend(() =>
+            FireAppendAction(() =>
             {
-                Appender.DoAppend(loggingEvents);
-            }
-            else
-            {
-                foreach (var loggingEvent in loggingEvents)
+                if (Appender != null)
                 {
-                    RawAppender.DoAppend(loggingEvent);
+                    Appender.DoAppend(loggingEvents);
                 }
-            }
-        }));
+                else
+                {
+                    foreach (var loggingEvent in loggingEvents)
+                    {
+                        RawAppender.DoAppend(loggingEvent);
+                    }
+                }
+            })
+        );
     }
 
     private AppendResult FireAppendAction(Action appendAction)
@@ -437,7 +473,10 @@ public class AppenderProxy : AppenderProxyBase
         {
             ErrorHandler?.Disable();
         }
-        return new AppendResult(ErrorHandler == null || !ErrorHandler.HasError, ErrorHandler?.Message);
+        return new AppendResult(
+            ErrorHandler == null || !ErrorHandler.HasError,
+            ErrorHandler?.Message
+        );
     }
 
     /// <summary>

@@ -25,7 +25,8 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IOptions<DiagServiceSettings> settings)
+        IOptions<DiagServiceSettings> settings
+    )
         : base(options, logger, encoder)
     {
         _security = settings.Value.Security;
@@ -50,7 +51,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         }
 
         ClaimsIdentity identity = new(
-            [new Claim(ClaimTypes.Name, "diagnostic-client")], SchemeName);
+            [new Claim(ClaimTypes.Name, "diagnostic-client")],
+            SchemeName
+        );
         AuthenticationTicket ticket = new(new ClaimsPrincipal(identity), SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
@@ -58,14 +61,20 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     private string? ExtractKey()
     {
         // Check for the short-lived cookie first to avoid query string leak in browsers.
-        if (Request.Cookies.TryGetValue("Diag-Hub-Auth", out var cookieToken) && !string.IsNullOrEmpty(cookieToken))
+        if (
+            Request.Cookies.TryGetValue("Diag-Hub-Auth", out var cookieToken)
+            && !string.IsNullOrEmpty(cookieToken)
+        )
         {
             return cookieToken.ToString().Trim();
         }
 
         // All paths are Trim()'d consistently — a whitespace-padded key (copy-paste, padding proxy)
         // must not silently fail the fixed-time comparison. (F7)
-        if (Request.Headers.TryGetValue(HeaderName, out var apiKeyHeader) && !string.IsNullOrEmpty(apiKeyHeader))
+        if (
+            Request.Headers.TryGetValue(HeaderName, out var apiKeyHeader)
+            && !string.IsNullOrEmpty(apiKeyHeader)
+        )
         {
             return apiKeyHeader.ToString().Trim();
         }
@@ -78,7 +87,9 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         }
 
         // ...and "access_token=<key>" on the WebSocket/SSE/long-polling requests.
-        if (Request.Query.TryGetValue("access_token", out var token) && !string.IsNullOrEmpty(token))
+        if (
+            Request.Query.TryGetValue("access_token", out var token) && !string.IsNullOrEmpty(token)
+        )
         {
             return token.ToString().Trim();
         }
@@ -96,6 +107,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         // FixedTimeEquals returns false for differing lengths (it only reveals length, not content).
         return CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(configured),
-            Encoding.UTF8.GetBytes(presented));
+            Encoding.UTF8.GetBytes(presented)
+        );
     }
 }

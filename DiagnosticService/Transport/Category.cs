@@ -2,9 +2,7 @@ namespace Diagnostic.Service.Transport;
 
 public class Category
 {
-    public Category()
-    {
-    }
+    public Category() { }
 
     public Category(string name)
     {
@@ -14,6 +12,4 @@ public class Category
     public string Name { get; set; } = null!;
 
     public List<SubCategory> SubCategories { get; set; } = [];
-
-
 }

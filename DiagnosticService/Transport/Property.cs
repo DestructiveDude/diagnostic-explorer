@@ -10,7 +10,10 @@ public class Property
 
     public string? Path { get; set; }
 
-    public static List<Property> Map(string path, List<DiagnosticExplorer.Interface.Property> properties)
+    public static List<Property> Map(
+        string path,
+        List<DiagnosticExplorer.Interface.Property> properties
+    )
     {
         List<Property> result = [];
         foreach (DiagnosticExplorer.Interface.Property property in properties)
@@ -20,12 +23,11 @@ public class Property
                 Name = property.Name,
                 CanSet = property.CanSet,
                 Path = property.CanSet ? (path + '|' + property.Name) : null,
-                Value = property.Value
+                Value = property.Value,
             };
             result.Add(groupResult);
         }
 
         return result;
     }
-
 }

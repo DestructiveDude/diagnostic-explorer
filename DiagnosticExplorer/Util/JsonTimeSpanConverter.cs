@@ -7,7 +7,11 @@ namespace DiagnosticExplorer.Util;
 
 public class JsonTimeSpanConverter : JsonConverter<TimeSpan>
 {
-    public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override TimeSpan Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
     {
         return TimeSpan.Parse(reader.GetString(), CultureInfo.InvariantCulture);
     }
@@ -18,9 +22,14 @@ public class JsonTimeSpanConverter : JsonConverter<TimeSpan>
     }
 }
 
-public class JsonEnumConverter<T> : JsonConverter<T> where T : struct, Enum
+public class JsonEnumConverter<T> : JsonConverter<T>
+    where T : struct, Enum
 {
-    public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override T Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
     {
         string s = reader.GetString();
         if (Enum.TryParse<T>(s, true, out var v))
@@ -36,4 +45,3 @@ public class JsonEnumConverter<T> : JsonConverter<T> where T : struct, Enum
         writer.WriteStringValue(value.ToString());
     }
 }
-

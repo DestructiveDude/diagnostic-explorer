@@ -33,8 +33,9 @@ internal static class TypeUtil
     {
         ArgumentNullException.ThrowIfNull(t);
 
-        return t.IsValueType && t.IsGenericType
-                     && t.GetGenericTypeDefinition() == typeof(Nullable<>);
+        return t.IsValueType
+            && t.IsGenericType
+            && t.GetGenericTypeDefinition() == typeof(Nullable<>);
     }
 
     private static string ConvertTypeName(Type type)

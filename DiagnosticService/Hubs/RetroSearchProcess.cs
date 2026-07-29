@@ -14,8 +14,12 @@ public class RetroSearchProcess : IDisposable
     public string ClientId { get; }
     private readonly Stopwatch _watch = new Stopwatch();
 
-
-    public RetroSearchProcess(RetroManager retroManager, string clientId, IWebHubClient client, RetroQuery query)
+    public RetroSearchProcess(
+        RetroManager retroManager,
+        string clientId,
+        IWebHubClient client,
+        RetroQuery query
+    )
     {
         _retroManager = retroManager ?? throw new ArgumentNullException(nameof(retroManager));
         ClientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
@@ -23,28 +27,26 @@ public class RetroSearchProcess : IDisposable
         Query = query ?? throw new ArgumentNullException(nameof(query));
     }
 
-
     public void Cancel()
     {
         try
         {
             _cancelToken.Cancel();
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { }
     }
 
     public void Start()
     {
         _watch.Restart();
-        var channel = Channel.CreateBounded<RetroSearchResult>(new BoundedChannelOptions(200)
-        {
-            SingleReader = true,
-            SingleWriter = true,
-            FullMode = BoundedChannelFullMode.Wait,
-        });
-
+        var channel = Channel.CreateBounded<RetroSearchResult>(
+            new BoundedChannelOptions(200)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait,
+            }
+        );
 
         Task.Run(() => ExecuteQuery(channel, _cancelToken.Token));
         Task.Run(() => SendResults(channel, _cancelToken.Token));
@@ -94,11 +96,7 @@ public class RetroSearchProcess : IDisposable
 
                 // No debug Info: the old `cancelled: {IsCancellationRequested}` was always false here
                 // (we ThrowIfCancellationRequested above) and was only ever console.logged client-side.
-                RetroSearchResult result = new()
-                {
-                    SearchId = Query.SearchId,
-                    Results = messages,
-                };
+                RetroSearchResult result = new() { SearchId = Query.SearchId, Results = messages };
                 await channel.Writer.WriteAsync(result, cancel);
             }
 

@@ -20,34 +20,44 @@ public class RealtimeManager : IHostedService
     private readonly ILog _log = LogManager.GetLogger(typeof(RealtimeManager));
     private readonly ConcurrentDictionary<string, DiagProcess> _processes = new();
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
-    public EventSink RealtimEvents { get; } = EventSinkRepo.Default.GetSink("Realtime Events", "Realtime");
+    public EventSink RealtimEvents { get; } =
+        EventSinkRepo.Default.GetSink("Realtime Events", "Realtime");
 
-
-    private readonly ConcurrentDictionary<DiagProcess, DiagnosticSubscription> _subscriptions = new();
+    private readonly ConcurrentDictionary<DiagProcess, DiagnosticSubscription> _subscriptions =
+        new();
 
     // Synchronized: OnNext is raised from the alert-decay timer thread (ProcessesAlertLevels),
     // from hub-call threads (RegisterAlertLevel), and from inside the config write lock
     // (Register/Deregister/RemoveProcess/TidyProcesses). Subject<T>.OnNext is not safe for
     // concurrent callers, so wrap it in Subject.Synchronize to serialize notifications.
-    public ISubject<DiagProcess> ProcessChanged { get; } = Subject.Synchronize(new Subject<DiagProcess>());
-    public ISubject<DiagProcess> ProcessRemoved { get; } = Subject.Synchronize(new Subject<DiagProcess>());
+    public ISubject<DiagProcess> ProcessChanged { get; } =
+        Subject.Synchronize(new Subject<DiagProcess>());
+    public ISubject<DiagProcess> ProcessRemoved { get; } =
+        Subject.Synchronize(new Subject<DiagProcess>());
     private IDisposable? _alertLevelSubscription;
 
     private static readonly TimeSpan _alertDuration = TimeSpan.FromSeconds(2);
 
-    [CollectionProperty(CollectionMode.Categories, Category = "Processes", CategoryProperty = nameof(DiagProcess.Id))]
+    [CollectionProperty(
+        CollectionMode.Categories,
+        Category = "Processes",
+        CategoryProperty = nameof(DiagProcess.Id)
+    )]
     public ICollection<DiagProcess> Processes => _processes.Values;
 
-
-    [CollectionProperty(CollectionMode.Categories, Category = "Subscriptions", CategoryProperty = nameof(DiagnosticSubscription.ProcessId))]
+    [CollectionProperty(
+        CollectionMode.Categories,
+        Category = "Subscriptions",
+        CategoryProperty = nameof(DiagnosticSubscription.ProcessId)
+    )]
     public ICollection<DiagnosticSubscription> Subscriptions => _subscriptions.Values;
-
 
     // Lifecycle is driven by the host (registered via AddHostedService); no ctor self-wiring.
 
     public Task StartAsync(CancellationToken cancel)
     {
-        _alertLevelSubscription = Observable.Timer(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1))
+        _alertLevelSubscription = Observable
+            .Timer(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1))
             .Subscribe(_ => ProcessesAlertLevels());
 
         return Task.CompletedTask;
@@ -92,7 +102,8 @@ public class RealtimeManager : IHostedService
 
     public void RegisterAlertLevel(string connectionId, DiagnosticMsg[] messages)
     {
-        int level = messages.Where(m => DateTime.UtcNow.Subtract(m.Date) < _alertDuration)
+        int level = messages
+            .Where(m => DateTime.UtcNow.Subtract(m.Date) < _alertDuration)
             .Select(m => m.Level)
             .DefaultIfEmpty(0)
             .Max();
@@ -110,16 +121,12 @@ public class RealtimeManager : IHostedService
         }
     }
 
-
-
     public ICollection<DiagProcess> GetProcesses()
     {
         return Processes;
     }
 
-
     private readonly ConcurrentDictionary<string, DiagnosticClientHandler> _diagClients = new();
-
 
     [RateProperty(Category = "Requests", ExposeTotal = true, ExposeRate = true)]
     public RateCounter ConfigRequests { get; set; } = new(3);
@@ -133,7 +140,8 @@ public class RealtimeManager : IHostedService
     [RateProperty(Category = "Requests", ExposeTotal = true, ExposeRate = true)]
     public RateCounter Deregistrations { get; set; } = new(3);
 
-    [Property(Category = "Processes")] public int TotalProcesses => _processes.Count;
+    [Property(Category = "Processes")]
+    public int TotalProcesses => _processes.Count;
 
     internal void AddDiagnosticClient(DiagnosticClientHandler client)
     {
@@ -146,7 +154,7 @@ public class RealtimeManager : IHostedService
 
     private void HandleClientDisconnected(object? sender, EventArgs e)
     {
-        DiagnosticClientHandler client = (DiagnosticClientHandler) sender!;
+        DiagnosticClientHandler client = (DiagnosticClientHandler)sender!;
         RealtimEvents.Notice($"Client {client.ConnectionId} disconnected");
         _diagClients.TryRemove(client.ConnectionId, out _);
         Deregister(client);
@@ -242,7 +250,11 @@ public class RealtimeManager : IHostedService
                 return OperationResponse.Error($"Process {request.Id} is not connected");
             }
 
-            return await client.ExecuteOperation(request.Path, request.Operation, request.Arguments);
+            return await client.ExecuteOperation(
+                request.Path,
+                request.Operation,
+                request.Arguments
+            );
         }
         catch (Exception ex)
         {
@@ -266,7 +278,8 @@ public class RealtimeManager : IHostedService
         EnterConfigLock();
         try
         {
-            RegistrationMode regMode = connectionId == null ? RegistrationMode.Auto : RegistrationMode.SignalR;
+            RegistrationMode regMode =
+                connectionId == null ? RegistrationMode.Auto : RegistrationMode.SignalR;
 
             DiagProcess? process = null;
             if (!string.IsNullOrWhiteSpace(registration.InstanceId))
@@ -276,13 +289,17 @@ public class RealtimeManager : IHostedService
 
             if (process == null)
             {
-                DiagProcess[] found = Processes.Where(x =>
+                DiagProcess[] found = Processes
+                    .Where(x =>
                         _ic.Equals(x.MachineName, registration.MachineName)
                         && _ic.Equals(x.ProcessName, registration.ProcessName)
                         && x.ConnectionId == null
                         && x.RegistrationMode == regMode
-                        && (string.IsNullOrEmpty(x.UserName) ||
-                            _ic.Equals(x.UserName, registration.UserName)))
+                        && (
+                            string.IsNullOrEmpty(x.UserName)
+                            || _ic.Equals(x.UserName, registration.UserName)
+                        )
+                    )
                     .ToArray();
 
                 if (found.Length >= 1)
@@ -299,11 +316,10 @@ public class RealtimeManager : IHostedService
                 {
                     Id = Guid.NewGuid().ToString("N"),
                     MachineName = registration.MachineName,
-                    ProcessName = registration.ProcessName
+                    ProcessName = registration.ProcessName,
                 };
                 _processes.TryAdd(process.Id, process);
             }
-
 
             process.UserName = registration.UserName;
             process.ProcessId = registration.ProcessId;
@@ -315,7 +331,10 @@ public class RealtimeManager : IHostedService
 
             SetStatus(process, OnlineState.Online, null);
 
-            if (connectionId != null && _diagClients.TryGetValue(connectionId, out DiagnosticClientHandler? diagClient))
+            if (
+                connectionId != null
+                && _diagClients.TryGetValue(connectionId, out DiagnosticClientHandler? diagClient)
+            )
             {
                 GetSubscription(process).SetDiagnosticClient(diagClient);
             }
@@ -336,7 +355,6 @@ public class RealtimeManager : IHostedService
         }
     }
 
-
     /// <summary>
     ///     Remove any entries which are no longer needed
     /// </summary>
@@ -346,7 +364,9 @@ public class RealtimeManager : IHostedService
         TimeSpan expiryTime = TimeSpan.FromSeconds(30);
 
         DiagProcess[] autoOnline = Processes
-            .Where(x => x.State == OnlineState.Online && x.RegistrationMode == RegistrationMode.Auto)
+            .Where(x =>
+                x.State == OnlineState.Online && x.RegistrationMode == RegistrationMode.Auto
+            )
             .ToArray();
 
         foreach (DiagProcess proc in autoOnline)
@@ -360,11 +380,12 @@ public class RealtimeManager : IHostedService
         }
 
         //Group all items by process, instance and host
-        DiagProcess[][] procs = (from x in Processes
-                                 where x.RegistrationMode != RegistrationMode.Manual
-                                 group x by new { x.ProcessName, Host = x.MachineName?.ToLower() }
-            into grp
-                                 select grp.ToArray()).ToArray();
+        DiagProcess[][] procs = (
+            from x in Processes
+            where x.RegistrationMode != RegistrationMode.Manual
+            group x by new { x.ProcessName, Host = x.MachineName?.ToLower() } into grp
+            select grp.ToArray()
+        ).ToArray();
 
         RegistrationMode[] tidyModes = { RegistrationMode.Auto, RegistrationMode.SignalR };
 
@@ -373,7 +394,8 @@ public class RealtimeManager : IHostedService
         {
             //Find the items which are no longer online
             DiagProcess[] toRemove = matching
-                .Where(x => tidyModes.Contains(x.RegistrationMode) && x.State != OnlineState.Online).ToArray();
+                .Where(x => tidyModes.Contains(x.RegistrationMode) && x.State != OnlineState.Online)
+                .ToArray();
 
             //If all must be removed, make sure we leave just one
             if (toRemove.Length == matching.Length)
@@ -398,7 +420,6 @@ public class RealtimeManager : IHostedService
         }
     }
 
-
     private bool HasExpired(DiagProcess process)
     {
         if (process.State == OnlineState.Online)
@@ -406,7 +427,9 @@ public class RealtimeManager : IHostedService
             return false;
         }
 
-        TimeSpan? elapsed = process.LastOnline.HasValue ? DateTime.UtcNow - process.LastOnline : null;
+        TimeSpan? elapsed = process.LastOnline.HasValue
+            ? DateTime.UtcNow - process.LastOnline
+            : null;
 
         return elapsed > TimeSpan.FromDays(100);
     }
@@ -415,7 +438,6 @@ public class RealtimeManager : IHostedService
     {
         return _processes.TryGetValue(id, out var value) ? value : null;
     }
-
 
     public void Deregister(Registration registration)
     {
@@ -502,7 +524,6 @@ public class RealtimeManager : IHostedService
         }
     }
 
-
     public async Task<bool> SubscribeWebClient(string webConnectionId, string processId)
     {
         if (!_webClients.TryGetValue(webConnectionId, out WebClientHandler? webClient))
@@ -536,6 +557,4 @@ public class RealtimeManager : IHostedService
     {
         return _subscriptions.GetOrAdd(process, key => new(process));
     }
-
-
 }

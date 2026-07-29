@@ -25,9 +25,7 @@ public class AttributeUtilTests
         public int Value { get; set; }
 
         [Marker(Tag = "method")]
-        public void Do()
-        {
-        }
+        public void Do() { }
 
         public int Bare { get; set; }
     }

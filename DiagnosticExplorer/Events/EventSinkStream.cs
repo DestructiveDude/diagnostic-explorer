@@ -18,7 +18,10 @@ public sealed class EventSinkStream : IDisposable
     {
         if (bufferSize <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(bufferSize), "bufferSize must be positive");
+            throw new ArgumentOutOfRangeException(
+                nameof(bufferSize),
+                "bufferSize must be positive"
+            );
         }
 
         InitialEvents = initialEvents;
@@ -27,8 +30,10 @@ public sealed class EventSinkStream : IDisposable
         _innerSubject = new Subject<SystemEvent>();
         _eventSubject = Subject.Synchronize(_innerSubject);
         _eventSubscription = _eventSubject
-            .Publish(sp => sp.GroupByUntil(_ => true, _ => Observable.Timer(buffer))
-                .SelectMany(i => i.ToList()))
+            .Publish(sp =>
+                sp.GroupByUntil(_ => true, _ => Observable.Timer(buffer))
+                    .SelectMany(i => i.ToList())
+            )
             .Subscribe(WriteEvents, () => EventChannel?.Writer.Complete());
 
         EventChannel = Channel.CreateBounded<IList<SystemEvent>>(
@@ -36,7 +41,8 @@ public sealed class EventSinkStream : IDisposable
             {
                 SingleReader = true,
                 FullMode = BoundedChannelFullMode.DropWrite,
-            });
+            }
+        );
     }
 
     private void WriteEvents(IList<SystemEvent> evts)
@@ -71,11 +77,8 @@ public sealed class EventSinkStream : IDisposable
         {
             _eventSubject?.OnNext(evt);
         }
-        catch (ObjectDisposedException)
-        {
-        }
+        catch (ObjectDisposedException) { }
     }
-
 
     public Channel<IList<SystemEvent>> EventChannel { get; }
 

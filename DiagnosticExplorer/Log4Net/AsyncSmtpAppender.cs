@@ -14,16 +14,12 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
     {
         base.ActivateOptions();
 
-        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformSend)
-        {
-            Fix = Fix
-        };
+        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformSend) { Fix = Fix };
         _processor.Start();
     }
 
     [Property]
     public int MaxQueueSize { get; set; } = 1000;
-
 
     [Property]
     public int? CurrentQueueSize => _processor?.QueueSize;
@@ -74,12 +70,10 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
         }
     }
 
-
     // Use C# destructor syntax for finalization code.
     ~AsyncSmtpAppender()
     {
         // Simply call Dispose(false).
         Dispose(false);
     }
-
 }

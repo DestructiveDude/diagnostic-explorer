@@ -8,9 +8,8 @@ public class HubProxyBase
     /// </summary>
     protected TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 
-    public HubProxyBase() : this(new AsyncResultBucket())
-    {
-    }
+    public HubProxyBase()
+        : this(new AsyncResultBucket()) { }
 
     public HubProxyBase(AsyncResultBucket responses)
     {
@@ -18,7 +17,6 @@ public class HubProxyBase
     }
 
     protected AsyncResultBucket Responses { get; }
-
 
     protected Task SendRequest(CancellationToken cancel, Func<string, Task> send)
     {

@@ -27,7 +27,10 @@ public class TypeUtilTests
     [InlineData(typeof(List<int>), "List<int>")]
     [InlineData(typeof(Dictionary<string, int>), "Dictionary<string, int>")]
     [InlineData(typeof(List<int?>), "List<int?>")]
-    public void GetFriendlyTypeName_ForVariousTypes_RendersExpectedName(System.Type type, string expected)
+    public void GetFriendlyTypeName_ForVariousTypes_RendersExpectedName(
+        System.Type type,
+        string expected
+    )
     {
         TypeUtil.GetFriendlyTypeName(type).Should().Be(expected);
     }

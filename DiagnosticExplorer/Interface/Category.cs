@@ -13,7 +13,8 @@ public class Category
         Properties = [];
     }
 
-    public Category(string name) : this()
+    public Category(string name)
+        : this()
     {
         Name = name;
     }
@@ -28,7 +29,6 @@ public class Category
     public List<Property> Properties { get; set; }
 
     internal object ValueObject { get; set; }
-
 }
 
 public static class CategoryExtensions

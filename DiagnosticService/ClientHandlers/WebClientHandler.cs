@@ -40,7 +40,6 @@ public class WebClientHandler
         _client = client;
     }
 
-
     public string ConnectionId { get; }
 
     public void Start(RealtimeManager realtimeManager)
@@ -85,10 +84,24 @@ public class WebClientHandler
     {
         lock (_sendLock)
         {
-            _sendChain = _sendChain.ContinueWith(async _ => {
-                try { await send(); }
-                catch (Exception ex) { Trace.WriteLine($"WebClientHandler {ConnectionId} send failed: {ex.Message}"); }
-            }, TaskScheduler.Default).Unwrap();
+            _sendChain = _sendChain
+                .ContinueWith(
+                    async _ =>
+                    {
+                        try
+                        {
+                            await send();
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.WriteLine(
+                                $"WebClientHandler {ConnectionId} send failed: {ex.Message}"
+                            );
+                        }
+                    },
+                    TaskScheduler.Default
+                )
+                .Unwrap();
         }
     }
 
@@ -137,7 +150,10 @@ public class WebClientHandler
 
     private async Task StreamEvents(string id, EventSinkRepo sinkRepo, CancellationToken cancel)
     {
-        using EventSinkStream? stream = sinkRepo.CreateSinkStream(TimeSpan.FromMilliseconds(25), 100);
+        using EventSinkStream? stream = sinkRepo.CreateSinkStream(
+            TimeSpan.FromMilliseconds(25),
+            100
+        );
         try
         {
             await _client.SetEvents(id, stream.InitialEvents);
@@ -157,11 +173,17 @@ public class WebClientHandler
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"WebClientHandler {ConnectionId} event stream failed, delivery stopped: {ex.Message}");
+            Trace.WriteLine(
+                $"WebClientHandler {ConnectionId} event stream failed, delivery stopped: {ex.Message}"
+            );
         }
     }
 
-    private async Task ObserveEventStream(string id, Task eventStreamTask, CancellationTokenSource eventStreamCancel)
+    private async Task ObserveEventStream(
+        string id,
+        Task eventStreamTask,
+        CancellationTokenSource eventStreamCancel
+    )
     {
         using (eventStreamCancel)
         {
@@ -173,7 +195,10 @@ public class WebClientHandler
             {
                 lock (_eventStreamLock)
                 {
-                    if (_eventStreams.TryGetValue(id, out var state) && ReferenceEquals(state.Task, eventStreamTask))
+                    if (
+                        _eventStreams.TryGetValue(id, out var state)
+                        && ReferenceEquals(state.Task, eventStreamTask)
+                    )
                     {
                         _eventStreams.TryRemove(id, out _);
                     }
@@ -181,5 +206,4 @@ public class WebClientHandler
             }
         }
     }
-
 }

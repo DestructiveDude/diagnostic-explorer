@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -35,14 +35,15 @@ namespace Diagnostic.Service.Common;
 
 public class MongoRetroLogger : IRetroLogger
 {
-
     private static readonly ILog _log = LogManager.GetLogger(typeof(MongoRetroLogger));
 
     static MongoRetroLogger()
     {
         BsonClassMap<DiagnosticMsg> map = new();
         map.MapIdProperty(nameof(DiagnosticMsg.MsgId))
-            .SetSerializer(new MongoDB.Bson.Serialization.Serializers.StringSerializer(BsonType.ObjectId));
+            .SetSerializer(
+                new MongoDB.Bson.Serialization.Serializers.StringSerializer(BsonType.ObjectId)
+            );
         map.MapProperty(nameof(DiagnosticMsg.Category));
         map.MapProperty(nameof(DiagnosticMsg.Date));
         map.MapProperty(nameof(DiagnosticMsg.Level));
@@ -113,7 +114,8 @@ public class MongoRetroLogger : IRetroLogger
             IMongoCollection<RetroMsg> collection = GetLogCollection<RetroMsg>();
             CreateIndexModel<RetroMsg> dateIndex = new(
                 Builders<RetroMsg>.IndexKeys.Descending(msg => msg.Date),
-                new CreateIndexOptions { Name = "Date_-1" });
+                new CreateIndexOptions { Name = "Date_-1" }
+            );
             await collection.Indexes.CreateOneAsync(dateIndex).ConfigureAwait(false);
             _log.Info("Ensured Diagnostics.Log Date index for retro queries");
         }
@@ -125,7 +127,6 @@ public class MongoRetroLogger : IRetroLogger
         }
     }
 
-
     public async Task<long> Delete(string[] recordList)
     {
         if (recordList == null || recordList.Length == 0)
@@ -135,7 +136,9 @@ public class MongoRetroLogger : IRetroLogger
 
         if (recordList.Length > MaxDeleteBatch)
         {
-            throw new ArgumentException($"Delete batch of {recordList.Length} exceeds the limit of {MaxDeleteBatch}");
+            throw new ArgumentException(
+                $"Delete batch of {recordList.Length} exceeds the limit of {MaxDeleteBatch}"
+            );
         }
 
         // TryParse: a single malformed id previously threw an unhandled FormatException out of
@@ -156,7 +159,9 @@ public class MongoRetroLogger : IRetroLogger
 
         IMongoCollection<RetroMsg> collection = GetLogCollection<RetroMsg>();
 
-        FilterDefinition<RetroMsg> filter = new ExpressionFilterDefinition<RetroMsg>(msg => ids.Contains(msg.RecordId));
+        FilterDefinition<RetroMsg> filter = new ExpressionFilterDefinition<RetroMsg>(msg =>
+            ids.Contains(msg.RecordId)
+        );
 
         DeleteResult? result = await collection
             .DeleteManyAsync(filter, CancellationToken.None)
@@ -174,7 +179,9 @@ public class MongoRetroLogger : IRetroLogger
 
         if (value.Length > MaxFilterPatternLength)
         {
-            throw new ArgumentException($"{field} search pattern exceeds {MaxFilterPatternLength} characters");
+            throw new ArgumentException(
+                $"{field} search pattern exceeds {MaxFilterPatternLength} characters"
+            );
         }
 
         try
@@ -183,11 +190,17 @@ public class MongoRetroLogger : IRetroLogger
         }
         catch (ArgumentException ex)
         {
-            throw new ArgumentException($"{field} search is not a valid regular expression: {ex.Message}", ex);
+            throw new ArgumentException(
+                $"{field} search is not a valid regular expression: {ex.Message}",
+                ex
+            );
         }
     }
 
-    public async IAsyncEnumerable<RetroMsg[]> GetMessages(RetroQuery query, [EnumeratorCancellation] CancellationToken cancel)
+    public async IAsyncEnumerable<RetroMsg[]> GetMessages(
+        RetroQuery query,
+        [EnumeratorCancellation] CancellationToken cancel
+    )
     {
         ValidateFilterPattern(query.Machine, nameof(query.Machine));
         ValidateFilterPattern(query.User, nameof(query.User));
@@ -203,35 +216,43 @@ public class MongoRetroLogger : IRetroLogger
             // Server-side time budget: aborts a query (incl. a catastrophic $regex) on the Mongo
             // side rather than letting it run unbounded.
             MaxTime = QueryMaxTime,
-            Sort = Builders<RetroMsg>.Sort.Descending(msg => msg.Date)
+            Sort = Builders<RetroMsg>.Sort.Descending(msg => msg.Date),
         };
 
         FilterDefinition<RetroMsg> filter = new ExpressionFilterDefinition<RetroMsg>(msg =>
-            msg.Level >= query.MinLevel
-            && msg.Date >= query.StartDate
-            && msg.Date < query.EndDate);
+            msg.Level >= query.MinLevel && msg.Date >= query.StartDate && msg.Date < query.EndDate
+        );
 
         if (!string.IsNullOrWhiteSpace(query.Machine))
         {
-            filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Machine, query.Machine, RegexOptions.IgnoreCase));
+            filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
+                Regex.IsMatch(msg.Machine, query.Machine, RegexOptions.IgnoreCase)
+            );
         }
 
         if (!string.IsNullOrWhiteSpace(query.User))
         {
-            filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.User, query.User, RegexOptions.IgnoreCase));
+            filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
+                Regex.IsMatch(msg.User, query.User, RegexOptions.IgnoreCase)
+            );
         }
 
         if (!string.IsNullOrWhiteSpace(query.Process))
         {
-            filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Process, query.Process, RegexOptions.IgnoreCase));
+            filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
+                Regex.IsMatch(msg.Process, query.Process, RegexOptions.IgnoreCase)
+            );
         }
 
         if (!string.IsNullOrWhiteSpace(query.Message))
         {
-            filter &= new ExpressionFilterDefinition<RetroMsg>(msg => Regex.IsMatch(msg.Message, query.Message, RegexOptions.IgnoreCase));
+            filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
+                Regex.IsMatch(msg.Message, query.Message, RegexOptions.IgnoreCase)
+            );
         }
 
-        using IAsyncCursor<RetroMsg> searchResult = await collection.FindAsync(filter, options, cancel)
+        using IAsyncCursor<RetroMsg> searchResult = await collection
+            .FindAsync(filter, options, cancel)
             .ConfigureAwait(false);
 
         while (await searchResult.MoveNextAsync(cancel))
@@ -245,7 +266,11 @@ public class MongoRetroLogger : IRetroLogger
         IMongoCollection<DiagnosticMsg> collection = GetLogCollection<DiagnosticMsg>();
         try
         {
-            await collection.InsertManyAsync(msg, new InsertManyOptions { IsOrdered = false }, cancel);
+            await collection.InsertManyAsync(
+                msg,
+                new InsertManyOptions { IsOrdered = false },
+                cancel
+            );
         }
         catch (MongoBulkWriteException ex)
         {

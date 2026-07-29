@@ -34,13 +34,22 @@ public class DiagnosticManagerTests
         response.OperationSets.Should().HaveCount(1);
         var opSet = response.OperationSets[0];
 
-        opSet.Operations.Should().Contain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod)));
-        opSet.Operations.Should().NotContain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod)));
+        opSet
+            .Operations.Should()
+            .Contain(o =>
+                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod))
+            );
+        opSet
+            .Operations.Should()
+            .NotContain(o =>
+                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod))
+            );
     }
 
     public class CustomParseException : Exception
     {
-        public CustomParseException(string message) : base(message) { }
+        public CustomParseException(string message)
+            : base(message) { }
     }
 
     public class CustomParsableType
@@ -90,9 +99,12 @@ public class DiagnosticManagerTests
         );
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorMessage.Should().Match(m =>
-            m.Contains("can't convert 'invalid-val' to CustomParsableType") ||
-            m.Contains("Parse failed for value: invalid-val"));
+        result
+            .ErrorMessage.Should()
+            .Match(m =>
+                m.Contains("can't convert 'invalid-val' to CustomParsableType")
+                || m.Contains("Parse failed for value: invalid-val")
+            );
         result.ErrorDetail.Should().Contain(nameof(CustomParseException));
         result.ErrorDetail.Should().Contain("Parse failed for value: invalid-val");
         result.ErrorDetail.Should().NotContain(nameof(TargetInvocationException));

@@ -7,8 +7,11 @@ namespace Diagnostic.Service.Hubs;
 
 public class WebApiUtil
 {
-
-    private static async Task<HttpResponseMessage> SendRequest(string uri, HttpMethod method, object? arg = null)
+    private static async Task<HttpResponseMessage> SendRequest(
+        string uri,
+        HttpMethod method,
+        object? arg = null
+    )
     {
         using HttpClientHandler handler = new HttpClientHandler() { UseDefaultCredentials = true };
         using HttpClient httpClient = new HttpClient(handler);
@@ -17,20 +20,24 @@ public class WebApiUtil
 
         if (arg != null)
         {
-            request.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(arg)));
+            request.Content = new ByteArrayContent(
+                Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(arg))
+            );
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         }
 
         return await httpClient.SendAsync(request);
     }
 
-
     public static async Task<string> Get(string url)
     {
         HttpResponseMessage response = await SendRequest(url, HttpMethod.Get);
         string content = await response.Content.ReadAsStringAsync();
 
-        if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent)
+        if (
+            response.StatusCode != HttpStatusCode.OK
+            && response.StatusCode != HttpStatusCode.NoContent
+        )
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
@@ -57,7 +64,10 @@ public class WebApiUtil
         HttpResponseMessage response = await SendRequest(url, HttpMethod.Post, param);
         string content = await response.Content.ReadAsStringAsync();
 
-        if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent)
+        if (
+            response.StatusCode != HttpStatusCode.OK
+            && response.StatusCode != HttpStatusCode.NoContent
+        )
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
@@ -79,7 +89,6 @@ public class WebApiUtil
         return result;
     }
 
-
     private static string GetErrorMessage(string content)
     {
         try
@@ -96,6 +105,7 @@ public class WebApiUtil
 public class ServiceException : Exception
 {
     public HttpStatusCode StatusCode { get; set; }
+
     public ServiceException(HttpStatusCode httpStatusCode, string message)
         : base(message)
     {

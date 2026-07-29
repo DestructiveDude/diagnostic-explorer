@@ -23,7 +23,7 @@ public class OperationResponse
         {
             IsSuccess = false,
             ErrorMessage = message,
-            ErrorDetail = detail
+            ErrorDetail = detail,
         };
     }
 

@@ -16,5 +16,4 @@ public class OperationSet
 
     [ProtoMember(2)]
     public List<Operation> Operations { get; set; }
-
 }

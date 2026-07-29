@@ -9,7 +9,6 @@ namespace DiagnosticExplorer.Log4Net;
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public class ForwardingAppender : ForwardingAppenderBase
 {
-
     protected override void Append(LoggingEvent loggingEvent)
     {
         ArgumentNullException.ThrowIfNull(loggingEvent);
@@ -25,7 +24,10 @@ public class ForwardingAppender : ForwardingAppenderBase
 
         if (loggingEvents.Length == 0)
         {
-            throw new ArgumentException("loggingEvents array must not be empty", nameof(loggingEvents));
+            throw new ArgumentException(
+                "loggingEvents array must not be empty",
+                nameof(loggingEvents)
+            );
         }
 
         if (loggingEvents.Length == 1)

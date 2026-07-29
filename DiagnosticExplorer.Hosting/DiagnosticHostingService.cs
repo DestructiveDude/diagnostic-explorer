@@ -30,7 +30,10 @@ public class DiagnosticHostingService
 
     private readonly Action<HttpConnectionOptions> _configureHttp;
 
-    private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions> configureHttp = null)
+    private DiagnosticHostingService(
+        DiagnosticOptions options,
+        Action<HttpConnectionOptions> configureHttp = null
+    )
     {
         _options = options;
         _configureHttp = configureHttp;
@@ -38,16 +41,22 @@ public class DiagnosticHostingService
 
 #if NET5_0_OR_GREATER
 
-    public DiagnosticHostingService(IOptions<DiagnosticOptions> options, Action<HttpConnectionOptions> configureHttp = null)
+    public DiagnosticHostingService(
+        IOptions<DiagnosticOptions> options,
+        Action<HttpConnectionOptions> configureHttp = null
+    )
         : this(options.Value, configureHttp)
     {
-        Debug.WriteLine($"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}");
+        Debug.WriteLine(
+            $"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}"
+        );
     }
-
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        Debug.WriteLine($"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}");
+        Debug.WriteLine(
+            $"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}"
+        );
         if (_options.Enabled)
         {
             TryStart(this);
@@ -61,7 +70,6 @@ public class DiagnosticHostingService
         Interlocked.CompareExchange(ref _instance, null, this);
         return StopHosting();
     }
-
 #endif
 
     // Claim the singleton slot atomically, then start. Publish stays only if hosting actually
@@ -71,7 +79,9 @@ public class DiagnosticHostingService
     {
         if (Interlocked.CompareExchange(ref _instance, candidate, null) != null)
         {
-            throw new InvalidOperationException("An instance of DiagnosticHostingService is already running. Only one instance can run at a time.");
+            throw new InvalidOperationException(
+                "An instance of DiagnosticHostingService is already running. Only one instance can run at a time."
+            );
         }
 
         if (!candidate.StartHosting())
@@ -97,10 +107,11 @@ public class DiagnosticHostingService
                 UserDomain = Environment.UserDomainName,
                 UserName = Environment.UserName,
                 MachineName = Environment.MachineName,
-                ProcessName = ResolveProcessName()
+                ProcessName = ResolveProcessName(),
             };
 
-            RegistrationHandler[] handlers = Regex.Split(_options.Uri, @"\s|;|,")
+            RegistrationHandler[] handlers = Regex
+                .Split(_options.Uri, @"\s|;|,")
                 .Select(hubUrl => hubUrl.Trim())
                 .Where(hubUrl => !string.IsNullOrWhiteSpace(hubUrl))
                 .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey))
@@ -165,7 +176,6 @@ public class DiagnosticHostingService
         }
     }
 
-
     public static void Start(string url, Action<HttpConnectionOptions> configureHttp = null)
     {
         DiagnosticOptions options = new() { Uri = url };
@@ -181,13 +191,15 @@ public class DiagnosticHostingService
         }
     }
 
-
     public static void LogEvent(DiagnosticMsg evt)
     {
         DiagnosticHostingService instance = Volatile.Read(ref _instance);
         if (instance != null)
         {
-            foreach (RegistrationHandler handler in instance._registrationHandlers ?? Array.Empty<RegistrationHandler>())
+            foreach (
+                RegistrationHandler handler in instance._registrationHandlers
+                    ?? Array.Empty<RegistrationHandler>()
+            )
             {
                 handler.LogEvent(evt);
             }

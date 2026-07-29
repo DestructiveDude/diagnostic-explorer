@@ -74,9 +74,11 @@ public static class TraceScopeExample
             await Task.Delay(20);
             TraceScope.Trace($"{ident} Your lucky random number is {ThreadSafeRandom.Next()}");
             await Task.Delay(20);
-            TraceScope.Trace($@"{ident} Here's a multiline trace message
+            TraceScope.Trace(
+                $@"{ident} Here's a multiline trace message
 which, as you can see,
-has more than one line");
+has more than one line"
+            );
         }
     }
 }

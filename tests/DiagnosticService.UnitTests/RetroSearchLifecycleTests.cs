@@ -81,9 +81,15 @@ public class RetroSearchLifecycleTests
     {
         RetroManager manager = CreateManager();
         IWebHubClient client = Substitute.For<IWebHubClient>();
-        client.ProcessSearchError(7, Arg.Any<string>(), Arg.Any<string>())
+        client
+            .ProcessSearchError(7, Arg.Any<string>(), Arg.Any<string>())
             .Returns(_ => throw new InvalidOperationException("client-gone"));
-        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 7 });
+        RetroSearchProcess process = new(
+            manager,
+            "conn-1",
+            client,
+            new RetroQuery { SearchId = 7 }
+        );
         bool finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
@@ -105,7 +111,12 @@ public class RetroSearchLifecycleTests
     {
         RetroManager manager = CreateManager();
         IWebHubClient client = Substitute.For<IWebHubClient>();
-        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 8 });
+        RetroSearchProcess process = new(
+            manager,
+            "conn-1",
+            client,
+            new RetroQuery { SearchId = 8 }
+        );
         bool finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
@@ -126,7 +137,8 @@ public class RetroSearchLifecycleTests
         try
         {
             IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
-            mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
+            mockLogger
+                .GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
                 .Returns(GetEmptyAsyncEnumerable());
             SetPrivateField(manager, "_logger", mockLogger);
 
@@ -141,7 +153,9 @@ public class RetroSearchLifecycleTests
             // HandleSearchFinished remove the entry before the subscription), leaving the wait to
             // block to the runner timeout. The bounded poll fails fast instead of hanging.
             var map = SearchMap(manager);
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(
+                TestContext.Current.CancellationToken
+            );
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
             while (map.ContainsKey("conn-123"))
             {
@@ -170,14 +184,18 @@ public class RetroSearchLifecycleTests
         try
         {
             using OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-            FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var subject = (IObservable<IList<DiagnosticMsg>>) field.GetValue(manager)!;
+            FieldInfo field = typeof(RetroManager).GetField(
+                "_logSubject",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            )!;
+            var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
 
             using IDisposable subscription = subject.Subscribe(observer);
 
             Task[] publishes = StartConcurrentPublishes(
                 count: 24,
-                publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
+                publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }])
+            );
 
             try
             {
@@ -200,54 +218,88 @@ public class RetroSearchLifecycleTests
 
     private static RetroManager CreateManager()
     {
-        DiagServiceSettings settings = new() { RetroType = "mongo", RetroConnection = "mongodb://unused" };
+        DiagServiceSettings settings = new()
+        {
+            RetroType = "mongo",
+            RetroConnection = "mongodb://unused",
+        };
         return new RetroManager(new TestHostApplicationLifetime(), Options.Create(settings));
     }
 
-    private static RetroSearchProcess CreateSearch(RetroManager manager, string connectionId, int searchId)
+    private static RetroSearchProcess CreateSearch(
+        RetroManager manager,
+        string connectionId,
+        int searchId
+    )
     {
-        return new RetroSearchProcess(manager, connectionId, Substitute.For<IWebHubClient>(), new RetroQuery { SearchId = searchId });
+        return new RetroSearchProcess(
+            manager,
+            connectionId,
+            Substitute.For<IWebHubClient>(),
+            new RetroQuery { SearchId = searchId }
+        );
     }
 
     private static ConcurrentDictionary<string, RetroSearchProcess> SearchMap(RetroManager manager)
     {
-        FieldInfo field = typeof(RetroManager).GetField("_searches", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (ConcurrentDictionary<string, RetroSearchProcess>) field.GetValue(manager)!;
+        FieldInfo field = typeof(RetroManager).GetField(
+            "_searches",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        return (ConcurrentDictionary<string, RetroSearchProcess>)field.GetValue(manager)!;
     }
 
     private static CancellationTokenSource CancelToken(RetroSearchProcess process)
     {
-        FieldInfo field = typeof(RetroSearchProcess).GetField("_cancelToken", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (CancellationTokenSource) field.GetValue(process)!;
+        FieldInfo field = typeof(RetroSearchProcess).GetField(
+            "_cancelToken",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        return (CancellationTokenSource)field.GetValue(process)!;
     }
 
     private static void InvokeHandleSearchFinished(RetroManager manager, RetroSearchProcess process)
     {
-        MethodInfo method = typeof(RetroManager).GetMethod("HandleSearchFinished", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        MethodInfo method = typeof(RetroManager).GetMethod(
+            "HandleSearchFinished",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
         method.Invoke(manager, [process, EventArgs.Empty]);
     }
 
-    private static async Task InvokeSendResults(RetroSearchProcess process, Channel<RetroSearchResult> channel)
+    private static async Task InvokeSendResults(
+        RetroSearchProcess process,
+        Channel<RetroSearchResult> channel
+    )
     {
-        MethodInfo method = typeof(RetroSearchProcess).GetMethod("SendResults", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Task task = (Task) method.Invoke(process, [channel, CancellationToken.None])!;
+        MethodInfo method = typeof(RetroSearchProcess).GetMethod(
+            "SendResults",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        Task task = (Task)method.Invoke(process, [channel, CancellationToken.None])!;
         await task;
     }
 
     private static void SetPrivateField(object target, string fieldName, object? value)
     {
-        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        FieldInfo field = target
+            .GetType()
+            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
         field.SetValue(target, value);
     }
 
     private static Task[] StartConcurrentPublishes(int count, Action<int> publish)
     {
         ManualResetEventSlim start = new(false);
-        Task[] tasks = Enumerable.Range(0, count)
-            .Select(index => Task.Run(() => {
-                start.Wait();
-                publish(index);
-            }))
+        Task[] tasks = Enumerable
+            .Range(0, count)
+            .Select(index =>
+                Task.Run(() =>
+                {
+                    start.Wait();
+                    publish(index);
+                })
+            )
             .ToArray();
 
         start.Set();
@@ -275,13 +327,9 @@ public class RetroSearchLifecycleTests
             _releaseCallbacks.Set();
         }
 
-        public void OnCompleted()
-        {
-        }
+        public void OnCompleted() { }
 
-        public void OnError(Exception error)
-        {
-        }
+        public void OnError(Exception error) { }
 
         public void OnNext(T value)
         {
@@ -314,6 +362,7 @@ public class RetroSearchLifecycleTests
         public CancellationToken ApplicationStarted => CancellationToken.None;
         public CancellationToken ApplicationStopping => CancellationToken.None;
         public CancellationToken ApplicationStopped => CancellationToken.None;
+
         public void StopApplication() { }
     }
 }

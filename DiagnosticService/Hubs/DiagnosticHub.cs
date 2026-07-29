@@ -24,7 +24,9 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 
     public override Task OnConnectedAsync()
     {
-        _rtManager.AddDiagnosticClient(new DiagnosticClientHandler(Context, Clients.Caller, _clientResponses));
+        _rtManager.AddDiagnosticClient(
+            new DiagnosticClientHandler(Context, Clients.Caller, _clientResponses)
+        );
         return base.OnConnectedAsync();
     }
 
@@ -46,7 +48,9 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         }
         catch (Exception ex)
         {
-            return Task.FromResult(RpcResult<RegistrationResponse>.Fail(requestId: null, ex.Message, ex.ToString()));
+            return Task.FromResult(
+                RpcResult<RegistrationResponse>.Fail(requestId: null, ex.Message, ex.ToString())
+            );
         }
     }
 

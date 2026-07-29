@@ -8,9 +8,9 @@ namespace DiagnosticExplorer.Events;
 
 public class EventSinkRepo : IDisposable
 {
-
     private readonly List<EventSinkStream> _sinkStreams = [];
     private readonly ReaderWriterLockSlim _eventStreamLock = new(LockRecursionPolicy.NoRecursion);
+
     // Keyed by the (name, category) tuple, not a "{name}.{category}" string: the latter collided
     // distinct sinks, e.g. ("a.b","c") and ("a","b.c") both mapped to "a.b.c".
     private readonly ConcurrentDictionary<(string Name, string Category), EventSink> _sinks = new();
@@ -19,7 +19,10 @@ public class EventSinkRepo : IDisposable
 
     public EventSink GetSink(string name, string category)
     {
-        return _sinks.GetOrAdd((name, category), key => new EventSink(this, key.Name, key.Category));
+        return _sinks.GetOrAdd(
+            (name, category),
+            key => new EventSink(this, key.Name, key.Category)
+        );
     }
 
     public void LogEvent(SystemEvent evt)
@@ -46,7 +49,11 @@ public class EventSinkRepo : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            EventSinkStream stream = new(_sinks.Values.SelectMany(sink => sink.Events).ToArray(), buffer, bufferSize);
+            EventSinkStream stream = new(
+                _sinks.Values.SelectMany(sink => sink.Events).ToArray(),
+                buffer,
+                bufferSize
+            );
             _sinkStreams.Add(stream);
             stream.Disposed += HandleEventStreamDisposed;
             return stream;
@@ -72,7 +79,7 @@ public class EventSinkRepo : IDisposable
 
     private void HandleEventStreamDisposed(object sender, EventArgs e)
     {
-        EventSinkStream stream = (EventSinkStream) sender;
+        EventSinkStream stream = (EventSinkStream)sender;
         UnregisterStream(stream);
     }
 

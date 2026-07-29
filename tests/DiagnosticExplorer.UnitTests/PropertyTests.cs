@@ -21,7 +21,12 @@ public class PropertyTests
     [InlineData("V", null, false, "OS", "N = [V] (OperationSet=OS)")]
     [InlineData("V", "D", true, "OS", "N = [V] (SET) (D) (OperationSet=OS)")]
     public void ToString_WithVariousOptionalSegments_RendersExpectedText(
-        string value, string? description, bool canSet, string? operationSet, string expected)
+        string value,
+        string? description,
+        bool canSet,
+        string? operationSet,
+        string expected
+    )
     {
         var property = new Property("N", value, description)
         {

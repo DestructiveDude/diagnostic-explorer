@@ -75,7 +75,13 @@ public class EventSinkTests
     public void RepoLogEvent_RoutesEventToMatchingSink()
     {
         var repo = new EventSinkRepo();
-        var evt = new SystemEvent { SinkName = "svc", SinkCategory = "cat", Message = "hi", Id = 5 };
+        var evt = new SystemEvent
+        {
+            SinkName = "svc",
+            SinkCategory = "cat",
+            Message = "hi",
+            Id = 5,
+        };
 
         repo.LogEvent(evt);
 

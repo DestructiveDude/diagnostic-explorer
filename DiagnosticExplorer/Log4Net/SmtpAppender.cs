@@ -12,7 +12,6 @@ namespace DiagnosticExplorer.Log4Net;
 
 public class SmtpAppender : AppenderSkeleton
 {
-
     internal const string DefaultHostName = "Default Smtp Host";
 
     public SmtpAppender()
@@ -59,14 +58,21 @@ public class SmtpAppender : AppenderSkeleton
 
     protected override bool RequiresLayout => true;
 
-    [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(SmtpAppenderProxy.SmtpHost))]
+    [CollectionProperty(
+        CollectionMode.Categories,
+        CategoryProperty = nameof(SmtpAppenderProxy.SmtpHost)
+    )]
     public List<SmtpAppenderProxy> Proxies { get; private set; }
 
     public override void ActivateOptions()
     {
         base.ActivateOptions();
 
-        string[] hosts = (SmtpHost ?? "").Split(',', ';').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+        string[] hosts = (SmtpHost ?? "")
+            .Split(',', ';')
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
 
         if (FailTimeout < TimeSpan.Zero)
         {
@@ -77,7 +83,14 @@ public class SmtpAppender : AppenderSkeleton
 
         foreach (string host in hosts)
         {
-            if (string.IsNullOrWhiteSpace(host) || string.Equals("Default", host.Trim(), StringComparison.InvariantCultureIgnoreCase))
+            if (
+                string.IsNullOrWhiteSpace(host)
+                || string.Equals(
+                    "Default",
+                    host.Trim(),
+                    StringComparison.InvariantCultureIgnoreCase
+                )
+            )
             {
                 Proxies.Add(new SmtpAppenderProxy(this, DefaultHostName, FailTimeout));
             }
@@ -184,7 +197,9 @@ public class SmtpAppender : AppenderSkeleton
 
     private void RecordAppenderError(SmtpAppenderProxy appender)
     {
-        ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.SmtpHost}] has an error.");
+        ForwardingAppenderBase.LogLogError(
+            GetType(),
+            $"appender [{appender.SmtpHost}] has an error."
+        );
     }
-
 }

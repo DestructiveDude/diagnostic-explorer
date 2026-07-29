@@ -22,7 +22,8 @@ public class AsyncResultBucketTests
         using CancellationTokenSource cancel = new();
         cancel.CancelAfter(50);
 
-        Func<Task> act = async () => await bucket.GetResult<string>("req-1", TimeSpan.FromSeconds(5), cancel.Token);
+        Func<Task> act = async () =>
+            await bucket.GetResult<string>("req-1", TimeSpan.FromSeconds(5), cancel.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
@@ -36,7 +37,12 @@ public class AsyncResultBucketTests
     {
         AsyncResultBucket bucket = new();
 
-        Func<Task> act = async () => await bucket.GetResult<string>("req-2", TimeSpan.FromMilliseconds(20), CancellationToken.None);
+        Func<Task> act = async () =>
+            await bucket.GetResult<string>(
+                "req-2",
+                TimeSpan.FromMilliseconds(20),
+                CancellationToken.None
+            );
 
         await act.Should().ThrowAsync<TimeoutException>();
     }

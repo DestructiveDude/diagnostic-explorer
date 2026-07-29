@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -36,6 +36,7 @@ using log4net;
 using ATraceItem = DiagnosticExplorer.Trace.TraceItem<DiagnosticExplorer.Trace.TraceScope>;
 
 namespace DiagnosticExplorer.Trace;
+
 /// <summary>Enabled trace to a single source through method calls</summary>
 public class TraceScope : IDisposable
 {
@@ -77,7 +78,11 @@ public class TraceScope : IDisposable
         Setup(name, traceMethod, forceTrace);
     }
 
-    public TraceScope(Action<string> traceMethod, bool forceTrace, [CallerMemberName] string name = null)
+    public TraceScope(
+        Action<string> traceMethod,
+        bool forceTrace,
+        [CallerMemberName] string name = null
+    )
     {
         Setup(name, traceMethod, forceTrace);
     }
@@ -104,8 +109,14 @@ public class TraceScope : IDisposable
         try
         {
             _traceItemsLock.EnterWriteLock();
-            try { _traceItems.Add(traceItem); }
-            finally { _traceItemsLock.ExitWriteLock(); }
+            try
+            {
+                _traceItems.Add(traceItem);
+            }
+            finally
+            {
+                _traceItemsLock.ExitWriteLock();
+            }
         }
         catch (ObjectDisposedException)
         {
@@ -118,7 +129,12 @@ public class TraceScope : IDisposable
 
     public void StartAutoTraceTimer(TimeSpan time)
     {
-        Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int) time.TotalMilliseconds, Timeout.Infinite);
+        Timer newTimer = new Timer(
+            AutoTraceAfterTimeout,
+            null,
+            (int)time.TotalMilliseconds,
+            Timeout.Infinite
+        );
         Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
         oldTimer?.Dispose();
         // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
@@ -145,7 +161,6 @@ public class TraceScope : IDisposable
 
     public static TraceScope Current => _scopeStack.Value?.Current;
 
-
     public string Name { get; set; }
     public bool IsHidden { get; set; }
 
@@ -161,9 +176,7 @@ public class TraceScope : IDisposable
         _traceMethods[timeMillis] = traceMethod;
     }
 
-
     public TimeSpan Age => DateTime.UtcNow.Subtract(_created);
-
 
     public override string ToString()
     {
@@ -178,7 +191,12 @@ public class TraceScope : IDisposable
         return sb.ToString();
     }
 
-    public void ToString(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage, int indent)
+    public void ToString(
+        IndentedTextWriter writer,
+        DateTime scopeStart,
+        ref DateTime lastMessage,
+        int indent
+    )
     {
         if (IsHidden)
         {
@@ -201,7 +219,13 @@ public class TraceScope : IDisposable
                 {
                     if (item.TraceScope == null)
                     {
-                        WriteString(writer, item.Message, item.Created, scopeStart, ref lastMessage);
+                        WriteString(
+                            writer,
+                            item.Message,
+                            item.Created,
+                            scopeStart,
+                            ref lastMessage
+                        );
                     }
                     else if (FullTraceRequired(item))
                     {
@@ -209,7 +233,13 @@ public class TraceScope : IDisposable
                     }
                     else
                     {
-                        WriteBeginEndScope(item.TraceScope, writer, scopeStart, ref lastMessage, true);
+                        WriteBeginEndScope(
+                            item.TraceScope,
+                            writer,
+                            scopeStart,
+                            ref lastMessage,
+                            true
+                        );
                     }
                 }
                 writer.Indent -= indent;
@@ -250,7 +280,11 @@ public class TraceScope : IDisposable
         return duration >= thresh;
     }
 
-    private void WriteBeginScope(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage)
+    private void WriteBeginScope(
+        IndentedTextWriter writer,
+        DateTime scopeStart,
+        ref DateTime lastMessage
+    )
     {
         if (Name == null)
         {
@@ -260,13 +294,21 @@ public class TraceScope : IDisposable
         string message = $"BEGIN {Name}";
         if (_disposed != null)
         {
-            message = string.Format("{0} ({1:N3} seconds)", message, _disposed.Value.Subtract(_created).TotalSeconds);
+            message = string.Format(
+                "{0} ({1:N3} seconds)",
+                message,
+                _disposed.Value.Subtract(_created).TotalSeconds
+            );
         }
 
         WriteString(writer, message, _created, scopeStart, ref lastMessage);
     }
 
-    private void WriteEndScope(IndentedTextWriter writer, DateTime scopeStart, ref DateTime lastMessage)
+    private void WriteEndScope(
+        IndentedTextWriter writer,
+        DateTime scopeStart,
+        ref DateTime lastMessage
+    )
     {
         if (Name == null)
         {
@@ -278,13 +320,22 @@ public class TraceScope : IDisposable
             return;
         }
 
-        string message = string.Format("END {0} ({1:N3} seconds)", Name, _disposed.Value.Subtract(_created).TotalSeconds);
+        string message = string.Format(
+            "END {0} ({1:N3} seconds)",
+            Name,
+            _disposed.Value.Subtract(_created).TotalSeconds
+        );
 
         WriteString(writer, message, _disposed.Value, scopeStart, ref lastMessage);
     }
 
-    private static void WriteBeginEndScope(TraceScope scope, IndentedTextWriter writer,
-        DateTime scopeStart, ref DateTime lastMessage, bool suppressed)
+    private static void WriteBeginEndScope(
+        TraceScope scope,
+        IndentedTextWriter writer,
+        DateTime scopeStart,
+        ref DateTime lastMessage,
+        bool suppressed
+    )
     {
         if (scope.Name == null)
         {
@@ -298,15 +349,23 @@ public class TraceScope : IDisposable
 
         TimeSpan duration = scope._disposed.Value.Subtract(scope._created);
 
-        string message = string.Format("BEGIN/END{0} {1} ({2:N3} seconds)",
+        string message = string.Format(
+            "BEGIN/END{0} {1} ({2:N3} seconds)",
             suppressed ? "*" : "",
             scope.Name,
-            duration.TotalSeconds);
+            duration.TotalSeconds
+        );
 
         WriteString(writer, message, scope._disposed.Value, scopeStart, ref lastMessage);
     }
 
-    private static void WriteString(IndentedTextWriter writer, string message, DateTime itemDate, DateTime scopeStart, ref DateTime lastMessage)
+    private static void WriteString(
+        IndentedTextWriter writer,
+        string message,
+        DateTime itemDate,
+        DateTime scopeStart,
+        ref DateTime lastMessage
+    )
     {
         double age = itemDate.Subtract(scopeStart).TotalSeconds;
         double split = itemDate.Subtract(lastMessage).TotalSeconds;
@@ -334,11 +393,16 @@ public class TraceScope : IDisposable
     {
         if (disposing)
         {
-
             Timer timer = Interlocked.Exchange(ref _autoTraceTimer, null);
             if (timer != null)
             {
-                try { timer.Change(Timeout.Infinite, Timeout.Infinite); } catch (ObjectDisposedException) { /* concurrently disposed — disarm is best-effort, ignore */ }
+                try
+                {
+                    timer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+                catch (ObjectDisposedException)
+                { /* concurrently disposed — disarm is best-effort, ignore */
+                }
                 timer.Dispose();
             }
 
@@ -396,10 +460,11 @@ public class TraceScope : IDisposable
 
     private Action<string> GetTraceMethod(double millis)
     {
-        return _traceMethods.Reverse()
-            .Where(pair => millis >= pair.Key)
-            .Select(pair => pair.Value)
-            .FirstOrDefault()
+        return _traceMethods
+                .Reverse()
+                .Where(pair => millis >= pair.Key)
+                .Select(pair => pair.Value)
+                .FirstOrDefault()
             ?? _traceMethods.FirstOrDefault().Value;
     }
 
@@ -449,8 +514,6 @@ public class TraceScope : IDisposable
             Trace(message);
         }
     }
-
-
 
     #endregion
 }

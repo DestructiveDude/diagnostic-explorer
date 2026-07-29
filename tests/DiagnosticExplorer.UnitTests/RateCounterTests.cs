@@ -17,8 +17,12 @@ public class RateCounterTests
     /// </summary>
     [Theory]
     [InlineData(3, 5, new[] { 50, 40, 30 })] // newest (index 4) first, walking back
-    [InlineData(10, 2, new[] { 20, 10 })]    // seconds clamped to currentIndex
-    public void GetRates_WithinFilledBuffer_ReturnsNewestFirst(int seconds, int currentIndex, int[] expected)
+    [InlineData(10, 2, new[] { 20, 10 })] // seconds clamped to currentIndex
+    public void GetRates_WithinFilledBuffer_ReturnsNewestFirst(
+        int seconds,
+        int currentIndex,
+        int[] expected
+    )
     {
         var values = new[] { 10, 20, 30, 40, 50 };
 
@@ -85,7 +89,6 @@ public class RateCounterTests
     {
         var act = () => new RateCounter(secondsAverage);
 
-        act.Should().Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("secondsAverage");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("secondsAverage");
     }
 }

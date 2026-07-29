@@ -31,7 +31,8 @@ public class WebHub : Hub<IWebHubClient>
         _realtimeManager.RemoveWebHubClient(Context.ConnectionId);
         return Task.WhenAll(
             _retroManager.CancelConnectionSearch(Context.ConnectionId),
-            base.OnDisconnectedAsync(exception));
+            base.OnDisconnectedAsync(exception)
+        );
     }
 
     public async Task Subscribe(string processId)

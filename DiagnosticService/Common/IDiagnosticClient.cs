@@ -13,5 +13,4 @@ public interface IDiagnosticClient
 
     IObservable<SystemEvent[]> EventsSet { get; }
     IObservable<SystemEvent[]> EventsStreamed { get; }
-
 }

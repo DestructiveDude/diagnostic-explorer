@@ -6,7 +6,6 @@ using log4net.Util;
 
 namespace DiagnosticExplorer.Log4Net.Util;
 
-
 public class MultiErrorHandler : IErrorHandler
 {
     // Copy-on-write: AddHandler runs at appender-configuration time, Error iterates at
@@ -74,7 +73,6 @@ public class MultiErrorHandler : IErrorHandler
     }
 }
 
-
 /// <summary>
 /// This object records whether an error has been recorded
 /// </summary>
@@ -93,7 +91,9 @@ public class AppenderProxyErrorHandler : IErrorHandler
         public string Message;
     }
 
-    private readonly ThreadLocal<ErrorState> _state = new ThreadLocal<ErrorState>(() => new ErrorState());
+    private readonly ThreadLocal<ErrorState> _state = new ThreadLocal<ErrorState>(() =>
+        new ErrorState()
+    );
 
     public bool HasError => _state.Value.HasError;
 

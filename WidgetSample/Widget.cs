@@ -2,22 +2,22 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -34,7 +34,13 @@ namespace WidgetSample;
 //Widget uses the DiagnosticManager.RegisterAsync method of registering itself with diagnostics
 public class Widget : IDisposable, INotifyPropertyChanged
 {
-    private static readonly string[] _names = new[] { "Widget X", "Widget Y", "Widget Z", "Widget W" };
+    private static readonly string[] _names = new[]
+    {
+        "Widget X",
+        "Widget Y",
+        "Widget Z",
+        "Widget W",
+    };
     private readonly int _id;
     private readonly SynchronizationContext _syncContext;
     private DateTime _dateCreated;
@@ -77,7 +83,8 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public string Name
     {
         get => _name;
-        set {
+        set
+        {
             _name = value;
             OnPropertyChanged("Name");
         }
@@ -87,7 +94,8 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public DateTime DateCreated
     {
         get => _dateCreated;
-        set {
+        set
+        {
             _dateCreated = value;
             OnPropertyChanged("DateCreated");
         }
@@ -97,7 +105,8 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public Point Size
     {
         get => _size;
-        set {
+        set
+        {
             _size = value;
             OnPropertyChanged("Size");
         }
@@ -130,7 +139,10 @@ public class Widget : IDisposable, INotifyPropertyChanged
         {
             if (_syncContext != null && _syncContext != SynchronizationContext.Current)
             {
-                _syncContext.Post(state => handler(this, new PropertyChangedEventArgs(propertyName)), null);
+                _syncContext.Post(
+                    state => handler(this, new PropertyChangedEventArgs(propertyName)),
+                    null
+                );
             }
             else
             {
