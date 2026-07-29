@@ -20,7 +20,13 @@ internal static class TypeUtil
             return ConvertTypeName(t.GetGenericArguments()[0]) + "?";
         }
 
-        string name = Regex.Replace(genericDef.Name, "`[0-9]+", "");
+        string name = Regex.Replace(
+            genericDef.Name,
+            "`[0-9]+",
+            "",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(1)
+        );
         string[] typeNames = t.GetGenericArguments().Select(GetFriendlyTypeName).ToArray();
         return string.Format("{0}<{1}>", name, string.Join(", ", typeNames));
     }

@@ -329,7 +329,21 @@ public class SmtpAppenderProxy : AppenderProxyBase
     {
         try
         {
-            using SmtpClient smtpClient = new SmtpClient();
+            // Require TLS when sending Basic-auth credentials so username/password don't traverse
+            // the wire in clear; otherwise honour the configured EnableSsl. (M13)
+#pragma warning disable S5332
+            // Sonar wants unconditional EnableSsl=true, but this proxy preserves the log4net
+            // SmtpAppender's explicit configuration so operators can still target plaintext
+            // internal relays when that is the deliberate deployment choice.
+            using SmtpClient smtpClient = new SmtpClient
+            {
+                EnableSsl =
+                    _appender.EnableSsl
+                    || _appender.Authentication
+                        == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic,
+            };
+#pragma warning restore S5332
+
             if (
                 !string.IsNullOrEmpty(SmtpHost)
                 && !string.Equals(
@@ -348,13 +362,6 @@ public class SmtpAppenderProxy : AppenderProxyBase
             }
 
             smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-
-            // Require TLS when sending Basic-auth credentials so username/password don't traverse
-            // the wire in clear; otherwise honour the configured EnableSsl. (M13)
-            smtpClient.EnableSsl =
-                _appender.EnableSsl
-                || _appender.Authentication
-                    == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic;
 
             if (_appender.Authentication == log4net.Appender.SmtpAppender.SmtpAuthentication.Basic)
             {

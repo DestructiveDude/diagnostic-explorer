@@ -71,7 +71,8 @@ public class LogAnalyticsRetroLogger : IRetroLogger
             @"|\\[1-9]"
             + // numeric backreference:   \1 .. \9
             @"|\\k<", // named backreference:     \k<name>
-        RegexOptions.Compiled
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
     );
 
     private readonly LogAnalyticsSettings _options;
@@ -282,7 +283,7 @@ public class LogAnalyticsRetroLogger : IRetroLogger
 
         try
         {
-            _ = new Regex(value, RegexOptions.IgnoreCase);
+            _ = new Regex(value, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         }
         catch (ArgumentException ex)
         {

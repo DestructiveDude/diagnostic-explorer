@@ -370,7 +370,7 @@ public class TraceScope : IDisposable
         double age = itemDate.Subtract(scopeStart).TotalSeconds;
         double split = itemDate.Subtract(lastMessage).TotalSeconds;
 
-        string[] parts = Regex.Split(message, @"\r?\n");
+        string[] parts = Regex.Split(message, @"\r?\n", RegexOptions.None, TimeSpan.FromSeconds(1));
         writer.Write("[{0:00.000}] [{1:00.000}] ", age, split);
         writer.WriteLine(parts[0].Trim());
 

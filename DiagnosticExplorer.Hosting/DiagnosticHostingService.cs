@@ -111,7 +111,7 @@ public class DiagnosticHostingService
             };
 
             RegistrationHandler[] handlers = Regex
-                .Split(_options.Uri, @"\s|;|,")
+                .Split(_options.Uri, @"\s|;|,", RegexOptions.None, TimeSpan.FromSeconds(1))
                 .Select(hubUrl => hubUrl.Trim())
                 .Where(hubUrl => !string.IsNullOrWhiteSpace(hubUrl))
                 .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey))

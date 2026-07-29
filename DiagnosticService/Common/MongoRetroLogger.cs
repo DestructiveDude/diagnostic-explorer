@@ -186,7 +186,7 @@ public class MongoRetroLogger : IRetroLogger
 
         try
         {
-            _ = new Regex(value, RegexOptions.IgnoreCase);
+            _ = new Regex(value, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         }
         catch (ArgumentException ex)
         {
@@ -226,28 +226,48 @@ public class MongoRetroLogger : IRetroLogger
         if (!string.IsNullOrWhiteSpace(query.Machine))
         {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
-                Regex.IsMatch(msg.Machine, query.Machine, RegexOptions.IgnoreCase)
+                Regex.IsMatch(
+                    msg.Machine,
+                    query.Machine,
+                    RegexOptions.IgnoreCase,
+                    TimeSpan.FromSeconds(1)
+                )
             );
         }
 
         if (!string.IsNullOrWhiteSpace(query.User))
         {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
-                Regex.IsMatch(msg.User, query.User, RegexOptions.IgnoreCase)
+                Regex.IsMatch(
+                    msg.User,
+                    query.User,
+                    RegexOptions.IgnoreCase,
+                    TimeSpan.FromSeconds(1)
+                )
             );
         }
 
         if (!string.IsNullOrWhiteSpace(query.Process))
         {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
-                Regex.IsMatch(msg.Process, query.Process, RegexOptions.IgnoreCase)
+                Regex.IsMatch(
+                    msg.Process,
+                    query.Process,
+                    RegexOptions.IgnoreCase,
+                    TimeSpan.FromSeconds(1)
+                )
             );
         }
 
         if (!string.IsNullOrWhiteSpace(query.Message))
         {
             filter &= new ExpressionFilterDefinition<RetroMsg>(msg =>
-                Regex.IsMatch(msg.Message, query.Message, RegexOptions.IgnoreCase)
+                Regex.IsMatch(
+                    msg.Message,
+                    query.Message,
+                    RegexOptions.IgnoreCase,
+                    TimeSpan.FromSeconds(1)
+                )
             );
         }
 
