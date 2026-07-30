@@ -20,6 +20,11 @@ public class PropertyGetterTests
         return bag.Categories.SelectMany(c => c.Properties).Select(p => p.Value);
     }
 
+    private static IEnumerable<string?> AllNames(PropertyBag bag)
+    {
+        return bag.Categories.SelectMany(c => c.Properties).Select(p => p.Name);
+    }
+
     /// <summary>
     ///     RateGetter read the RateCounter via the raw getter, outside the guarded GetValue path, so a
     ///     throwing rate property aborted the entire walk. It now degrades to an error-string property. (M18)
@@ -59,6 +64,86 @@ public class PropertyGetterTests
         obj.Items.Enumerations.Should().Be(1);
     }
 
+    /// <summary>
+    ///     CollectionGetter.AppendSeparateCategories must render a &lt;cycle&gt; placeholder for an
+    ///     already-visited object instead of recursing into it. ObjectToPropertyBag seeds
+    ///     VisitedObjects with the root, so a Categories-mode collection containing the root itself
+    ///     trips the guard on the first item. Without the guard the walk recurses unboundedly and
+    ///     dies to an uncatchable StackOverflowException — CollectionGetter's own catch at
+    ///     CollectionGetter.cs:217-221 cannot mitigate that. The assertion is on Property.Name: the
+    ///     placeholder carries no Value, so the AllValues probe cannot see it. (DE-7)
+    /// </summary>
+    [Fact]
+    public void CategoriesCollection_ContainingSelf_RendersCyclePlaceholder_InsteadOfRecursing()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new SelfContainingChildren(), "svc", null);
+
+        Property? cycle = bag.GetProperty("<cycle>", "Item 0");
+        cycle.Should().NotBeNull();
+        cycle!.Name.Should().Be("<cycle>");
+    }
+
+    /// <summary>
+    ///     CollectionGetter.AppendSeparateCategories must render a &lt;max depth&gt; placeholder once
+    ///     more than 50 objects are on the VisitedObjects stack, instead of recursing deeper. A chain
+    ///     longer than 50 nodes trips the guard; without it the walk would follow arbitrarily deep
+    ///     object graphs. (DE-7)
+    /// </summary>
+    [Fact]
+    public void CategoriesCollection_DeeperThan50_RendersMaxDepthPlaceholder_InsteadOfRecursing()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(BuildCollectionChain(60), "svc", null);
+
+        AllNames(bag).Should().Contain("<max depth>");
+    }
+
+    /// <summary>
+    ///     ExtendedPropertyGetter duplicates the cycle guard: an [ExtendedProperty] whose value is
+    ///     already visited (here the root itself) must render a &lt;cycle&gt; placeholder instead of
+    ///     recursing. (DE-7)
+    /// </summary>
+    [Fact]
+    public void ExtendedProperty_ReferencingSelf_RendersCyclePlaceholder_InsteadOfRecursing()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new ExtendedSelfReference(), "svc", null);
+
+        Property? cycle = bag.GetProperty("<cycle>", "Self");
+        cycle.Should().NotBeNull();
+        cycle!.Name.Should().Be("<cycle>");
+    }
+
+    /// <summary>
+    ///     ExtendedPropertyGetter duplicates the depth guard: an [ExtendedProperty] chain deeper than
+    ///     50 visited objects must render a &lt;max depth&gt; placeholder instead of recursing. (DE-7)
+    /// </summary>
+    [Fact]
+    public void ExtendedProperty_ChainDeeperThan50_RendersMaxDepthPlaceholder_InsteadOfRecursing()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(BuildExtendedChain(60), "svc", null);
+
+        AllNames(bag).Should().Contain("<max depth>");
+    }
+
+    private static CollectionChainNode BuildCollectionChain(int depth)
+    {
+        CollectionChainNode? node = null;
+        for (int i = 0; i < depth; i++)
+        {
+            node = new CollectionChainNode(node);
+        }
+        return node!;
+    }
+
+    private static ExtendedChainNode BuildExtendedChain(int depth)
+    {
+        ExtendedChainNode? node = null;
+        for (int i = 0; i < depth; i++)
+        {
+            node = new ExtendedChainNode(node);
+        }
+        return node!;
+    }
+
     private sealed class ThrowingRate
     {
         [RateProperty]
@@ -94,5 +179,41 @@ public class PropertyGetterTests
 
         [CollectionProperty(CollectionMode.Concatenate)]
         public CountingEnumerable Numbers => Items;
+    }
+
+    private sealed class SelfContainingChildren
+    {
+        [CollectionProperty(CollectionMode.Categories)]
+        public List<SelfContainingChildren> Children => [this];
+    }
+
+    private sealed class CollectionChainNode
+    {
+        private readonly CollectionChainNode? _next;
+
+        public CollectionChainNode(CollectionChainNode? next)
+        {
+            _next = next;
+        }
+
+        [CollectionProperty(CollectionMode.Categories)]
+        public List<CollectionChainNode> Children => _next is null ? [] : [_next];
+    }
+
+    private sealed class ExtendedSelfReference
+    {
+        [ExtendedProperty]
+        public ExtendedSelfReference Self => this;
+    }
+
+    private sealed class ExtendedChainNode
+    {
+        public ExtendedChainNode(ExtendedChainNode? next)
+        {
+            Next = next;
+        }
+
+        [ExtendedProperty]
+        public ExtendedChainNode? Next { get; }
     }
 }
