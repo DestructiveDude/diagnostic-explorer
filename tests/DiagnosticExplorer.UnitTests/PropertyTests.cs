@@ -4,15 +4,15 @@ using DiagnosticExplorer.Interface;
 namespace DiagnosticExplorer.UnitTests;
 
 /// <summary>
-/// Covers Property's ToString formatting (used in logs/diagnostics) and the
-/// case-insensitive FindByName extension that the bag/category lookups rely on.
+///     Covers Property's ToString formatting (used in logs/diagnostics) and the
+///     case-insensitive FindByName extension that the bag/category lookups rely on.
 /// </summary>
 public class PropertyTests
 {
     /// <summary>
-    /// ToString composes optional segments (settable flag, description, operation set)
-    /// onto the name/value pair. Parameterizing the combinations guards the exact
-    /// rendering the diagnostics output depends on, in one place.
+    ///     ToString composes optional segments (settable flag, description, operation set)
+    ///     onto the name/value pair. Parameterizing the combinations guards the exact
+    ///     rendering the diagnostics output depends on, in one place.
     /// </summary>
     [Theory]
     [InlineData("V", null, false, null, "N = [V]")]
@@ -21,7 +21,12 @@ public class PropertyTests
     [InlineData("V", null, false, "OS", "N = [V] (OperationSet=OS)")]
     [InlineData("V", "D", true, "OS", "N = [V] (SET) (D) (OperationSet=OS)")]
     public void ToString_WithVariousOptionalSegments_RendersExpectedText(
-        string value, string? description, bool canSet, string? operationSet, string expected)
+        string value,
+        string? description,
+        bool canSet,
+        string? operationSet,
+        string expected
+    )
     {
         var property = new Property("N", value, description)
         {
@@ -33,9 +38,9 @@ public class PropertyTests
     }
 
     /// <summary>
-    /// FindByName matches case-insensitively and returns null when absent — the contract
-    /// PropertyBag.GetProperty leans on. Parameterized to cover hit, case-variant hit,
-    /// and miss together.
+    ///     FindByName matches case-insensitively and returns null when absent — the contract
+    ///     PropertyBag.GetProperty leans on. Parameterized to cover hit, case-variant hit,
+    ///     and miss together.
     /// </summary>
     [Theory]
     [InlineData("Uptime", true)]
@@ -51,8 +56,8 @@ public class PropertyTests
     }
 
     /// <summary>
-    /// FindByName guards against a null source list with ArgumentNullException rather
-    /// than a less-diagnosable NullReferenceException deeper in LINQ.
+    ///     FindByName guards against a null source list with ArgumentNullException rather
+    ///     than a less-diagnosable NullReferenceException deeper in LINQ.
     /// </summary>
     [Fact]
     public void FindByName_WithNullList_Throws()

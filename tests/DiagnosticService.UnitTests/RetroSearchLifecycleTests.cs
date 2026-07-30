@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reactive.Subjects;
 using System.Reflection;
 using System.Threading.Channels;
 using AwesomeAssertions;
@@ -7,7 +6,6 @@ using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
@@ -15,21 +13,21 @@ using Xunit;
 namespace DiagnosticService.UnitTests;
 
 /// <summary>
-/// Retro search lifetime is subtle because searches are tracked per connection and complete on
-/// background tasks. These tests pin the cleanup behavior so disconnects and overlapping searches
-/// do not leak entries or remove the wrong active search.
+///     Retro search lifetime is subtle because searches are tracked per connection and complete on
+///     background tasks. These tests pin the cleanup behavior so disconnects and overlapping searches
+///     do not leak entries or remove the wrong active search.
 /// </summary>
 public class RetroSearchLifecycleTests
 {
     /// <summary>
-    /// Verifies that finishing the current search removes its tracking entry. This is the core
-    /// leak-prevention behavior the manager needs once a search naturally completes.
+    ///     Verifies that finishing the current search removes its tracking entry. This is the core
+    ///     leak-prevention behavior the manager needs once a search naturally completes.
     /// </summary>
     [Fact]
     public void HandleSearchFinished_WhenSearchIsCurrent_RemovesTrackedEntry()
     {
-        RetroManager manager = CreateManager();
-        RetroSearchProcess running = CreateSearch(manager, "conn-1", 1);
+        var manager = CreateManager();
+        var running = CreateSearch(manager, "conn-1", 1);
         SearchMap(manager)["conn-1"] = running;
 
         InvokeHandleSearchFinished(manager, running);
@@ -38,15 +36,15 @@ public class RetroSearchLifecycleTests
     }
 
     /// <summary>
-    /// Verifies that finishing an older search does not remove a newer replacement search for the
-    /// same connection. This protects the restart path from orphaning the active search.
+    ///     Verifies that finishing an older search does not remove a newer replacement search for the
+    ///     same connection. This protects the restart path from orphaning the active search.
     /// </summary>
     [Fact]
     public void HandleSearchFinished_WhenReplacementSearchExists_KeepsReplacementTracked()
     {
-        RetroManager manager = CreateManager();
-        RetroSearchProcess original = CreateSearch(manager, "conn-1", 1);
-        RetroSearchProcess replacement = CreateSearch(manager, "conn-1", 2);
+        var manager = CreateManager();
+        var original = CreateSearch(manager, "conn-1", 1);
+        var replacement = CreateSearch(manager, "conn-1", 2);
         SearchMap(manager)["conn-1"] = replacement;
 
         InvokeHandleSearchFinished(manager, original);
@@ -56,14 +54,14 @@ public class RetroSearchLifecycleTests
     }
 
     /// <summary>
-    /// Verifies that connection-level cancellation removes the tracked search and trips its token.
-    /// This is the cleanup path WebHub disconnect handling needs to call.
+    ///     Verifies that connection-level cancellation removes the tracked search and trips its token.
+    ///     This is the cleanup path WebHub disconnect handling needs to call.
     /// </summary>
     [Fact]
     public void CancelConnectionSearch_WhenSearchExists_RemovesItAndCancelsIt()
     {
-        RetroManager manager = CreateManager();
-        RetroSearchProcess running = CreateSearch(manager, "conn-1", 1);
+        var manager = CreateManager();
+        var running = CreateSearch(manager, "conn-1", 1);
         SearchMap(manager)["conn-1"] = running;
 
         manager.CancelConnectionSearch("conn-1");
@@ -73,46 +71,57 @@ public class RetroSearchLifecycleTests
     }
 
     /// <summary>
-    /// Verifies that SendResults still raises Finished when the client error callback itself throws.
-    /// This prevents stuck search entries when a disconnected client cannot receive the error.
+    ///     Verifies that SendResults still raises Finished when the client error callback itself throws.
+    ///     This prevents stuck search entries when a disconnected client cannot receive the error.
     /// </summary>
     [Fact]
     public async Task SendResults_WhenErrorCallbackThrows_StillRaisesFinished()
     {
-        RetroManager manager = CreateManager();
-        IWebHubClient client = Substitute.For<IWebHubClient>();
-        client.ProcessSearchError(7, Arg.Any<string>(), Arg.Any<string>())
+        var manager = CreateManager();
+        var client = Substitute.For<IWebHubClient>();
+        client
+            .ProcessSearchError(7, Arg.Any<string>(), Arg.Any<string>())
             .Returns(_ => throw new InvalidOperationException("client-gone"));
-        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 7 });
-        bool finishedRaised = false;
+        RetroSearchProcess process = new(
+            manager,
+            "conn-1",
+            client,
+            new RetroQuery { SearchId = 7 }
+        );
+        var finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
-        Channel<RetroSearchResult> channel = Channel.CreateUnbounded<RetroSearchResult>();
+        var channel = Channel.CreateUnbounded<RetroSearchResult>();
         channel.Writer.Complete(new InvalidOperationException("search-failed"));
 
-        Func<Task> act = async () => await InvokeSendResults(process, channel);
+        var act = async () => await InvokeSendResults(process, channel);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         finishedRaised.Should().BeTrue();
     }
 
     /// <summary>
-    /// Verifies that SendResults raises Finished when the channel completes without error.
-    /// Complements the error-callback-throws test to confirm the normal completion path also fires Finished.
+    ///     Verifies that SendResults raises Finished when the channel completes without error.
+    ///     Complements the error-callback-throws test to confirm the normal completion path also fires Finished.
     /// </summary>
     [Fact]
     public async Task SendResults_WhenChannelCompletesSuccessfully_RaisesFinished()
     {
-        RetroManager manager = CreateManager();
-        IWebHubClient client = Substitute.For<IWebHubClient>();
-        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 8 });
-        bool finishedRaised = false;
+        var manager = CreateManager();
+        var client = Substitute.For<IWebHubClient>();
+        RetroSearchProcess process = new(
+            manager,
+            "conn-1",
+            client,
+            new RetroQuery { SearchId = 8 }
+        );
+        var finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
-        Channel<RetroSearchResult> channel = Channel.CreateUnbounded<RetroSearchResult>();
+        var channel = Channel.CreateUnbounded<RetroSearchResult>();
         channel.Writer.Complete();
 
-        Func<Task> act = async () => await InvokeSendResults(process, channel);
+        var act = async () => await InvokeSendResults(process, channel);
 
         await act.Should().NotThrowAsync();
         finishedRaised.Should().BeTrue();
@@ -121,16 +130,17 @@ public class RetroSearchLifecycleTests
     [Fact]
     public async Task StartRetroSearch_WhenSearchCompletes_RemovesTrackedEntry()
     {
-        RetroManager manager = CreateManager();
+        var manager = CreateManager();
         await manager.StartAsync(TestContext.Current.CancellationToken);
         try
         {
-            IRetroLogger mockLogger = Substitute.For<IRetroLogger>();
-            mockLogger.GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
+            var mockLogger = Substitute.For<IRetroLogger>();
+            mockLogger
+                .GetMessages(Arg.Any<RetroQuery>(), Arg.Any<CancellationToken>())
                 .Returns(GetEmptyAsyncEnumerable());
             SetPrivateField(manager, "_logger", mockLogger);
 
-            IWebHubClient client = Substitute.For<IWebHubClient>();
+            var client = Substitute.For<IWebHubClient>();
             RetroQuery query = new() { SearchId = 123 };
 
             await manager.StartRetroSearch(query, "conn-123", client);
@@ -141,7 +151,9 @@ public class RetroSearchLifecycleTests
             // HandleSearchFinished remove the entry before the subscription), leaving the wait to
             // block to the runner timeout. The bounded poll fails fast instead of hanging.
             var map = SearchMap(manager);
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(
+                TestContext.Current.CancellationToken
+            );
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
             while (map.ContainsKey("conn-123"))
             {
@@ -157,6 +169,21 @@ public class RetroSearchLifecycleTests
         }
     }
 
+    [Fact]
+    public async Task StopAsync_WhenCalledTwice_DoesNotThrow()
+    {
+        var manager = CreateManager();
+        await manager.StartAsync(TestContext.Current.CancellationToken);
+
+        var act = async () =>
+        {
+            await manager.StopAsync(TestContext.Current.CancellationToken);
+            await manager.StopAsync(TestContext.Current.CancellationToken);
+        };
+
+        await act.Should().NotThrowAsync();
+    }
+
     private static async IAsyncEnumerable<RetroMsg[]> GetEmptyAsyncEnumerable()
     {
         yield break;
@@ -165,19 +192,23 @@ public class RetroSearchLifecycleTests
     [Fact]
     public async Task LogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
-        RetroManager manager = CreateManager();
+        var manager = CreateManager();
         await manager.StartAsync(TestContext.Current.CancellationToken);
         try
         {
             using OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-            FieldInfo field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var subject = (IObservable<IList<DiagnosticMsg>>) field.GetValue(manager)!;
+            var field = typeof(RetroManager).GetField(
+                "_logSubject",
+                BindingFlags.Instance | BindingFlags.NonPublic
+            )!;
+            var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
 
-            using IDisposable subscription = subject.Subscribe(observer);
+            using var subscription = subject.Subscribe(observer);
 
-            Task[] publishes = StartConcurrentPublishes(
-                count: 24,
-                publish: index => manager.LogEvents([new() { Message = $"msg-{index}" }]));
+            var publishes = StartConcurrentPublishes(
+                24,
+                index => manager.LogEvents([new DiagnosticMsg { Message = $"msg-{index}" }])
+            );
 
             try
             {
@@ -200,54 +231,88 @@ public class RetroSearchLifecycleTests
 
     private static RetroManager CreateManager()
     {
-        DiagServiceSettings settings = new() { RetroType = "mongo", RetroConnection = "mongodb://unused" };
-        return new RetroManager(new TestHostApplicationLifetime(), Options.Create(settings));
+        DiagServiceSettings settings = new()
+        {
+            RetroType = "mongo",
+            RetroConnection = "mongodb://unused",
+        };
+        return new RetroManager(Options.Create(settings));
     }
 
-    private static RetroSearchProcess CreateSearch(RetroManager manager, string connectionId, int searchId)
+    private static RetroSearchProcess CreateSearch(
+        RetroManager manager,
+        string connectionId,
+        int searchId
+    )
     {
-        return new RetroSearchProcess(manager, connectionId, Substitute.For<IWebHubClient>(), new RetroQuery { SearchId = searchId });
+        return new RetroSearchProcess(
+            manager,
+            connectionId,
+            Substitute.For<IWebHubClient>(),
+            new RetroQuery { SearchId = searchId }
+        );
     }
 
     private static ConcurrentDictionary<string, RetroSearchProcess> SearchMap(RetroManager manager)
     {
-        FieldInfo field = typeof(RetroManager).GetField("_searches", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (ConcurrentDictionary<string, RetroSearchProcess>) field.GetValue(manager)!;
+        var field = typeof(RetroManager).GetField(
+            "_searches",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        return (ConcurrentDictionary<string, RetroSearchProcess>)field.GetValue(manager)!;
     }
 
     private static CancellationTokenSource CancelToken(RetroSearchProcess process)
     {
-        FieldInfo field = typeof(RetroSearchProcess).GetField("_cancelToken", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (CancellationTokenSource) field.GetValue(process)!;
+        var field = typeof(RetroSearchProcess).GetField(
+            "_cancelToken",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        return (CancellationTokenSource)field.GetValue(process)!;
     }
 
     private static void InvokeHandleSearchFinished(RetroManager manager, RetroSearchProcess process)
     {
-        MethodInfo method = typeof(RetroManager).GetMethod("HandleSearchFinished", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var method = typeof(RetroManager).GetMethod(
+            "HandleSearchFinished",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
         method.Invoke(manager, [process, EventArgs.Empty]);
     }
 
-    private static async Task InvokeSendResults(RetroSearchProcess process, Channel<RetroSearchResult> channel)
+    private static async Task InvokeSendResults(
+        RetroSearchProcess process,
+        Channel<RetroSearchResult> channel
+    )
     {
-        MethodInfo method = typeof(RetroSearchProcess).GetMethod("SendResults", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Task task = (Task) method.Invoke(process, [channel, CancellationToken.None])!;
+        var method = typeof(RetroSearchProcess).GetMethod(
+            "SendResults",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+        var task = (Task)method.Invoke(process, [channel, CancellationToken.None])!;
         await task;
     }
 
     private static void SetPrivateField(object target, string fieldName, object? value)
     {
-        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var field = target
+            .GetType()
+            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
         field.SetValue(target, value);
     }
 
     private static Task[] StartConcurrentPublishes(int count, Action<int> publish)
     {
         ManualResetEventSlim start = new(false);
-        Task[] tasks = Enumerable.Range(0, count)
-            .Select(index => Task.Run(() => {
-                start.Wait();
-                publish(index);
-            }))
+        var tasks = Enumerable
+            .Range(0, count)
+            .Select(index =>
+                Task.Run(() =>
+                {
+                    start.Wait();
+                    publish(index);
+                })
+            )
             .ToArray();
 
         start.Set();
@@ -265,23 +330,15 @@ public class RetroSearchLifecycleTests
         public bool OverlapDetected { get; private set; }
         public int SeenValues => _seenValues;
 
-        public void WaitUntilCallbackEntered(CancellationToken cancellationToken)
+        public void Dispose()
         {
-            _callbackEntered.Wait(cancellationToken);
+            _callbackEntered.Dispose();
+            _releaseCallbacks.Dispose();
         }
 
-        public void ReleaseCallbacks()
-        {
-            _releaseCallbacks.Set();
-        }
+        public void OnCompleted() { }
 
-        public void OnCompleted()
-        {
-        }
-
-        public void OnError(Exception error)
-        {
-        }
+        public void OnError(Exception error) { }
 
         public void OnNext(T value)
         {
@@ -302,18 +359,14 @@ public class RetroSearchLifecycleTests
             }
         }
 
-        public void Dispose()
+        public void WaitUntilCallbackEntered(CancellationToken cancellationToken)
         {
-            _callbackEntered.Dispose();
-            _releaseCallbacks.Dispose();
+            _callbackEntered.Wait(cancellationToken);
         }
-    }
 
-    private sealed class TestHostApplicationLifetime : IHostApplicationLifetime
-    {
-        public CancellationToken ApplicationStarted => CancellationToken.None;
-        public CancellationToken ApplicationStopping => CancellationToken.None;
-        public CancellationToken ApplicationStopped => CancellationToken.None;
-        public void StopApplication() { }
+        public void ReleaseCallbacks()
+        {
+            _releaseCallbacks.Set();
+        }
     }
 }

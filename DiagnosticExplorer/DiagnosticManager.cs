@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -21,7 +22,8 @@ public static class DiagnosticManager
     private static readonly ConcurrentDictionary<string, List<PropertyGetter>> _typeHash = new();
 
     private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _operationLookup = new();
-    private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _staticOperationLookup = new();
+    private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _staticOperationLookup =
+        new();
     private static int _operationSetId;
     public static bool Enabled { get; set; } = true;
 
@@ -65,15 +67,25 @@ public static class DiagnosticManager
         }
     }
 
+    [SuppressMessage(
+        "Reliability",
+        "S1994:For loop increment clauses should modify the loop counters",
+        Justification = "The unbounded suffix search always returns at the first available name."
+    )]
     private static string MakeNameUnique(RegisteredObject obj, string name, string category)
     {
         if (name == null)
         {
+            // ReSharper disable once ExpressionIsAlwaysNull -- legacy callers may supply null.
             return name;
         }
 
         var takenNames = new HashSet<string>(_ignoreCase);
-        foreach (var ro in RegisteredObjects.Where(ro => !ReferenceEquals(ro, obj) && _ignoreCase.Equals(category, ro.BagCategory)))
+        foreach (
+            var ro in RegisteredObjects.Where(ro =>
+                !ReferenceEquals(ro, obj) && _ignoreCase.Equals(category, ro.BagCategory)
+            )
+        )
         {
             takenNames.Add(ro.BagName);
         }
@@ -94,13 +106,13 @@ public static class DiagnosticManager
         }
     }
 
-
     public static void Unregister(object obj)
     {
         lock (RegisteredObjects)
         {
-            RegisteredObject existing = RegisteredObjects.Find(
-                ro => ReferenceEquals(ro.Object, obj));
+            RegisteredObject existing = RegisteredObjects.Find(ro =>
+                ReferenceEquals(ro.Object, obj)
+            );
 
             if (existing != null)
             {
@@ -114,7 +126,6 @@ public static class DiagnosticManager
         return GetDiagnostics(GetRegisteredObjects());
     }
 
-
     public static DiagnosticResponse GetDiagnostics(IEnumerable<RegisteredObject> registeredObjects)
     {
         try
@@ -122,7 +133,10 @@ public static class DiagnosticManager
             DiagnosticResponse response = new();
 
             response.PropertyBags.AddRange(
-                registeredObjects.Select(x => ObjectToPropertyBag(x.Object, x.BagName, x.BagCategory)));
+                registeredObjects.Select(x =>
+                    ObjectToPropertyBag(x.Object, x.BagName, x.BagCategory)
+                )
+            );
 
             HashSet<OperationSet> operationSets = [];
 
@@ -164,7 +178,7 @@ public static class DiagnosticManager
             return new DiagnosticResponse
             {
                 ExceptionMessage = ex.Message,
-                ExceptionDetail = ex.ToString()
+                ExceptionDetail = ex.ToString(),
             };
         }
     }
@@ -178,12 +192,18 @@ public static class DiagnosticManager
 
         if (sourceObject is Type type)
         {
-            Lazy<OperationSet> lazy = _staticOperationLookup.GetOrAdd(type, t => new Lazy<OperationSet>(() => BuildStaticOperationSet(t)));
+            Lazy<OperationSet> lazy = _staticOperationLookup.GetOrAdd(
+                type,
+                t => new Lazy<OperationSet>(() => BuildStaticOperationSet(t))
+            );
             return lazy.Value;
         }
 
         Type propType = sourceObject.GetType();
-        Lazy<OperationSet> lazyInstance = _operationLookup.GetOrAdd(propType, t => new Lazy<OperationSet>(() => BuildOperationSet(t)));
+        Lazy<OperationSet> lazyInstance = _operationLookup.GetOrAdd(
+            propType,
+            t => new Lazy<OperationSet>(() => BuildOperationSet(t))
+        );
         return lazyInstance.Value;
     }
 
@@ -219,7 +239,12 @@ public static class DiagnosticManager
 
         OperationSet operationSet = new();
 
-        foreach (MethodInfo method in propType.GetMethods(PublicMethods).Where(IsMethodValidOperationTarget).OrderBy(x => x.Name))
+        foreach (
+            MethodInfo method in propType
+                .GetMethods(PublicMethods)
+                .Where(IsMethodValidOperationTarget)
+                .OrderBy(x => x.Name)
+        )
         {
             operationSet.Operations.Add(new Operation(method));
         }
@@ -243,7 +268,12 @@ public static class DiagnosticManager
 
         OperationSet operationSet = new();
 
-        foreach (MethodInfo method in propType.GetMethods(PublicStaticMethods).Where(IsMethodValidOperationTarget).OrderBy(x => x.Name))
+        foreach (
+            MethodInfo method in propType
+                .GetMethods(PublicStaticMethods)
+                .Where(IsMethodValidOperationTarget)
+                .OrderBy(x => x.Name)
+        )
         {
             operationSet.Operations.Add(new Operation(method));
         }
@@ -252,7 +282,7 @@ public static class DiagnosticManager
     }
 
     /// <summary>
-    /// To be a valid operation target, a method must contain no ref/out parameters, 
+    /// To be a valid operation target, a method must contain no ref/out parameters,
     /// no generic parameters apart from Nullable, and the must be allowed either by the DiagnosticClassAttribute
     /// or DiagnosticMethodAttribute
     /// </summary>
@@ -303,16 +333,18 @@ public static class DiagnosticManager
         return list.ToArray();
     }
 
-
     [ThreadStatic]
     private static HashSet<object> _visitedObjects;
 
-    internal static HashSet<object> VisitedObjects => _visitedObjects ??= new HashSet<object>(new ReferenceEqualityComparer());
+    internal static HashSet<object> VisitedObjects =>
+        _visitedObjects ??= new HashSet<object>(new ReferenceEqualityComparer());
 
-    private class ReferenceEqualityComparer : IEqualityComparer<object>
+    private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
     {
-        public new bool Equals(object x, object y) => ReferenceEquals(x, y);
-        public int GetHashCode(object obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+        bool IEqualityComparer<object>.Equals(object x, object y) => ReferenceEquals(x, y);
+
+        int IEqualityComparer<object>.GetHashCode(object obj) =>
+            System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 
     public static PropertyBag ObjectToPropertyBag(object obj, string bagName, string bagCategory)
@@ -321,7 +353,7 @@ public static class DiagnosticManager
         {
             Name = bagName,
             Category = bagCategory,
-            SourceObject = obj
+            SourceObject = obj,
         };
 
         var visited = VisitedObjects;
@@ -337,6 +369,7 @@ public static class DiagnosticManager
 
             foreach (PropertyGetter getter in valueGetters)
             {
+                // ReSharper disable once AssignNullToNotNullAttribute -- null means no category prefix.
                 getter.GetProperties(obj, bag, null);
             }
         }
@@ -348,11 +381,14 @@ public static class DiagnosticManager
         return bag;
     }
 
-    public const BindingFlags PublicInstancePropertyFlags = BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance;
-    private const BindingFlags PublicStaticPropertyFlags = BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static;
-    private const BindingFlags PublicMethods = BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance;
-    private const BindingFlags PublicStaticMethods = BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.Public;
-
+    public const BindingFlags PublicInstancePropertyFlags =
+        BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Instance;
+    private const BindingFlags PublicStaticPropertyFlags =
+        BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.Static;
+    private const BindingFlags PublicMethods =
+        BindingFlags.Public | BindingFlags.InvokeMethod | BindingFlags.Instance;
+    private const BindingFlags PublicStaticMethods =
+        BindingFlags.Static | BindingFlags.InvokeMethod | BindingFlags.Public;
 
     internal static List<PropertyGetter> GetPropertyGetters(object obj)
     {
@@ -381,7 +417,9 @@ public static class DiagnosticManager
     {
         List<PropertyGetter> propertyList = [];
 
-        IEnumerable<PropertyInfo> properties = isStatic ? GetStaticProperties(type) : GetInstanceProperties(type, null);
+        IEnumerable<PropertyInfo> properties = isStatic
+            ? GetStaticProperties(type)
+            : GetInstanceProperties(type, null);
         foreach (PropertyInfo info in properties)
         {
             Type underlying = GetUnderlyingType(info.PropertyType);
@@ -414,12 +452,33 @@ public static class DiagnosticManager
         return propertyList;
     }
 
-    private static IEnumerable<PropertyInfo> GetInstanceProperties(Type type, DiagnosticClassAttribute inheritedAttr)
+    private static IEnumerable<PropertyInfo> GetInstanceProperties(
+        Type type,
+        DiagnosticClassAttribute inheritedAttr
+    )
     {
-        return GetInstanceProperties(type, inheritedAttr, new HashSet<string>(StringComparer.Ordinal));
+        return GetInstanceProperties(
+            type,
+            inheritedAttr,
+            new HashSet<string>(StringComparer.Ordinal)
+        );
     }
 
-    private static IEnumerable<PropertyInfo> GetInstanceProperties(Type type, DiagnosticClassAttribute inheritedAttr, HashSet<string> yieldedNames)
+    [SuppressMessage(
+        "Maintainability",
+        "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "This recursive reflection walk preserves inherited diagnostic metadata."
+    )]
+    [SuppressMessage(
+        "CodeQuality",
+        "S3267:Loops should be simplified with LINQ expressions",
+        Justification = "The loop yields recursively discovered properties and cannot be flattened safely."
+    )]
+    private static IEnumerable<PropertyInfo> GetInstanceProperties(
+        Type type,
+        DiagnosticClassAttribute inheritedAttr,
+        HashSet<string> yieldedNames
+    )
     {
         if (type != typeof(object) && type != null)
         {
@@ -427,9 +486,16 @@ public static class DiagnosticManager
 
             if (inheritedAttr == null)
             {
-                for (Type baseType = type.BaseType; baseType != null && baseType != typeof(object); baseType = baseType.BaseType)
+                for (
+                    Type baseType = type.BaseType;
+                    baseType != null && baseType != typeof(object);
+                    baseType = baseType.BaseType
+                )
                 {
-                    DiagnosticClassAttribute attr = GetAttribute<DiagnosticClassAttribute>(baseType, false);
+                    DiagnosticClassAttribute attr = GetAttribute<DiagnosticClassAttribute>(
+                        baseType,
+                        false
+                    );
                     if (attr != null)
                     {
                         if (!attr.DeclaringTypeOnly)
@@ -443,7 +509,12 @@ public static class DiagnosticManager
 
             if (inheritedAttr == null || !inheritedAttr.DeclaringTypeOnly || diagAttr != null)
             {
-                foreach (PropertyInfo propInfo in type.GetProperties(PublicInstancePropertyFlags | BindingFlags.DeclaredOnly).Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p)))
+                foreach (
+                    PropertyInfo propInfo in type.GetProperties(
+                            PublicInstancePropertyFlags | BindingFlags.DeclaredOnly
+                        )
+                        .Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p))
+                )
                 {
                     if (yieldedNames.Add(propInfo.Name))
                     {
@@ -452,7 +523,13 @@ public static class DiagnosticManager
                 }
             }
 
-            foreach (PropertyInfo propInfo in GetInstanceProperties(type.BaseType, diagAttr ?? inheritedAttr, yieldedNames))
+            foreach (
+                PropertyInfo propInfo in GetInstanceProperties(
+                    type.BaseType,
+                    diagAttr ?? inheritedAttr,
+                    yieldedNames
+                )
+            )
             {
                 yield return propInfo;
             }
@@ -463,8 +540,7 @@ public static class DiagnosticManager
     {
         DiagnosticClassAttribute diagAttr = GetAttribute<DiagnosticClassAttribute>(type, false);
 
-        return type
-            .GetProperties(PublicStaticPropertyFlags)
+        return type.GetProperties(PublicStaticPropertyFlags)
             .Where(propInfo => ShouldIncludeProperty(diagAttr, propInfo));
     }
 
@@ -514,7 +590,8 @@ public static class DiagnosticManager
         return t.GetGenericArguments()[0];
     }
 
-    private static T GetAttribute<T>(PropertyInfo info) where T : Attribute
+    private static T GetAttribute<T>(PropertyInfo info)
+        where T : Attribute
     {
         object[] attrs = info.GetCustomAttributes(typeof(T), false);
         if (attrs.Length == 0)
@@ -525,7 +602,8 @@ public static class DiagnosticManager
         return attrs[0] as T;
     }
 
-    private static T GetAttribute<T>(Type info, bool inherit) where T : Attribute
+    private static T GetAttribute<T>(Type info, bool inherit)
+        where T : Attribute
     {
         object[] attrs = info.GetCustomAttributes(typeof(T), inherit);
         if (attrs.Length == 0)
@@ -536,12 +614,21 @@ public static class DiagnosticManager
         return attrs[0] as T;
     }
 
-    public static OperationResponse ExecuteOperation(string path, string operation, string[] arguments)
+    public static OperationResponse ExecuteOperation(
+        string path,
+        string operation,
+        string[] arguments
+    )
     {
         return ExecuteOperation(GetRegisteredObjects(), path, operation, arguments);
     }
 
-    public static OperationResponse ExecuteOperation(IEnumerable<RegisteredObject> registeredObjects, string path, string operation, string[] arguments)
+    public static OperationResponse ExecuteOperation(
+        IEnumerable<RegisteredObject> registeredObjects,
+        string path,
+        string operation,
+        string[] arguments
+    )
     {
         if (path == null)
         {
@@ -573,7 +660,8 @@ public static class DiagnosticManager
 
             if (parameters.Length != arguments.Length)
             {
-                string msg = $"Operation {operation} expected {parameters.Length} parameters, only found {arguments.Length}";
+                string msg =
+                    $"Operation {operation} expected {parameters.Length} parameters, only found {arguments.Length}";
                 throw new ArgumentException(msg);
             }
             object[] paramVals = new object[parameters.Length];
@@ -585,7 +673,8 @@ public static class DiagnosticManager
                 }
                 catch (Exception ex)
                 {
-                    string msg = $"Parameter {i + 1} ({parameters[i].Name}) can't convert '{arguments[i]}' to {TypeUtil.GetFriendlyTypeName(parameters[i].ParameterType)}";
+                    string msg =
+                        $"Parameter {i + 1} ({parameters[i].Name}) can't convert '{arguments[i]}' to {TypeUtil.GetFriendlyTypeName(parameters[i].ParameterType)}";
                     throw new ArgumentException(msg, ex);
                 }
             }
@@ -643,7 +732,10 @@ public static class DiagnosticManager
     /// <param name="registeredObjects">The objects to search within</param>
     /// <param name="ident">Identifies the BagCat/BagName/PropCat/PropName we are searching for</param>
     /// <returns>An object which represents the Bag/PropCat/Prop, or exception if not found</returns>
-    private static object GetSourceObject(IEnumerable<RegisteredObject> registeredObjects, PropIdent ident)
+    private static object GetSourceObject(
+        IEnumerable<RegisteredObject> registeredObjects,
+        PropIdent ident
+    )
     {
         PropertyBag bag = GetRegisteredObject(registeredObjects, ident);
 
@@ -651,7 +743,8 @@ public static class DiagnosticManager
         {
             if (bag.SourceObject == null)
             {
-                string msg = $"Can't invoke operation. Property bag {ident.BagCategory}|{ident.BagName} doesn't have a value.";
+                string msg =
+                    $"Can't invoke operation. Property bag {ident.BagCategory}|{ident.BagName} doesn't have a value.";
                 throw new ArgumentException(msg);
             }
             return bag.SourceObject;
@@ -660,7 +753,8 @@ public static class DiagnosticManager
         Category cat = bag.Categories.FindByName(ident.PropCategory);
         if (cat == null)
         {
-            string msg = $"Can't find source category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory}";
+            string msg =
+                $"Can't find source category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory}";
 
             throw new ArgumentException(msg);
         }
@@ -669,7 +763,8 @@ public static class DiagnosticManager
         {
             if (cat.ValueObject == null)
             {
-                string msg = $"Can't invoke operation. Category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
+                string msg =
+                    $"Can't invoke operation. Category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
                 throw new ArgumentException(msg);
             }
             return cat.ValueObject;
@@ -678,13 +773,15 @@ public static class DiagnosticManager
         Property prop = cat.Properties.FindByName(ident.PropName);
         if (prop == null)
         {
-            string msg = $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} not found.";
+            string msg =
+                $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} not found.";
             throw new ArgumentException(msg);
         }
 
         if (prop.ValueObject == null)
         {
-            string msg = $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
+            string msg =
+                $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
             throw new ArgumentException(msg);
         }
 
@@ -698,7 +795,11 @@ public static class DiagnosticManager
         return SetProperty(GetRegisteredObjects(), path, value);
     }
 
-    public static OperationResponse SetProperty(IEnumerable<RegisteredObject> registeredObjects, string path, string value)
+    public static OperationResponse SetProperty(
+        IEnumerable<RegisteredObject> registeredObjects,
+        string path,
+        string value
+    )
     {
         try
         {
@@ -708,42 +809,52 @@ public static class DiagnosticManager
             }
 
             PropIdent ident = PropIdent.Parse(path);
-            RegisteredObject regObj = registeredObjects.FindByCategoryAndName(ident.BagCategory, ident.BagName);
+            RegisteredObject regObj = registeredObjects.FindByCategoryAndName(
+                ident.BagCategory,
+                ident.BagName
+            );
             if (regObj == null)
             {
-                return OperationResponse.Error($"Can't find PropertyBag {ident.BagCategory}.{ident.BagName}");
+                return OperationResponse.Error(
+                    $"Can't find PropertyBag {ident.BagCategory}.{ident.BagName}"
+                );
             }
 
             object obj = regObj.Object;
             if (obj == null)
             {
-                return OperationResponse.Error($"PropertyBag {ident.BagCategory}.{ident.BagName} was garbage collected just before I could set the property.  How bizarre!");
+                return OperationResponse.Error(
+                    $"PropertyBag {ident.BagCategory}.{ident.BagName} was garbage collected just before I could set the property.  How bizarre!"
+                );
             }
 
             List<PropertyGetter> valueGetters = GetPropertyGetters(obj);
             PropertyGetter getter = valueGetters.FirstOrDefault(g =>
-                _ignoreCase.Equals(g.Name, ident.PropName) &&
-                _ignoreCase.Equals(g.Category ?? "", ident.PropCategory ?? ""));
+                _ignoreCase.Equals(g.Name, ident.PropName)
+                && _ignoreCase.Equals(g.Category ?? "", ident.PropCategory ?? "")
+            );
 
             if (getter == null)
             {
-                return OperationResponse.Error($"Can't find property [{ident.PropCategory}].[{ident.PropName}]");
-            }
-
-            if (getter.PropInfo == null)
-            {
-                return OperationResponse.Error($"Property [{ident.PropCategory}].[{ident.PropName}] doesn't have a source PropertyInfo!");
+                return OperationResponse.Error(
+                    $"Can't find property [{ident.PropCategory}].[{ident.PropName}]"
+                );
             }
 
             if (!getter.CanSet)
             {
-                return OperationResponse.Error($"You are not allowed to set [{ident.PropCategory}].[{ident.PropName}], AllowSet is not enabled!");
+                return OperationResponse.Error(
+                    $"You are not allowed to set [{ident.PropCategory}].[{ident.PropName}], AllowSet is not enabled!"
+                );
             }
 
             bool isType = obj is Type;
-            if (!isType && !getter.PropInfo.DeclaringType.IsInstanceOfType(obj))
+            Type declaringType = getter.PropInfo.DeclaringType;
+            if (!isType && (declaringType == null || !declaringType.IsInstanceOfType(obj)))
             {
-                return OperationResponse.Error($"'{ident.PropCategory}'.'{ident.PropName}' property {getter.PropInfo.Name} expects type {getter.PropInfo.DeclaringType.Name}, got {obj.GetType().Name}");
+                return OperationResponse.Error(
+                    $"'{ident.PropCategory}'.'{ident.PropName}' property {getter.PropInfo.Name} expects type {declaringType?.Name ?? "<unknown>"}, got {obj.GetType().Name}"
+                );
             }
 
             object newValue = ConvertValue(getter.PropInfo.PropertyType, value);
@@ -762,18 +873,27 @@ public static class DiagnosticManager
         }
     }
 
-    private static PropertyBag GetRegisteredObject(IEnumerable<RegisteredObject> registeredObjects, PropIdent ident)
+    private static PropertyBag GetRegisteredObject(
+        IEnumerable<RegisteredObject> registeredObjects,
+        PropIdent ident
+    )
     {
-        RegisteredObject regObj = registeredObjects.FindByCategoryAndName(ident.BagCategory, ident.BagName);
+        RegisteredObject regObj = registeredObjects.FindByCategoryAndName(
+            ident.BagCategory,
+            ident.BagName
+        );
         if (regObj == null)
         {
-            throw new ArgumentException($"Can't find PropertyBag {ident.BagCategory}.{ident.BagName}");
+            throw new ArgumentException(
+                $"Can't find PropertyBag {ident.BagCategory}.{ident.BagName}"
+            );
         }
 
         object obj = regObj.Object;
         if (obj == null)
         {
-            string msg = $"PropertyBag {ident.BagCategory}.{ident.BagName} was garbage collected just before I could set the property.  How bizarre!";
+            string msg =
+                $"PropertyBag {ident.BagCategory}.{ident.BagName} was garbage collected just before I could set the property.  How bizarre!";
             throw new ArgumentException(msg);
         }
 
@@ -797,9 +917,15 @@ public static class DiagnosticManager
             }
 
             string[] elements = path.Split('|');
-            if (elements.Length < 2 || string.IsNullOrEmpty(elements[0]) || string.IsNullOrEmpty(elements[1]))
+            if (
+                elements.Length < 2
+                || string.IsNullOrEmpty(elements[0])
+                || string.IsNullOrEmpty(elements[1])
+            )
             {
-                throw new ArgumentException($"Invalid property/operation path: '{path}'. Path must contain at least a category and name, separated by '|'.");
+                throw new ArgumentException(
+                    $"Invalid property/operation path: '{path}'. Path must contain at least a category and name, separated by '|'."
+                );
             }
 
             PropIdent ident = new()
@@ -807,7 +933,7 @@ public static class DiagnosticManager
                 BagCategory = NullIfEmpty(elements.ElementAtOrDefault(0)),
                 BagName = NullIfEmpty(elements.ElementAtOrDefault(1)),
                 PropCategory = NullIfEmpty(elements.ElementAtOrDefault(2)),
-                PropName = NullIfEmpty(elements.ElementAtOrDefault(3))
+                PropName = NullIfEmpty(elements.ElementAtOrDefault(3)),
             };
             return ident;
         }
@@ -854,7 +980,8 @@ public static class DiagnosticManager
         {
             return Convert.ChangeType(value, type);
         }
-        catch (Exception ex) when (ex is FormatException || ex is InvalidCastException || ex is OverflowException)
+        catch (Exception ex)
+            when (ex is FormatException || ex is InvalidCastException || ex is OverflowException)
         {
             if (TryParseValue(type, value, out object parsed))
             {
@@ -869,7 +996,13 @@ public static class DiagnosticManager
     {
         parsed = null;
 
-        MethodInfo method = type.GetMethod("Parse", PublicStaticMethods, null, new[] { typeof(string) }, null);
+        MethodInfo method = type.GetMethod(
+            "Parse",
+            PublicStaticMethods,
+            null,
+            new[] { typeof(string) },
+            null
+        );
 
         if (method == null)
         {
@@ -885,7 +1018,9 @@ public static class DiagnosticManager
         {
             if (ex.InnerException != null)
             {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                System
+                    .Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException)
+                    .Throw();
             }
             throw;
         }

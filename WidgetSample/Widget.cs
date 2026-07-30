@@ -2,40 +2,39 @@
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
-
-using System;
-using System.ComponentModel;
-using System.Drawing;
-using System.Threading;
-using DiagnosticExplorer;
-using DiagnosticExplorer.Props;
 
 namespace WidgetSample;
 
 //Widget uses the DiagnosticManager.RegisterAsync method of registering itself with diagnostics
 public class Widget : IDisposable, INotifyPropertyChanged
 {
-    private static readonly string[] _names = new[] { "Widget X", "Widget Y", "Widget Z", "Widget W" };
-    private readonly int _id;
+    private static readonly string[] _names = new[]
+    {
+        "Widget X",
+        "Widget Y",
+        "Widget Z",
+        "Widget W",
+    };
+
     private readonly SynchronizationContext _syncContext;
     private DateTime _dateCreated;
     private string _name;
@@ -43,17 +42,53 @@ public class Widget : IDisposable, INotifyPropertyChanged
 
     public Widget(int id)
     {
-        _id = id;
+        Id = id;
         _syncContext = SynchronizationContext.Current;
 
         Randomise();
-        string bagName = $"Widget {_id}";
+        var bagName = $"Widget {Id}";
         DiagnosticManager.Register(this, bagName, "Widgets");
     }
 
-    public int Id => _id;
+    public int Id { get; }
 
-    public string FullName => $"{Name}({_id})";
+    public string FullName => $"{Name}({Id})";
+
+    [Property(Ignore = true)]
+    public string IgnoredProperty => "This value will not be exposed in diagnostics";
+
+    [Property(AllowSet = true)]
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            _name = value;
+            OnPropertyChanged("Name");
+        }
+    }
+
+    [Property(AllowSet = true, FormatString = "{0:d MMM yyyy HH:mm:ss}", Category = "Info")]
+    public DateTime DateCreated
+    {
+        get => _dateCreated;
+        set
+        {
+            _dateCreated = value;
+            OnPropertyChanged("DateCreated");
+        }
+    }
+
+    [Property(AllowSet = true, FormatString = "Located at {0}", Category = "Info")]
+    public Point Size
+    {
+        get => _size;
+        set
+        {
+            _size = value;
+            OnPropertyChanged("Size");
+        }
+    }
 
     [DiagnosticMethod]
     public void Randomise()
@@ -68,39 +103,6 @@ public class Widget : IDisposable, INotifyPropertyChanged
     {
         Name = null;
         DateCreated = DateTime.Now;
-    }
-
-    [Property(Ignore = true)]
-    public string IgnoredProperty => "This value will not be exposed in diagnostics";
-
-    [Property(AllowSet = true)]
-    public string Name
-    {
-        get => _name;
-        set {
-            _name = value;
-            OnPropertyChanged("Name");
-        }
-    }
-
-    [Property(AllowSet = true, FormatString = "{0:d MMM yyyy HH:mm:ss}", Category = "Info")]
-    public DateTime DateCreated
-    {
-        get => _dateCreated;
-        set {
-            _dateCreated = value;
-            OnPropertyChanged("DateCreated");
-        }
-    }
-
-    [Property(AllowSet = true, FormatString = "Located at {0}", Category = "Info")]
-    public Point Size
-    {
-        get => _size;
-        set {
-            _size = value;
-            OnPropertyChanged("Size");
-        }
     }
 
     #region IDisposable Members
@@ -130,7 +132,10 @@ public class Widget : IDisposable, INotifyPropertyChanged
         {
             if (_syncContext != null && _syncContext != SynchronizationContext.Current)
             {
-                _syncContext.Post(state => handler(this, new PropertyChangedEventArgs(propertyName)), null);
+                _syncContext.Post(
+                    state => handler(this, new PropertyChangedEventArgs(propertyName)),
+                    null
+                );
             }
             else
             {

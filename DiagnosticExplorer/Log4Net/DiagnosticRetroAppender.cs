@@ -1,3 +1,5 @@
+#nullable enable annotations
+
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -9,18 +11,9 @@ namespace DiagnosticExplorer.Log4Net;
 
 public class DiagnosticRetroAppender : AppenderSkeleton
 {
-    private readonly string _version;
+    private static Action<DiagnosticMsg>? _loggingAction;
     private readonly string _process;
-
-    private static Action<DiagnosticMsg> _loggingAction;
-
-    public string Environment { get; set; }
-
-    public static void SetLoggingAction(Action<DiagnosticMsg> action)
-    {
-        _loggingAction = action;
-    }
-
+    private readonly string? _version;
 
     public DiagnosticRetroAppender()
     {
@@ -28,8 +21,18 @@ public class DiagnosticRetroAppender : AppenderSkeleton
         // outer ?. only covered a null entry assembly, so this NRE'd the ctor and blocked
         // logging config init). Dispose the Process handle — only ProcessName is needed.
         _version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString();
-        using Process current = Process.GetCurrentProcess();
+        using var current = Process.GetCurrentProcess();
         _process = current.ProcessName;
+    }
+
+    public string? Environment { get; set; }
+
+    [RateProperty(ExposeRate = false, ExposeTotal = true)]
+    public RateCounter EventsIn { get; set; } = new(3);
+
+    public static void SetLoggingAction(Action<DiagnosticMsg>? action)
+    {
+        _loggingAction = action;
     }
 
     public override void ActivateOptions()
@@ -43,27 +46,23 @@ public class DiagnosticRetroAppender : AppenderSkeleton
     {
         DiagnosticMsg msg = new()
         {
-            Level = loggingEvent.Level.Value,
+            Level = loggingEvent.Level?.Value ?? Level.Info.Value,
             Date = DateTime.UtcNow,
             Machine = System.Environment.MachineName,
             User = System.Environment.UserName,
             Environment = Environment,
             Category = loggingEvent.LoggerName,
             Process = $"{_process} {_version}",
-            Message = GetMessage(loggingEvent)
+            Message = GetMessage(loggingEvent),
         };
 
         EventsIn.Register(1);
         _loggingAction?.Invoke(msg);
     }
 
-
-    [RateProperty(ExposeRate = false, ExposeTotal = true)]
-    public RateCounter EventsIn { get; set; } = new RateCounter(3);
-
     private string GetMessage(LoggingEvent loggingEvent)
     {
-        string message = RenderLoggingEvent(loggingEvent);
+        var message = RenderLoggingEvent(loggingEvent);
 
         if (!ReferenceEquals(loggingEvent.MessageObject, loggingEvent.ExceptionObject))
         {
@@ -78,5 +77,4 @@ public class DiagnosticRetroAppender : AppenderSkeleton
         base.OnClose();
         DiagnosticManager.Unregister(this);
     }
-
 }

@@ -24,45 +24,20 @@ public class DiagnosticHostingService
     // Accessed via Interlocked/Volatile; only ever published after StartHosting succeeds so a
     // failed init can't leave a non-null, half-initialized instance behind.
     private static DiagnosticHostingService _instance;
+
+    private readonly Action<HttpConnectionOptions> _configureHttp;
     private readonly DiagnosticOptions _options;
 
     private RegistrationHandler[] _registrationHandlers;
 
-    private readonly Action<HttpConnectionOptions> _configureHttp;
-
-    private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions> configureHttp = null)
+    private DiagnosticHostingService(
+        DiagnosticOptions options,
+        Action<HttpConnectionOptions> configureHttp = null
+    )
     {
         _options = options;
         _configureHttp = configureHttp;
     }
-
-#if NET5_0_OR_GREATER
-
-    public DiagnosticHostingService(IOptions<DiagnosticOptions> options, Action<HttpConnectionOptions> configureHttp = null)
-        : this(options.Value, configureHttp)
-    {
-        Debug.WriteLine($"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}");
-    }
-
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        Debug.WriteLine($"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}");
-        if (_options.Enabled)
-        {
-            TryStart(this);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        Interlocked.CompareExchange(ref _instance, null, this);
-        return StopHosting();
-    }
-
-#endif
 
     // Claim the singleton slot atomically, then start. Publish stays only if hosting actually
     // starts: on failure we roll the slot back to null so a later Start can retry and LogEvent
@@ -71,7 +46,9 @@ public class DiagnosticHostingService
     {
         if (Interlocked.CompareExchange(ref _instance, candidate, null) != null)
         {
-            throw new InvalidOperationException("An instance of DiagnosticHostingService is already running. Only one instance can run at a time.");
+            throw new InvalidOperationException(
+                "An instance of DiagnosticHostingService is already running. Only one instance can run at a time."
+            );
         }
 
         if (!candidate.StartHosting())
@@ -97,10 +74,11 @@ public class DiagnosticHostingService
                 UserDomain = Environment.UserDomainName,
                 UserName = Environment.UserName,
                 MachineName = Environment.MachineName,
-                ProcessName = ResolveProcessName()
+                ProcessName = ResolveProcessName(),
             };
 
-            RegistrationHandler[] handlers = Regex.Split(_options.Uri, @"\s|;|,")
+            var handlers = Regex
+                .Split(_options.Uri, @"\s|;|,", RegexOptions.None, TimeSpan.FromSeconds(1))
                 .Select(hubUrl => hubUrl.Trim())
                 .Where(hubUrl => !string.IsNullOrWhiteSpace(hubUrl))
                 .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey))
@@ -110,7 +88,7 @@ public class DiagnosticHostingService
             DiagnosticRetroAppender.SetLoggingAction(LogEvent);
             SystemStatus.Register();
 
-            foreach (RegistrationHandler handler in handlers)
+            foreach (var handler in handlers)
             {
                 handler.Start(_configureHttp);
             }
@@ -135,7 +113,7 @@ public class DiagnosticHostingService
     // unmanaged hosts).
     private static string ResolveProcessName()
     {
-        string entryAssemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
+        var entryAssemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
         if (!string.IsNullOrEmpty(entryAssemblyName))
         {
             return entryAssemblyName;
@@ -152,7 +130,7 @@ public class DiagnosticHostingService
 
             // Null-guard: StartHosting may have failed (or Stop been called without a successful
             // Start), leaving _registrationHandlers null.
-            RegistrationHandler[] handlers = _registrationHandlers;
+            var handlers = _registrationHandlers;
             _registrationHandlers = null;
             if (handlers != null)
             {
@@ -165,7 +143,6 @@ public class DiagnosticHostingService
         }
     }
 
-
     public static void Start(string url, Action<HttpConnectionOptions> configureHttp = null)
     {
         DiagnosticOptions options = new() { Uri = url };
@@ -174,23 +151,57 @@ public class DiagnosticHostingService
 
     public static async Task Stop()
     {
-        DiagnosticHostingService instance = Interlocked.Exchange(ref _instance, null);
+        var instance = Interlocked.Exchange(ref _instance, null);
         if (instance != null)
         {
             await instance.StopHosting();
         }
     }
 
-
     public static void LogEvent(DiagnosticMsg evt)
     {
-        DiagnosticHostingService instance = Volatile.Read(ref _instance);
+        var instance = Volatile.Read(ref _instance);
         if (instance != null)
         {
-            foreach (RegistrationHandler handler in instance._registrationHandlers ?? Array.Empty<RegistrationHandler>())
+            foreach (
+                var handler in instance._registrationHandlers ?? Array.Empty<RegistrationHandler>()
+            )
             {
                 handler.LogEvent(evt);
             }
         }
     }
+
+#if NET5_0_OR_GREATER
+
+    public DiagnosticHostingService(
+        IOptions<DiagnosticOptions> options,
+        Action<HttpConnectionOptions> configureHttp = null
+    )
+        : this(options.Value, configureHttp)
+    {
+        Debug.WriteLine(
+            $"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}"
+        );
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        Debug.WriteLine(
+            $"DiagnosticHostingService starting {_options.Enabled} Uri [{_options.Uri}"
+        );
+        if (_options.Enabled)
+        {
+            TryStart(this);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.CompareExchange(ref _instance, null, this);
+        return StopHosting();
+    }
+#endif
 }

@@ -6,20 +6,54 @@ using System.Threading;
 
 namespace DiagnosticExplorer.Events;
 
-public class EventSinkRepo : IDisposable
+public sealed class EventSinkRepo : IDisposable
 {
-
-    private readonly List<EventSinkStream> _sinkStreams = [];
     private readonly ReaderWriterLockSlim _eventStreamLock = new(LockRecursionPolicy.NoRecursion);
+    private readonly List<EventSinkStream> _sinkStreams = [];
+
     // Keyed by the (name, category) tuple, not a "{name}.{category}" string: the latter collided
     // distinct sinks, e.g. ("a.b","c") and ("a","b.c") both mapped to "a.b.c".
     private readonly ConcurrentDictionary<(string Name, string Category), EventSink> _sinks = new();
 
+    private bool _disposed;
+
     public static EventSinkRepo Default { get; } = new();
+
+    public void Dispose()
+    {
+        _eventStreamLock.EnterWriteLock();
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            foreach (var stream in _sinkStreams.ToArray())
+            {
+                stream.Disposed -= HandleEventStreamDisposed;
+                stream.EventChannel.Writer.TryComplete();
+                stream.Dispose();
+            }
+
+            _sinkStreams.Clear();
+        }
+        finally
+        {
+            _eventStreamLock.ExitWriteLock();
+        }
+
+        _eventStreamLock.Dispose();
+    }
 
     public EventSink GetSink(string name, string category)
     {
-        return _sinks.GetOrAdd((name, category), key => new EventSink(this, key.Name, key.Category));
+        return _sinks.GetOrAdd(
+            (name, category),
+            key => new EventSink(this, key.Name, key.Category)
+        );
     }
 
     public void LogEvent(SystemEvent evt)
@@ -29,13 +63,11 @@ public class EventSinkRepo : IDisposable
 
     public void LogEvents(SystemEvent[] evts)
     {
-        foreach (SystemEvent evt in evts)
+        foreach (var evt in evts)
         {
             LogEvent(evt);
         }
     }
-
-    private bool _disposed;
 
     public EventSinkStream CreateSinkStream(TimeSpan buffer, int bufferSize)
     {
@@ -46,7 +78,11 @@ public class EventSinkRepo : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            EventSinkStream stream = new(_sinks.Values.SelectMany(sink => sink.Events).ToArray(), buffer, bufferSize);
+            EventSinkStream stream = new(
+                _sinks.Values.SelectMany(sink => sink.Events).ToArray(),
+                buffer,
+                bufferSize
+            );
             _sinkStreams.Add(stream);
             stream.Disposed += HandleEventStreamDisposed;
             return stream;
@@ -72,7 +108,7 @@ public class EventSinkRepo : IDisposable
 
     private void HandleEventStreamDisposed(object sender, EventArgs e)
     {
-        EventSinkStream stream = (EventSinkStream) sender;
+        var stream = (EventSinkStream)sender;
         UnregisterStream(stream);
     }
 
@@ -101,6 +137,7 @@ public class EventSinkRepo : IDisposable
         {
             _eventStreamLock.ExitWriteLock();
         }
+
         stream.Disposed -= HandleEventStreamDisposed;
     }
 
@@ -110,7 +147,7 @@ public class EventSinkRepo : IDisposable
         try
         {
             sink.Events.Enqueue(evt);
-            foreach (EventSinkStream stream in _sinkStreams)
+            foreach (var stream in _sinkStreams)
             {
                 stream.StreamEvent(evt);
             }
@@ -130,43 +167,16 @@ public class EventSinkRepo : IDisposable
         _eventStreamLock.EnterWriteLock();
         try
         {
-            foreach (EventSink sink in _sinks.Values)
+            foreach (var sink in _sinks.Values)
             {
                 sink.Invalidate();
             }
+
             _sinks.Clear();
         }
         finally
         {
             _eventStreamLock.ExitWriteLock();
         }
-    }
-
-    public void Dispose()
-    {
-        _eventStreamLock.EnterWriteLock();
-        try
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            foreach (EventSinkStream stream in _sinkStreams.ToArray())
-            {
-                stream.Disposed -= HandleEventStreamDisposed;
-                stream.EventChannel.Writer.TryComplete();
-                stream.Dispose();
-            }
-            _sinkStreams.Clear();
-        }
-        finally
-        {
-            _eventStreamLock.ExitWriteLock();
-        }
-        _eventStreamLock.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

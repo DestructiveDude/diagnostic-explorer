@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Events;
@@ -8,21 +7,6 @@ namespace DiagnosticExplorer.UnitTests;
 
 public class DiagnosticManagerTests
 {
-    public class GenericAndNonGenericMethodsClass
-    {
-        [DiagnosticMethod]
-        public void NonGenericMethod()
-        {
-            // Empty method for testing
-        }
-
-        [DiagnosticMethod]
-        public T GenericMethod<T>(T val)
-        {
-            return val;
-        }
-    }
-
     [Fact]
     public void IsMethodValidOperationTarget_FiltersOutGenericMethods()
     {
@@ -34,41 +18,16 @@ public class DiagnosticManagerTests
         response.OperationSets.Should().HaveCount(1);
         var opSet = response.OperationSets[0];
 
-        opSet.Operations.Should().Contain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod)));
-        opSet.Operations.Should().NotContain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod)));
-    }
-
-    public class CustomParseException : Exception
-    {
-        public CustomParseException(string message) : base(message) { }
-    }
-
-    public class CustomParsableType
-    {
-        public static CustomParsableType Parse(string value)
-        {
-            throw new CustomParseException("Parse failed for value: " + value);
-        }
-    }
-
-    public class OperationWithCustomParsableType
-    {
-        [DiagnosticMethod]
-#pragma warning disable IDE0060
-        public void Run(CustomParsableType arg)
-#pragma warning restore IDE0060
-        {
-            // Empty method for testing
-        }
-    }
-
-    public class ThrowingOperation
-    {
-        [DiagnosticMethod]
-        public void Run()
-        {
-            throw new InvalidOperationException("Operation failed explicitly");
-        }
+        opSet
+            .Operations.Should()
+            .Contain(o =>
+                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod))
+            );
+        opSet
+            .Operations.Should()
+            .NotContain(o =>
+                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod))
+            );
     }
 
     [Fact]
@@ -90,9 +49,12 @@ public class DiagnosticManagerTests
         );
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorMessage.Should().Match(m =>
-            m.Contains("can't convert 'invalid-val' to CustomParsableType") ||
-            m.Contains("Parse failed for value: invalid-val"));
+        result
+            .ErrorMessage.Should()
+            .Match(m =>
+                m.Contains("can't convert 'invalid-val' to CustomParsableType")
+                || m.Contains("Parse failed for value: invalid-val")
+            );
         result.ErrorDetail.Should().Contain(nameof(CustomParseException));
         result.ErrorDetail.Should().Contain("Parse failed for value: invalid-val");
         result.ErrorDetail.Should().NotContain(nameof(TargetInvocationException));
@@ -125,7 +87,56 @@ public class DiagnosticManagerTests
     public void EventSinkRepo_CanBeDisposed()
     {
         var repo = new EventSinkRepo();
-        Action act = () => repo.Dispose();
+        var act = () => repo.Dispose();
         act.Should().NotThrow();
+    }
+
+    public class GenericAndNonGenericMethodsClass
+    {
+        [DiagnosticMethod]
+        public void NonGenericMethod()
+        {
+            // Empty method for testing
+        }
+
+        [DiagnosticMethod]
+        public T GenericMethod<T>(T val)
+        {
+            return val;
+        }
+    }
+
+    public class CustomParseException : Exception
+    {
+        public CustomParseException(string message)
+            : base(message) { }
+    }
+
+    public class CustomParsableType
+    {
+        public static CustomParsableType Parse(string value)
+        {
+            throw new CustomParseException("Parse failed for value: " + value);
+        }
+    }
+
+    public class OperationWithCustomParsableType
+    {
+        [DiagnosticMethod]
+#pragma warning disable IDE0060
+        public void Run(CustomParsableType arg)
+#pragma warning restore IDE0060
+        {
+            // Empty method for testing
+        }
+    }
+
+    public class ThrowingOperation
+    {
+        [DiagnosticMethod]
+        public void Run()
+        {
+            throw new InvalidOperationException("Operation failed explicitly");
+        }
     }
 }

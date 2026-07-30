@@ -1,23 +1,25 @@
+#nullable enable annotations
+
 #region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
-// 
+//
 // This file is part of Diagnostic Explorer.
-// 
+//
 // Diagnostic Explorer is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Diagnostic Explorer is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with Diagnostic Explorer.  If not, see <http://www.gnu.org/licenses/>.
-// 
+//
 // http://diagexplorer.sourceforge.net/
 
 #endregion
@@ -34,19 +36,21 @@ namespace DiagnosticExplorer.Props;
 public class RateCounter
 {
     // The static timer is intended to run for the entire process lifetime to drive rate calculation.
-    private static readonly Timer _timer;
+    private static readonly Timer _timer = CreateTimer();
     private static readonly List<WeakReference> _counters = [];
-    private DateTime _lastCheck = DateTime.UtcNow;
     private readonly int[] _counts;
     private readonly TimeSpan[] _times;
     private int _index;
-    public event EventHandler<RateSampleEventArgs> SampleCollected;
+    private DateTime _lastCheck = DateTime.UtcNow;
 
-    static RateCounter()
+    private double _rate;
+    private ulong _total;
+
+    private static Timer CreateTimer()
     {
-        _timer = new Timer();
-        _timer.Elapsed += Run;
-        _timer.Interval = 1000;
+        Timer timer = new(1000);
+        timer.Elapsed += Run;
+        return timer;
     }
 
     public RateCounter(int secondsAverage)
@@ -56,8 +60,11 @@ public class RateCounter
         // advances; negative throws OverflowException at the array allocation below.
         if (secondsAverage <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(secondsAverage), secondsAverage,
-                "secondsAverage must be greater than zero.");
+            throw new ArgumentOutOfRangeException(
+                nameof(secondsAverage),
+                secondsAverage,
+                "secondsAverage must be greater than zero."
+            );
         }
 
         _counts = new int[secondsAverage];
@@ -73,6 +80,31 @@ public class RateCounter
         }
     }
 
+    // Read under the same lock the writers (CalcRate/Register) hold: Rate (double) and Total
+    // (ulong) are 64-bit, so an unlocked read can tear on a 32-bit host.
+    public double Rate
+    {
+        get
+        {
+            lock (_counts)
+            {
+                return _rate;
+            }
+        }
+    }
+
+    public ulong Total
+    {
+        get
+        {
+            lock (_counts)
+            {
+                return _total;
+            }
+        }
+    }
+
+    public event EventHandler<RateSampleEventArgs>? SampleCollected;
 
     private void Increment()
     {
@@ -95,12 +127,16 @@ public class RateCounter
     {
         try
         {
-            EventHandler<RateSampleEventArgs> sampleCollectedHandler = SampleCollected;
+            var sampleCollectedHandler = SampleCollected;
 
             if (sampleCollectedHandler != null)
             {
-                RateSampleEventArgs args = new RateSampleEventArgs(Rate, GetRates(_times.Length));
-                foreach (EventHandler<RateSampleEventArgs> handler in sampleCollectedHandler.GetInvocationList())
+                var args = new RateSampleEventArgs(Rate, GetRates(_times.Length));
+                foreach (
+                    var handler in sampleCollectedHandler
+                        .GetInvocationList()
+                        .OfType<EventHandler<RateSampleEventArgs>>()
+                )
                 {
                     // Delegate.BeginInvoke throws PlatformNotSupportedException on .NET Core/5+.
                     // Task.Run gives the same fire-and-forget async dispatch portably.
@@ -117,7 +153,7 @@ public class RateCounter
     private void CalcRate()
     {
         double r = _counts.Sum();
-        TimeSpan totalTime = _times.Aggregate((t1, t2) => t1 + t2);
+        var totalTime = _times.Aggregate((t1, t2) => t1 + t2);
 
         _rate = totalTime == TimeSpan.Zero ? 0 : r / totalTime.TotalSeconds;
     }
@@ -133,13 +169,13 @@ public class RateCounter
 
         lock (_counts)
         {
-            _total += (ulong) count;
+            _total += (ulong)count;
             _counts[_index % _counts.Length] += count;
         }
     }
 
     /// <summary>
-    /// Gets the last n seconds rates
+    ///     Gets the last n seconds rates
     /// </summary>
     /// <param name="seconds">The number of seconds worth of data to fetch</param>
     /// <returns>A list of rates for the last n seconds, starting with the latest</returns>
@@ -158,9 +194,9 @@ public class RateCounter
         // past the buffer size and re-read ring slots as if they were distinct samples,
         // fabricating history the buffer never held.
         seconds = Math.Min(seconds, Math.Min(currentIndex, values.Length));
-        int[] results = new int[seconds];
+        var results = new int[seconds];
 
-        for (int i = 0; i < results.Length; i++)
+        for (var i = 0; i < results.Length; i++)
         {
             results[i] = values[(currentIndex - 1 - i) % values.Length];
         }
@@ -168,27 +204,17 @@ public class RateCounter
         return results;
     }
 
-    private double _rate;
-    private ulong _total;
-
-    // Read under the same lock the writers (CalcRate/Register) hold: Rate (double) and Total
-    // (ulong) are 64-bit, so an unlocked read can tear on a 32-bit host.
-    public double Rate { get { lock (_counts) { return _rate; } } }
-
-    public ulong Total { get { lock (_counts) { return _total; } } }
-
-    private static void Run(object state, ElapsedEventArgs e)
+    private static void Run(object? state, ElapsedEventArgs e)
     {
         try
         {
             // Lock order: always acquire _counters lock before _counts lock.
             lock (_counters)
             {
-                for (int i = _counters.Count - 1; i >= 0; i--)
+                for (var i = _counters.Count - 1; i >= 0; i--)
                 {
-                    WeakReference r = _counters[i];
-                    RateCounter counter = (RateCounter) r.Target;
-                    if (counter == null)
+                    var r = _counters[i];
+                    if (r.Target is not RateCounter counter)
                     {
                         _counters.RemoveAt(i);
                     }
@@ -197,6 +223,7 @@ public class RateCounter
                         counter.Increment();
                     }
                 }
+
                 if (_counters.Count == 0)
                 {
                     _timer.Stop();

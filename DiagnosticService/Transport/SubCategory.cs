@@ -5,9 +5,7 @@ namespace Diagnostic.Service.Transport;
 
 public class SubCategory
 {
-    public SubCategory()
-    {
-    }
+    public SubCategory() { }
 
     public SubCategory(PropertyBag subcategory)
     {
@@ -25,5 +23,4 @@ public class SubCategory
     public string Path { get; set; } = null!;
 
     public Operation[] Operations { get; set; } = Array.Empty<Operation>();
-
 }

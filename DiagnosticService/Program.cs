@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
@@ -7,12 +8,20 @@ using Microsoft.Extensions.Options;
 
 namespace Diagnostic.Service;
 
-public static class Program
+public class Program
 {
+    protected Program() { }
+
+    [SuppressMessage(
+        "Maintainability",
+        "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "This is the linear ASP.NET composition root; extracting registration fragments would hide startup ordering."
+    )]
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddWindowsService(options => {
+        builder.Services.AddWindowsService(options =>
+        {
             options.ServiceName = "DiagnosticExplorer";
         });
 
@@ -22,7 +31,9 @@ public static class Program
         // which means the JSON file would otherwise win — breaking Docker overrides.
         builder.Configuration.AddEnvironmentVariables();
 
-        builder.Services.Configure<DiagServiceSettings>(builder.Configuration.GetSection(nameof(DiagServiceSettings)));
+        builder.Services.Configure<DiagServiceSettings>(
+            builder.Configuration.GetSection(nameof(DiagServiceSettings))
+        );
         builder.Services.AddDiagnosticExplorer(builder.Configuration);
 
         var services = builder.Services;
@@ -30,6 +41,7 @@ public static class Program
         // CORS services only; the policy is selected from configuration in the request pipeline
         // below (H2). The old named "CorsPolicy" was dead config (never applied) and is removed.
         services.AddCors();
+        services.AddSingleton(TimeProvider.System);
 
         // H1: API-key authentication is opt-in. In None mode (the default) no scheme is registered
         // and the hubs stay open — today's behaviour; in ApiKey mode every hub connection must
@@ -37,16 +49,22 @@ public static class Program
         // GetValue over a hand-built key path) so the registration mode and the pipeline below read
         // the same value — no drift, and an unparseable AuthMode throws here instead of silently
         // defaulting to None (fail closed, not open).
-        DiagServiceSettings configuredSettings =
-            builder.Configuration.GetSection(nameof(DiagServiceSettings)).Get<DiagServiceSettings>() ?? new();
-        AuthMode authMode = configuredSettings.Security.AuthMode;
+        var configuredSettings =
+            builder.Configuration.GetSection(nameof(DiagServiceSettings)).Get<DiagServiceSettings>()
+            ?? new DiagServiceSettings();
+        var authMode = configuredSettings.Security.AuthMode;
 
         if (authMode != AuthMode.None)
         {
-            services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, null);
+            services
+                .AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+                    ApiKeyAuthenticationHandler.SchemeName,
+                    null
+                );
             services.AddAuthorization();
         }
+
         // Register the managers as hosted services so the host drives Start/StopAsync eagerly
         // and deterministically. They were AddSingleton-only and self-wired their lifecycle in
         // their constructors via ApplicationStarted.Register — which only fired if the singleton
@@ -57,24 +75,34 @@ public static class Program
         services.AddHostedService(sp => sp.GetRequiredService<RealtimeManager>());
         services.AddSingleton<RetroManager>();
         services.AddHostedService(sp => sp.GetRequiredService<RetroManager>());
-        bool enableDetailedHubErrors = builder.Environment.IsDevelopment();
-        services.AddSignalR().AddHubOptions<DiagnosticHub>(options => {
-            options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
-            options.MaximumParallelInvocationsPerClient = 5;
-        }).AddHubOptions<WebHub>(options => {
-            options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
-            options.MaximumParallelInvocationsPerClient = 5;
-            // Only expose detailed hub exception text to browser clients in development; in production
-            // it leaks internal error detail. enableDetailedHubErrors is IsDevelopment(). (A4)
-            options.EnableDetailedErrors = enableDetailedHubErrors;
-        }).AddJsonProtocol(options => {
-            options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
-        });
+        var enableDetailedHubErrors = builder.Environment.IsDevelopment();
+        services
+            .AddSignalR()
+            .AddHubOptions<DiagnosticHub>(options =>
+            {
+                options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
+                options.MaximumParallelInvocationsPerClient = 5;
+            })
+            .AddHubOptions<WebHub>(options =>
+            {
+                options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
+                options.MaximumParallelInvocationsPerClient = 5;
+                // Only expose detailed hub exception text to browser clients in development; in production
+                // it leaks internal error detail. enableDetailedHubErrors is IsDevelopment(). (A4)
+                options.EnableDetailedErrors = enableDetailedHubErrors;
+            })
+            .AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
 
-        string spaDir = builder.Configuration.GetValue<string>("DiagServiceSettings:SpaDirectory")!;
-        string spaPath = Expand(spaDir)!;
-        services.AddSpaStaticFiles(conf => { conf.RootPath = spaPath; });
+        var spaDir = builder.Configuration.GetValue<string>("DiagServiceSettings:SpaDirectory")!;
+        var spaPath = Expand(spaDir)!;
+        services.AddSpaStaticFiles(conf =>
+        {
+            conf.RootPath = spaPath;
+        });
 
         var app = builder.Build();
 
@@ -85,17 +113,22 @@ public static class Program
         // allowlist under auth would otherwise fall through to credentialed any-origin reflection.
         if (authMode == AuthMode.ApiKey)
         {
-            SecuritySettings security = settings.Security;
-            if (security.ApiKeys is not { Length: > 0 } || security.ApiKeys.All(string.IsNullOrWhiteSpace))
+            var security = settings.Security;
+            if (
+                security.ApiKeys is not { Length: > 0 }
+                || security.ApiKeys.All(string.IsNullOrWhiteSpace)
+            )
             {
-                throw new ApplicationException(
-                    "DiagServiceSettings:Security:AuthMode is ApiKey but no non-empty ApiKeys are configured — every hub connection would be rejected. Configure at least one key.");
+                throw new InvalidOperationException(
+                    "DiagServiceSettings:Security:AuthMode is ApiKey but no non-empty ApiKeys are configured — every hub connection would be rejected. Configure at least one key."
+                );
             }
 
             if (security.AllowedCorsOrigins is not { Length: > 0 })
             {
-                throw new ApplicationException(
-                    "DiagServiceSettings:Security:AuthMode is ApiKey but AllowedCorsOrigins is empty — credentialed any-origin CORS is not allowed with auth enabled. Configure the allowlist.");
+                throw new InvalidOperationException(
+                    "DiagServiceSettings:Security:AuthMode is ApiKey but AllowedCorsOrigins is empty — credentialed any-origin CORS is not allowed with auth enabled. Configure the allowlist."
+                );
             }
         }
 
@@ -105,11 +138,14 @@ public static class Program
         }
         else
         {
-            app.UseExceptionHandler(errorApp => errorApp.Run(async context => {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                context.Response.ContentType = "text/plain";
-                await context.Response.WriteAsync("An unexpected error occurred.");
-            }));
+            app.UseExceptionHandler(errorApp =>
+                errorApp.Run(async context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    context.Response.ContentType = "text/plain";
+                    await context.Response.WriteAsync("An unexpected error occurred.");
+                })
+            );
         }
 
         app.UseRouting();
@@ -117,24 +153,25 @@ public static class Program
         // H2: a real allowlist when configured; otherwise keep the historical permissive policy but
         // make the risk visible at startup (reflecting any origin with credentials is a CSRF/exfil
         // surface — see the audit). Never AllowAnyOrigin()+AllowCredentials(), which is invalid.
-        string[] corsOrigins = settings.Security.AllowedCorsOrigins;
+        var corsOrigins = settings.Security.AllowedCorsOrigins;
         if (corsOrigins is { Length: > 0 })
         {
-            app.UseCors(policy => policy
-                .WithOrigins(corsOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials());
+            app.UseCors(policy =>
+                policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+            );
         }
         else
         {
             app.Logger.LogWarning(
-                "DiagServiceSettings:Security:AllowedCorsOrigins is empty — CORS is reflecting ANY origin with credentials (H2). Configure an allowlist to lock this down.");
-            app.UseCors(policy => policy
-                .SetIsOriginAllowed(_ => true)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials());
+                "DiagServiceSettings:Security:AllowedCorsOrigins is empty — CORS is reflecting ANY origin with credentials (H2). Configure an allowlist to lock this down."
+            );
+            app.UseCors(policy =>
+                policy
+                    .SetIsOriginAllowed(_ => true)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials()
+            );
         }
 
         // H1: only enforce when opted in; in None mode these are skipped so the hubs stay open.
@@ -148,24 +185,34 @@ public static class Program
             // header explicitly on the hub paths. A browser always sends Origin on the negotiate
             // POST and the WS upgrade; native clients (the .NET hosting client) send none, so an
             // absent Origin is allowed and remains gated by the API key.
-            var allowedOrigins = new HashSet<string>(settings.Security.AllowedCorsOrigins.Select(o => o.Trim().TrimEnd('/')), StringComparer.OrdinalIgnoreCase);
-            app.Use(async (context, next) => {
-                PathString path = context.Request.Path;
-                bool isHub = path.StartsWithSegments("/web-hub") || path.StartsWithSegments("/diagnostics");
-                if (isHub)
+            var allowedOrigins = new HashSet<string>(
+                settings.Security.AllowedCorsOrigins.Select(o => o.Trim().TrimEnd('/')),
+                StringComparer.OrdinalIgnoreCase
+            );
+            app.Use(
+                async (context, next) =>
                 {
-                    string origin = context.Request.Headers["Origin"].ToString();
-                    if (!string.IsNullOrEmpty(origin) && !allowedOrigins.Contains(origin))
+                    var path = context.Request.Path;
+                    var isHub =
+                        path.StartsWithSegments("/web-hub")
+                        || path.StartsWithSegments("/diagnostics");
+                    if (isHub)
                     {
-                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                        return;
+                        var origin = context.Request.Headers["Origin"].ToString();
+                        if (!string.IsNullOrEmpty(origin) && !allowedOrigins.Contains(origin))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                            return;
+                        }
                     }
+
+                    await next();
                 }
-                await next();
-            });
+            );
         }
 
-        app.UseEndpoints(endpoints => {
+        app.UseEndpoints(endpoints =>
+        {
             var webHub = endpoints.MapHub<WebHub>("/web-hub");
             var diagHub = endpoints.MapHub<DiagnosticHub>("/diagnostics");
             if (authMode != AuthMode.None)
@@ -177,10 +224,11 @@ public static class Program
 
         if (!settings.UseSpaProxy && !Directory.Exists(spaPath))
         {
-            throw new ApplicationException($"Diagnostics SPA directory not found: {spaPath}");
+            throw new InvalidOperationException($"Diagnostics SPA directory not found: {spaPath}");
         }
 
-        app.UseSpa(spa => {
+        app.UseSpa(spa =>
+        {
             spa.Options.DefaultPage = "/index.html";
             if (!settings.UseSpaProxy)
             {
@@ -197,7 +245,7 @@ public static class Program
         {
             app.Urls.Clear();
 
-            foreach (string url in settings.Urls)
+            foreach (var url in settings.Urls)
             {
                 app.Urls.Add(url);
             }
@@ -206,11 +254,16 @@ public static class Program
         app.Run();
     }
 
+    private static string? Expand(string? path)
+    {
+        if (path == null)
+        {
+            return null;
+        }
 
-    private static string? Expand(string? path) =>
-        path == null
-            ? null
-            : Path.GetFullPath(Path.IsPathRooted(path)
-                ? path
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path));
+        string absolutePath = Path.IsPathRooted(path)
+            ? path
+            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+        return Path.GetFullPath(absolutePath);
+    }
 }

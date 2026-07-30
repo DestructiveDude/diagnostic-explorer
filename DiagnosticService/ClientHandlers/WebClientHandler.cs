@@ -10,29 +10,12 @@ namespace Diagnostic.Service.ClientHandlers;
 public class WebClientHandler
 {
     private readonly IWebHubClient _client;
-    private IDisposable? _processSubscription;
-    private IDisposable? _processRemoveSubscription;
-    private readonly object _sendLock = new();
-    private Task _sendChain = Task.CompletedTask;
-    private readonly ConcurrentDictionary<string, EventStreamState> _eventStreams = new();
     private readonly object _eventStreamLock = new();
-
-    private class EventStreamState : IDisposable
-    {
-        public Task Task { get; }
-        public CancellationTokenSource Cancel { get; }
-
-        public EventStreamState(Task task, CancellationTokenSource cancel)
-        {
-            Task = task;
-            Cancel = cancel;
-        }
-
-        public void Dispose()
-        {
-            Cancel.Dispose();
-        }
-    }
+    private readonly ConcurrentDictionary<string, EventStreamState> _eventStreams = new();
+    private readonly object _sendLock = new();
+    private IDisposable? _processRemoveSubscription;
+    private IDisposable? _processSubscription;
+    private Task _sendChain = Task.CompletedTask;
 
     public WebClientHandler(string connectionId, IWebHubClient client)
     {
@@ -40,14 +23,13 @@ public class WebClientHandler
         _client = client;
     }
 
-
     public string ConnectionId { get; }
 
     public void Start(RealtimeManager realtimeManager)
     {
         _processSubscription = realtimeManager.ProcessChanged.Subscribe(HandleProcessesChanged);
         _processRemoveSubscription = realtimeManager.ProcessRemoved.Subscribe(HandleProcessRemoved);
-        DiagProcess[] processes = realtimeManager.GetProcesses().ToArray();
+        var processes = realtimeManager.GetProcesses().ToArray();
         EnqueueSend(() => _client.SetProcesses(processes));
     }
 
@@ -62,6 +44,7 @@ public class WebClientHandler
             {
                 kvp.Value.Cancel.Cancel();
             }
+
             _eventStreams.Clear();
         }
     }
@@ -76,19 +59,32 @@ public class WebClientHandler
         EnqueueSend(() => _client.RemoveProcess(changed.Id));
     }
 
-    // Serialize the per-client SignalR sends and observe their faults. The source
-    // ProcessChanged/ProcessRemoved subjects are Subject.Synchronize'd, so callbacks arrive in order;
-    // chaining preserves that order on the wire (an unawaited send could otherwise complete out of
-    // order — e.g. an update landing after the remove it preceded) and stops a failed send from being
-    // lost silently. (A10)
+    /// <summary>
+    /// Serializes per-client SignalR sends. The synchronized source subjects preserve callback
+    /// order, and this chain preserves that order on the wire while observing send failures.
+    /// </summary>
     private void EnqueueSend(Func<Task> send)
     {
         lock (_sendLock)
         {
-            _sendChain = _sendChain.ContinueWith(async _ => {
-                try { await send(); }
-                catch (Exception ex) { Trace.WriteLine($"WebClientHandler {ConnectionId} send failed: {ex.Message}"); }
-            }, TaskScheduler.Default).Unwrap();
+            _sendChain = _sendChain
+                .ContinueWith(
+                    async _ =>
+                    {
+                        try
+                        {
+                            await send();
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.TraceError(
+                                $"WebClientHandler {ConnectionId} send failed: {ex.Message}"
+                            );
+                        }
+                    },
+                    TaskScheduler.Default
+                )
+                .Unwrap();
         }
     }
 
@@ -117,7 +113,7 @@ public class WebClientHandler
             }
 
             CancellationTokenSource cancelSource = new();
-            Task task = StreamEvents(id, sinkRepo, cancelSource.Token);
+            var task = StreamEvents(id, sinkRepo, cancelSource.Token);
             var state = new EventStreamState(task, cancelSource);
             _eventStreams[id] = state;
             _ = ObserveEventStream(id, task, cancelSource);
@@ -137,7 +133,7 @@ public class WebClientHandler
 
     private async Task StreamEvents(string id, EventSinkRepo sinkRepo, CancellationToken cancel)
     {
-        using EventSinkStream? stream = sinkRepo.CreateSinkStream(TimeSpan.FromMilliseconds(25), 100);
+        using var stream = sinkRepo.CreateSinkStream(TimeSpan.FromMilliseconds(25), 100);
         try
         {
             await _client.SetEvents(id, stream.InitialEvents);
@@ -157,11 +153,17 @@ public class WebClientHandler
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"WebClientHandler {ConnectionId} event stream failed, delivery stopped: {ex.Message}");
+            Trace.TraceError(
+                $"WebClientHandler {ConnectionId} event stream failed, delivery stopped: {ex.Message}"
+            );
         }
     }
 
-    private async Task ObserveEventStream(string id, Task eventStreamTask, CancellationTokenSource eventStreamCancel)
+    private async Task ObserveEventStream(
+        string id,
+        Task eventStreamTask,
+        CancellationTokenSource eventStreamCancel
+    )
     {
         using (eventStreamCancel)
         {
@@ -173,7 +175,10 @@ public class WebClientHandler
             {
                 lock (_eventStreamLock)
                 {
-                    if (_eventStreams.TryGetValue(id, out var state) && ReferenceEquals(state.Task, eventStreamTask))
+                    if (
+                        _eventStreams.TryGetValue(id, out var state)
+                        && ReferenceEquals(state.Task, eventStreamTask)
+                    )
                     {
                         _eventStreams.TryRemove(id, out _);
                     }
@@ -182,4 +187,15 @@ public class WebClientHandler
         }
     }
 
+    private sealed class EventStreamState
+    {
+        public EventStreamState(Task task, CancellationTokenSource cancel)
+        {
+            Task = task;
+            Cancel = cancel;
+        }
+
+        public Task Task { get; }
+        public CancellationTokenSource Cancel { get; }
+    }
 }

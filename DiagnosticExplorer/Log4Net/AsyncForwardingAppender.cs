@@ -9,25 +9,8 @@ namespace DiagnosticExplorer.Log4Net;
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public class AsyncForwardingAppender : ForwardingAppender, IDisposable
 {
+    private bool _disposed;
     private AsyncProcessor _processor;
-
-    public override void ActivateOptions()
-    {
-        base.ActivateOptions();
-
-        InitializeAppenders();
-        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend)
-        {
-            Fix = Fix
-        };
-        _processor.Start();
-    }
-
-    public override void AddAppender(IAppender newAppender)
-    {
-        base.AddAppender(newAppender);
-        SetAppenderFixFlags(newAppender);
-    }
 
     [Property]
     public int MaxQueueSize { get; set; } = 1000;
@@ -40,6 +23,26 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
     [Property]
     public int? CurrentQueueSize => _processor?.QueueSize;
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    public override void ActivateOptions()
+    {
+        base.ActivateOptions();
+
+        InitializeAppenders();
+        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformAppend) { Fix = Fix };
+        _processor.Start();
+    }
+
+    public override void AddAppender(IAppender appender)
+    {
+        base.AddAppender(appender);
+        SetAppenderFixFlags(appender);
+    }
 
     private void InitializeAppenders()
     {
@@ -49,7 +52,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         }
     }
 
-
     private void SetAppenderFixFlags(IAppender appender)
     {
         if (appender is BufferingAppenderSkeleton bufferingAppender)
@@ -57,7 +59,6 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
             bufferingAppender.Fix = Fix;
         }
     }
-
 
     protected override void Append(LoggingEvent loggingEvent)
     {
@@ -73,19 +74,10 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
         processor?.Append(loggingEvents);
     }
 
-
     protected override void OnClose()
     {
         _processor?.Close();
         base.OnClose();
-    }
-
-    private bool _disposed;
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     protected virtual void Dispose(bool disposing)
@@ -97,10 +89,10 @@ public class AsyncForwardingAppender : ForwardingAppender, IDisposable
                 _processor?.Dispose();
                 _processor = null;
             }
+
             _disposed = true;
         }
     }
-
 
     // Use C# destructor syntax for finalization code.
     ~AsyncForwardingAppender()

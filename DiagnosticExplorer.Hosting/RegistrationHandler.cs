@@ -40,7 +40,6 @@ public class RegistrationHandler
 
     private Action<HttpConnectionOptions> _configureHttp;
 
-
     public RegistrationHandler(string url, Registration registration, string apiKey = null)
     {
         _url = url;
@@ -54,15 +53,18 @@ public class RegistrationHandler
         {
             throw new ArgumentException(
                 $"An API key is configured but the diagnostic hub URL '{_url}' is not https/wss — the key would be transmitted in cleartext. Use a TLS URL or clear the API key.",
-                nameof(url));
+                nameof(url)
+            );
         }
     }
 
     private static bool IsSecureUrl(string url)
     {
         return Uri.TryCreate(url, UriKind.Absolute, out Uri uri)
-            && (string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(uri.Scheme, "wss", StringComparison.OrdinalIgnoreCase));
+            && (
+                string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(uri.Scheme, "wss", StringComparison.OrdinalIgnoreCase)
+            );
     }
 
     public void Start(Action<HttpConnectionOptions> configureHttp = null)
@@ -74,8 +76,9 @@ public class RegistrationHandler
             {
                 FullMode = BoundedChannelFullMode.DropWrite,
                 SingleReader = true,
-                SingleWriter = false
-            });
+                SingleWriter = false,
+            }
+        );
 
         _logSubscription = _logSubject
             .Buffer(TimeSpan.FromSeconds(2), 50)
@@ -100,7 +103,9 @@ public class RegistrationHandler
             IList<DiagnosticMsg> messages;
             try
             {
-                messages = await _logChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
+                messages = await _logChannel
+                    .Reader.ReadAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (ChannelClosedException)
             {
@@ -133,9 +138,16 @@ public class RegistrationHandler
                 }
 
                 Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
-                await adapter.LogEvents(data, cancel.IsCancellationRequested ? CancellationToken.None : cancel).ConfigureAwait(false);
+                await adapter
+                    .LogEvents(
+                        data,
+                        cancel.IsCancellationRequested ? CancellationToken.None : cancel
+                    )
+                    .ConfigureAwait(false);
                 watch2.Stop();
-                Debug.WriteLine($"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms");
+                Debug.WriteLine(
+                    $"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms"
+                );
             }
             catch (Exception ex)
             {
@@ -167,11 +179,15 @@ public class RegistrationHandler
 
                 cancelToken.ThrowIfCancellationRequested();
 
-                RegistrationResponse response = await _hubAdapter.Register(_registration, cancelToken);
+                RegistrationResponse response = await _hubAdapter.Register(
+                    _registration,
+                    cancelToken
+                );
 
-                delay = response.RenewTimeSeconds <= 0
-                    ? TimeSpan.FromSeconds(20)
-                    : TimeSpan.FromSeconds(response.RenewTimeSeconds);
+                delay =
+                    response.RenewTimeSeconds <= 0
+                        ? TimeSpan.FromSeconds(20)
+                        : TimeSpan.FromSeconds(response.RenewTimeSeconds);
             }
             catch (Exception ex)
             {
@@ -186,8 +202,9 @@ public class RegistrationHandler
                 //Something went wrong, so kill the connection and try again
                 await CloseConnection();
 
-                Debug.WriteLine($"RunRegistrationProcess exception {ex?.Message}");
-                string errorMessage = $"DiagnosticHostingService.RegistrationHandler for {_url} encountered an exception";
+                Debug.WriteLine($"RunRegistrationProcess exception {ex.Message}");
+                string errorMessage =
+                    $"DiagnosticHostingService.RegistrationHandler for {_url} encountered an exception";
                 _log.Warn(errorMessage, ex);
             }
         }
@@ -210,20 +227,24 @@ public class RegistrationHandler
 
         Debug.WriteLine("Diagnostic RegistrationHandler constructing connection");
         HubConnection connection = new HubConnectionBuilder()
-            .WithUrl(_url, options => {
-                // Apply the caller's HTTP customisation first (e.g. M23 opt-in integrated auth via
-                // UseDefaultCredentials), THEN layer the API key on top so the required credential
-                // always wins — a caller configureHttp that incidentally sets AccessTokenProvider
-                // can no longer silently drop the key. (M23 / F4)
-                _configureHttp?.Invoke(options);
-
-                // H1: when an API key is configured, send it via the access-token mechanism —
-                // "Authorization: Bearer <key>" on negotiate and "access_token" on the WS upgrade.
-                if (!string.IsNullOrEmpty(_apiKey))
+            .WithUrl(
+                _url,
+                options =>
                 {
-                    options.AccessTokenProvider = () => Task.FromResult(_apiKey);
+                    // Apply the caller's HTTP customisation first (e.g. M23 opt-in integrated auth via
+                    // UseDefaultCredentials), THEN layer the API key on top so the required credential
+                    // always wins — a caller configureHttp that incidentally sets AccessTokenProvider
+                    // can no longer silently drop the key. (M23 / F4)
+                    _configureHttp?.Invoke(options);
+
+                    // H1: when an API key is configured, send it via the access-token mechanism —
+                    // "Authorization: Bearer <key>" on negotiate and "access_token" on the WS upgrade.
+                    if (!string.IsNullOrEmpty(_apiKey))
+                    {
+                        options.AccessTokenProvider = () => Task.FromResult(_apiKey);
+                    }
                 }
-            })
+            )
             .Build();
 
         connection.Closed += HandleClosed;
@@ -279,7 +300,9 @@ public class RegistrationHandler
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine("RegistrationHandler.DisposeConnection HubServerAdapter.Dispose: " + ex);
+            System.Diagnostics.Trace.TraceError(
+                "RegistrationHandler.DisposeConnection HubServerAdapter.Dispose: " + ex
+            );
         }
 
         if (taken.Connection == null)
@@ -296,7 +319,9 @@ public class RegistrationHandler
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine("RegistrationHandler.DisposeConnection HubConnection.DisposeAsync: " + ex);
+            System.Diagnostics.Trace.TraceError(
+                "RegistrationHandler.DisposeConnection HubConnection.DisposeAsync: " + ex
+            );
         }
     }
 
@@ -314,11 +339,14 @@ public class RegistrationHandler
             _logSubject = null;
             logSubject?.OnCompleted();
 
-            _logChannel?.Writer.Complete();
+            _logChannel?.Writer.TryComplete();
 
             CancellationTokenSource stopToken = _stopToken;
             _stopToken = null;
-            stopToken?.Cancel();
+            if (stopToken != null)
+            {
+                await stopToken.CancelAsync();
+            }
 
             _registrationLoop = null;
             _loggingTask = null;

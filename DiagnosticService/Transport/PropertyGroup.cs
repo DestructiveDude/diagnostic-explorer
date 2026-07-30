@@ -6,17 +6,19 @@ public class PropertyGroup
 
     public Property[] Properties { get; set; } = Array.Empty<Property>();
 
-    public static List<PropertyGroup> Map(string path, List<DiagnosticExplorer.Interface.Category> propertyGroups)
+    public static List<PropertyGroup> Map(
+        string path,
+        List<DiagnosticExplorer.Interface.Category> propertyGroups
+    )
     {
         List<PropertyGroup> result = [];
-        foreach (DiagnosticExplorer.Interface.Category group in propertyGroups)
+        foreach (var group in propertyGroups)
         {
-            PropertyGroup groupResult = new()
-            {
-                Name = group.Name ?? "General",
-            };
+            PropertyGroup groupResult = new() { Name = group.Name ?? "General" };
             result.Add(groupResult);
-            groupResult.Properties = Property.Map(path + "|" + (group.Name ?? ""), group.Properties).ToArray();
+            groupResult.Properties = Property
+                .Map(path + "|" + (group.Name ?? ""), group.Properties)
+                .ToArray();
         }
 
         return result;

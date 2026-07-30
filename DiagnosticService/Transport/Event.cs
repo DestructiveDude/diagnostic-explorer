@@ -2,7 +2,6 @@ namespace Diagnostic.Service.Transport;
 
 public class Event
 {
-
     public string Id { get; set; } = null!;
 
     public DateTime Date { get; set; }

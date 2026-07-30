@@ -7,13 +7,12 @@ using log4net.Util;
 namespace DiagnosticExplorer.Log4Net;
 
 /// <summary>
-/// This appender takes care of falling back to another appender if appending causes
-/// an error
+///     This appender takes care of falling back to another appender if appending causes
+///     an error
 /// </summary>
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public class FallbackAppender : ForwardingAppenderBase
 {
-
     protected override void Append(LoggingEvent loggingEvent)
     {
         ArgumentNullException.ThrowIfNull(loggingEvent);
@@ -29,7 +28,10 @@ public class FallbackAppender : ForwardingAppenderBase
 
         if (loggingEvents.Length == 0)
         {
-            throw new ArgumentException("loggingEvents array must not be empty", nameof(loggingEvents));
+            throw new ArgumentException(
+                "loggingEvents array must not be empty",
+                nameof(loggingEvents)
+            );
         }
 
         if (loggingEvents.Length == 1)
@@ -50,27 +52,28 @@ public class FallbackAppender : ForwardingAppenderBase
         {
             proxies = Proxies;
         }
+
         if (proxies == null)
         {
             return;
         }
 
-        Queue<AppenderProxy> proxyQueue = new Queue<AppenderProxy>(proxies);
+        var proxyQueue = new Queue<AppenderProxy>(proxies);
 
         while (proxyQueue.Count > 0)
         {
-            AppenderProxy proxy = proxyQueue.Dequeue();
+            var proxy = proxyQueue.Dequeue();
 
             if (proxy.TryAppend(loggingEvent))
             {
                 EventsOut.Register(1);
                 break;
             }
+
             EventsErrored.Register(1);
             RecordAppenderError(proxyQueue, proxy);
         }
     }
-
 
     protected void PerformAppend(LoggingEvent[] loggingEvents)
     {
@@ -84,6 +87,7 @@ public class FallbackAppender : ForwardingAppenderBase
         {
             proxies = Proxies;
         }
+
         if (proxies == null)
         {
             return;
@@ -94,7 +98,7 @@ public class FallbackAppender : ForwardingAppenderBase
         var appenderQueue = new Queue<AppenderProxy>(proxies);
         while (appenderQueue.Count > 0)
         {
-            AppenderProxy appender = appenderQueue.Dequeue();
+            var appender = appenderQueue.Dequeue();
 
             if (appender.TryAppend(loggingEvents))
             {
@@ -109,7 +113,7 @@ public class FallbackAppender : ForwardingAppenderBase
 
     private void RecordAppenderError(Queue<AppenderProxy> appenderQueue, AppenderProxy appender)
     {
-        ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
+        LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
         if (appenderQueue.Count > 0)
         {
             var nextAppender = appenderQueue.Peek();
@@ -117,7 +121,7 @@ public class FallbackAppender : ForwardingAppenderBase
         }
         else
         {
-            ForwardingAppenderBase.LogLogError(GetType(), "No more appenders exist to chain through to");
+            LogLogError(GetType(), "No more appenders exist to chain through to");
         }
     }
 }

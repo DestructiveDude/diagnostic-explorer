@@ -8,22 +8,11 @@ namespace DiagnosticExplorer.Log4Net;
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public class AsyncSmtpAppender : SmtpAppender, IDisposable
 {
+    private bool _disposed;
     private AsyncProcessor _processor;
-
-    public override void ActivateOptions()
-    {
-        base.ActivateOptions();
-
-        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformSend)
-        {
-            Fix = Fix
-        };
-        _processor.Start();
-    }
 
     [Property]
     public int MaxQueueSize { get; set; } = 1000;
-
 
     [Property]
     public int? CurrentQueueSize => _processor?.QueueSize;
@@ -32,6 +21,20 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
     public BufferOverflowMode Overflow { get; set; } = BufferOverflowMode.Block;
 
     public FixFlags Fix { get; set; } = FixFlags.Partial;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    public override void ActivateOptions()
+    {
+        base.ActivateOptions();
+
+        _processor = new AsyncProcessor(Overflow, MaxQueueSize, PerformSend) { Fix = Fix };
+        _processor.Start();
+    }
 
     protected override void Append(LoggingEvent loggingEvent)
     {
@@ -53,14 +56,6 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
         base.OnClose();
     }
 
-    private bool _disposed;
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)
@@ -70,10 +65,10 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
                 _processor?.Dispose();
                 _processor = null;
             }
+
             _disposed = true;
         }
     }
-
 
     // Use C# destructor syntax for finalization code.
     ~AsyncSmtpAppender()
@@ -81,5 +76,4 @@ public class AsyncSmtpAppender : SmtpAppender, IDisposable
         // Simply call Dispose(false).
         Dispose(false);
     }
-
 }

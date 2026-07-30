@@ -5,32 +5,41 @@ using Newtonsoft.Json;
 
 namespace Diagnostic.Service.Hubs;
 
-public class WebApiUtil
+public static class WebApiUtil
 {
+    private static readonly HttpClient Client = new(
+        new HttpClientHandler { UseDefaultCredentials = true }
+    );
 
-    private static async Task<HttpResponseMessage> SendRequest(string uri, HttpMethod method, object? arg = null)
+    private static async Task<HttpResponseMessage> SendRequest(
+        string uri,
+        HttpMethod method,
+        object? arg = null
+    )
     {
-        using HttpClientHandler handler = new HttpClientHandler() { UseDefaultCredentials = true };
-        using HttpClient httpClient = new HttpClient(handler);
-        using HttpRequestMessage request = new HttpRequestMessage(method, uri);
+        using var request = new HttpRequestMessage(method, uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         if (arg != null)
         {
-            request.Content = new ByteArrayContent(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(arg)));
+            request.Content = new ByteArrayContent(
+                Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(arg))
+            );
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         }
 
-        return await httpClient.SendAsync(request);
+        return await Client.SendAsync(request);
     }
-
 
     public static async Task<string> Get(string url)
     {
-        HttpResponseMessage response = await SendRequest(url, HttpMethod.Get);
-        string content = await response.Content.ReadAsStringAsync();
+        using var response = await SendRequest(url, HttpMethod.Get);
+        var content = await response.Content.ReadAsStringAsync();
 
-        if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent)
+        if (
+            response.StatusCode != HttpStatusCode.OK
+            && response.StatusCode != HttpStatusCode.NoContent
+        )
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
@@ -40,24 +49,27 @@ public class WebApiUtil
 
     public static async Task<T> Get<T>(string url)
     {
-        HttpResponseMessage response = await SendRequest(url, HttpMethod.Get);
+        using var response = await SendRequest(url, HttpMethod.Get);
 
-        string content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != HttpStatusCode.OK)
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
 
-        T result = JsonConvert.DeserializeObject<T>(content)!;
+        var result = JsonConvert.DeserializeObject<T>(content)!;
         return result;
     }
 
     public static async Task<string> Post(string url, object param)
     {
-        HttpResponseMessage response = await SendRequest(url, HttpMethod.Post, param);
-        string content = await response.Content.ReadAsStringAsync();
+        using var response = await SendRequest(url, HttpMethod.Post, param);
+        var content = await response.Content.ReadAsStringAsync();
 
-        if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent)
+        if (
+            response.StatusCode != HttpStatusCode.OK
+            && response.StatusCode != HttpStatusCode.NoContent
+        )
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
@@ -67,18 +79,17 @@ public class WebApiUtil
 
     public static async Task<T> Post<T>(string url, object param)
     {
-        HttpResponseMessage response = await SendRequest(url, HttpMethod.Post, param);
+        using var response = await SendRequest(url, HttpMethod.Post, param);
 
-        string content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != HttpStatusCode.OK)
         {
             throw new ServiceException(response.StatusCode, GetErrorMessage(content));
         }
 
-        T result = JsonConvert.DeserializeObject<T>(content)!;
+        var result = JsonConvert.DeserializeObject<T>(content)!;
         return result;
     }
-
 
     private static string GetErrorMessage(string content)
     {
@@ -95,10 +106,11 @@ public class WebApiUtil
 
 public class ServiceException : Exception
 {
-    public HttpStatusCode StatusCode { get; set; }
     public ServiceException(HttpStatusCode httpStatusCode, string message)
         : base(message)
     {
         StatusCode = httpStatusCode;
     }
+
+    public HttpStatusCode StatusCode { get; set; }
 }

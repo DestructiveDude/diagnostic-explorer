@@ -1,19 +1,19 @@
 <Project>
-  <!-- SonarAnalyzer is applied to every project as a private analyzer asset and
+    <!-- SonarAnalyzer is applied to every project as a private analyzer asset and
        centrally versioned in Directory.Packages.props. Cognitive-complexity (S3776)
        is tuned in .editorconfig; findings are warnings, not build-breaking. -->
-  <PropertyGroup>
-    <!-- TreatWarningsAsErrors is enabled solution-wide here (every project inherits it)
+    <PropertyGroup>
+        <!-- TreatWarningsAsErrors is enabled solution-wide here (every project inherits it)
          rather than repeated per-csproj. Compiler (CS) warnings break the build; Sonar
          (S####) analyzer findings stay advisory via WarningsNotAsErrors below. This is the
          full set of Sonar rule IDs the solution currently emits; if a SonarAnalyzer version
          bump introduces a new rule that fires, add its ID here (the legacy
          CodeAnalysisTreatWarningsAsErrors property does NOT exempt third-party analyzers). -->
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);RS0041;S101;S108;S112;S125;S927;S1066;S1075;S1116;S1118;S1144;S1186;S1199;S1215;S1694;S1854;S1994;S2139;S2190;S2325;S2696;S2930;S2933;S2953;S3168;S3217;S3247;S3260;S3267;S3358;S3442;S3459;S3604;S3776;S3871;S3878;S3881;S3903;S3963;S4052;S4136;S4144;S4487;S3220;S6561;S6562;S6580;S6612;S6670;S6678;S6966</WarningsNotAsErrors>
-  </PropertyGroup>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);RS0041;S101;S108;S112;S125;S927;S1066;S1075;S1116;S1118;S1144;S1186;S1199;S1215;S1694;S1854;S1994;S2139;S2190;S2325;S2696;S2930;S2933;S2953;S3168;S3217;S3247;S3260;S3267;S3358;S3442;S3459;S3604;S3776;S3871;S3878;S3881;S3903;S3963;S4052;S4136;S4144;S4487;S3220;S6561;S6562;S6580;S6612;S6670;S6678;S6966</WarningsNotAsErrors>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="FixPortal.CodeStyle" PrivateAssets="all" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="FixPortal.CodeStyle" PrivateAssets="all" />
+    </ItemGroup>
 </Project>

@@ -127,12 +127,16 @@ different store.
 ## Building from source
 
 ```bash
-# Library + service + samples:
+dotnet tool restore
+dotnet csharpier check .
 dotnet build DiagnosticExplorer.slnx -c Release
+dotnet test DiagnosticExplorer.slnx -c Release --no-build
+dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore
 
 # Angular dashboard (Node 20.19+ / 22 for Angular 21):
 cd diagnostics-web
 npm ci
+npm test -- --runInBand
 npm run build
 ```
 
@@ -194,6 +198,15 @@ dotnet list DiagnosticExplorer.slnx package --vulnerable --include-transitive
 ```
 
 (Should report no vulnerable packages as of `3.2.1`.)
+
+## Contributing
+
+Create a branch from the current `main`, keep commits focused, and rebase before
+opening a pull request. Format C# changes before running the checks above:
+
+```bash
+dotnet csharpier format .
+```
 
 ## Container image
 

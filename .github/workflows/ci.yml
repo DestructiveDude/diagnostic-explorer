@@ -24,23 +24,28 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Lint workflow
-        uses: raven-actions/actionlint@205b530c5d9fa8f44ae9ed59f341a0db994aa6f8 # v2
+        uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2
         with:
           shellcheck: true
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore DiagnosticExplorer.slnx
+        run: |
+          dotnet tool restore
+          dotnet restore DiagnosticExplorer.slnx
         env:
           GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check C# formatting
+        run: dotnet csharpier check .
 
       - name: Build
         run: dotnet build DiagnosticExplorer.slnx --configuration Release --no-restore
@@ -53,7 +58,7 @@ jobs:
           --logger "trx;LogFilePrefix=test-results"
           --results-directory ./TestResults
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results

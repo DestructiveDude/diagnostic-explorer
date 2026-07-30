@@ -1,14 +1,12 @@
 using System.Diagnostics;
 using Diagnostic.Service.Transport;
 using DiagnosticExplorer.Interface;
-using log4net;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Diagnostic.Service.Hubs;
 
 public class WebHub : Hub<IWebHubClient>
 {
-    private static readonly ILog _log = LogManager.GetLogger(typeof(WebHub));
     private readonly RealtimeManager _realtimeManager;
     private readonly RetroManager _retroManager;
 
@@ -31,7 +29,8 @@ public class WebHub : Hub<IWebHubClient>
         _realtimeManager.RemoveWebHubClient(Context.ConnectionId);
         return Task.WhenAll(
             _retroManager.CancelConnectionSearch(Context.ConnectionId),
-            base.OnDisconnectedAsync(exception));
+            base.OnDisconnectedAsync(exception)
+        );
     }
 
     public async Task Subscribe(string processId)
@@ -66,9 +65,9 @@ public class WebHub : Hub<IWebHubClient>
     }
 
     /// <summary>
-    /// Whether the active Retro backend supports per-record delete. The web client queries this
-    /// once per connection and hides the delete affordance when false (append-only backends such
-    /// as Log Analytics), so it never issues a delete that would fault.
+    ///     Whether the active Retro backend supports per-record delete. The web client queries this
+    ///     once per connection and hides the delete affordance when false (append-only backends such
+    ///     as Log Analytics), so it never issues a delete that would fault.
     /// </summary>
     public bool RetroSupportsDelete()
     {

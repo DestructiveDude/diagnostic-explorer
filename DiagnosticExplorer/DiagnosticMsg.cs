@@ -3,11 +3,9 @@ using ProtoBuf;
 
 namespace DiagnosticExplorer;
 
-
 [ProtoContract(UseProtoMembersOnly = true)]
 public class DiagnosticMsg
 {
-
     [ProtoMember(1)]
     public int Level { get; set; }
 
@@ -29,11 +27,9 @@ public class DiagnosticMsg
     [ProtoMember(7)]
     public string Message { get; set; }
 
-
     [ProtoMember(8)]
     public string Environment { get; set; }
 
     [ProtoMember(9)]
     public string MsgId { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 24);
-
 }

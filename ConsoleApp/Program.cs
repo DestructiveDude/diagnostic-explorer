@@ -1,33 +1,25 @@
 using System;
 using System.Diagnostics;
-// using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 using DiagnosticExplorer.Hosting;
 
-// using DiagnosticExplorer.Common;
-
-// using Grpc.Core;
-// using Microsoft.AspNetCore.SignalR.Client;
-// using Microsoft.CodeAnalysis;
 namespace ConsoleApp;
 
-internal class Program
+internal static class Program
 {
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
-        Trace.Listeners.Add(new ConsoleTraceListener());
-
-        while (true)
+        if (args.Length != 1)
         {
-            DiagnosticHostingService.Start("http://localhost:2804/diagnostics");
-
-            Console.WriteLine("Diagnostics started");
-            Console.ReadLine();
-
-            await DiagnosticHostingService.Stop();
-
-            Console.WriteLine("Diagnostics stopped");
-            Console.ReadLine();
+            await Console.Error.WriteLineAsync("Usage: ConsoleApp <diagnostics-hub-url>");
+            return;
         }
+
+        Trace.Listeners.Add(new ConsoleTraceListener());
+        DiagnosticHostingService.Start(args[0]);
+
+        Console.WriteLine("Diagnostics started. Press Enter to stop.");
+        Console.ReadLine();
+        await DiagnosticHostingService.Stop();
     }
 }

@@ -4,21 +4,25 @@ using DiagnosticExplorer.Props;
 namespace DiagnosticExplorer.UnitTests;
 
 /// <summary>
-/// RateCounter's instance side drives a global timer and UtcNow, but its static
-/// GetRates is the pure ring-buffer read behind per-second rate history. These
-/// tests pin that extraction without touching the time-dependent machinery.
+///     RateCounter's instance side drives a global timer and UtcNow, but its static
+///     GetRates is the pure ring-buffer read behind per-second rate history. These
+///     tests pin that extraction without touching the time-dependent machinery.
 /// </summary>
 public class RateCounterTests
 {
     /// <summary>
-    /// GetRates reads backwards from the current index, newest first, wrapping around
-    /// the ring buffer. Parameterized to cover a simple read and the request-clamped-to-
-    /// available case, which is the behaviour the rate graph depends on.
+    ///     GetRates reads backwards from the current index, newest first, wrapping around
+    ///     the ring buffer. Parameterized to cover a simple read and the request-clamped-to-
+    ///     available case, which is the behaviour the rate graph depends on.
     /// </summary>
     [Theory]
     [InlineData(3, 5, new[] { 50, 40, 30 })] // newest (index 4) first, walking back
-    [InlineData(10, 2, new[] { 20, 10 })]    // seconds clamped to currentIndex
-    public void GetRates_WithinFilledBuffer_ReturnsNewestFirst(int seconds, int currentIndex, int[] expected)
+    [InlineData(10, 2, new[] { 20, 10 })] // seconds clamped to currentIndex
+    public void GetRates_WithinFilledBuffer_ReturnsNewestFirst(
+        int seconds,
+        int currentIndex,
+        int[] expected
+    )
     {
         var values = new[] { 10, 20, 30, 40, 50 };
 
@@ -28,8 +32,8 @@ public class RateCounterTests
     }
 
     /// <summary>
-    /// Before any sample has been recorded (currentIndex 0) GetRates must return an
-    /// empty array rather than reading stale or out-of-range slots.
+    ///     Before any sample has been recorded (currentIndex 0) GetRates must return an
+    ///     empty array rather than reading stale or out-of-range slots.
     /// </summary>
     [Fact]
     public void GetRates_WithNoSamplesYet_ReturnsEmpty()
@@ -42,8 +46,8 @@ public class RateCounterTests
     }
 
     /// <summary>
-    /// With more increments than buffer slots the index keeps climbing and the read
-    /// must wrap modulo the buffer length, so the newest values still come back in order.
+    ///     With more increments than buffer slots the index keeps climbing and the read
+    ///     must wrap modulo the buffer length, so the newest values still come back in order.
     /// </summary>
     [Fact]
     public void GetRates_WhenIndexHasWrapped_ReadsModuloBufferLength()
@@ -57,9 +61,9 @@ public class RateCounterTests
     }
 
     /// <summary>
-    /// When both the requested seconds and the wrapped index exceed the buffer length, the result
-    /// is clamped to the buffer length — without this clamp GetRates would walk back past the ring
-    /// size and re-report the same slots as if they were distinct samples, fabricating history. (M21)
+    ///     When both the requested seconds and the wrapped index exceed the buffer length, the result
+    ///     is clamped to the buffer length — without this clamp GetRates would walk back past the ring
+    ///     size and re-report the same slots as if they were distinct samples, fabricating history. (M21)
     /// </summary>
     [Fact]
     public void GetRates_WhenSecondsAndIndexExceedBufferLength_ClampsToBufferLength()
@@ -74,9 +78,9 @@ public class RateCounterTests
     }
 
     /// <summary>
-    /// The ctor requires a positive averaging window. Zero would give zero-length buffers (a
-    /// swallowed DivideByZeroException on the timer thread, so the counter silently never advances)
-    /// and a negative value an OverflowException at allocation, so both fail fast instead. (M20)
+    ///     The ctor requires a positive averaging window. Zero would give zero-length buffers (a
+    ///     swallowed DivideByZeroException on the timer thread, so the counter silently never advances)
+    ///     and a negative value an OverflowException at allocation, so both fail fast instead. (M20)
     /// </summary>
     [Theory]
     [InlineData(0)]
@@ -85,7 +89,6 @@ public class RateCounterTests
     {
         var act = () => new RateCounter(secondsAverage);
 
-        act.Should().Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("secondsAverage");
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("secondsAverage");
     }
 }

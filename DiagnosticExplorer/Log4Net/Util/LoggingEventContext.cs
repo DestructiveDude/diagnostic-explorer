@@ -10,5 +10,4 @@ internal class LoggingEventContext
     }
 
     public LoggingEvent LoggingEvent { get; set; }
-
 }

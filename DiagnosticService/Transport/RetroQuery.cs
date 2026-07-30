@@ -17,6 +17,6 @@ public class RetroQuery
 
     public RetroQuery Clone()
     {
-        return (RetroQuery) MemberwiseClone();
+        return (RetroQuery)MemberwiseClone();
     }
 }

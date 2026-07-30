@@ -9,7 +9,6 @@ namespace DiagnosticExplorer.Log4Net;
 [DiagnosticClass(AttributedPropertiesOnly = true, DeclaringTypeOnly = false)]
 public class ForwardingAppender : ForwardingAppenderBase
 {
-
     protected override void Append(LoggingEvent loggingEvent)
     {
         ArgumentNullException.ThrowIfNull(loggingEvent);
@@ -25,7 +24,10 @@ public class ForwardingAppender : ForwardingAppenderBase
 
         if (loggingEvents.Length == 0)
         {
-            throw new ArgumentException("loggingEvents array must not be empty", nameof(loggingEvents));
+            throw new ArgumentException(
+                "loggingEvents array must not be empty",
+                nameof(loggingEvents)
+            );
         }
 
         if (loggingEvents.Length == 1)
@@ -47,6 +49,7 @@ public class ForwardingAppender : ForwardingAppenderBase
         {
             proxies = Proxies;
         }
+
         if (proxies != null)
         {
             Parallel.ForEach(proxies, appender => PerformAppend(appender, loggingEvent));
@@ -59,11 +62,13 @@ public class ForwardingAppender : ForwardingAppenderBase
         {
             loggingEvent.Fix = FixFlags.All;
         }
+
         List<AppenderProxy> proxies;
         lock (_lock)
         {
             proxies = Proxies;
         }
+
         if (proxies != null)
         {
             Parallel.ForEach(proxies, appender => PerformAppend(appender, loggingEvents));
@@ -98,6 +103,6 @@ public class ForwardingAppender : ForwardingAppenderBase
 
     private void RecordAppenderError(AppenderProxy appender)
     {
-        ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
+        LogLogError(GetType(), $"appender [{appender.Name}] has an error.");
     }
 }

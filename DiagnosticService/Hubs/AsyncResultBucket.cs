@@ -4,13 +4,12 @@ using DiagnosticExplorer.Interface;
 
 namespace Diagnostic.Service.Hubs;
 
-internal class AsyncCallException : ApplicationException
+public class AsyncCallException : Exception
 {
-    public AsyncCallException()
-    {
-    }
+    public AsyncCallException() { }
 
-    public AsyncCallException(string? message, string? detail) : base(message)
+    public AsyncCallException(string? message, string? detail)
+        : base(message)
     {
         Detail = detail;
     }
@@ -43,7 +42,9 @@ public class AsyncResultBucket
             }
             else
             {
-                completionSource.TrySetException(new AsyncCallException(result.Message, result.Detail));
+                completionSource.TrySetException(
+                    new AsyncCallException(result.Message, result.Detail)
+                );
             }
         }
         else
@@ -51,7 +52,9 @@ public class AsyncResultBucket
             // No waiter for this request id — the caller already timed out/cancelled, or this is a
             // duplicate reply. Previously dropped silently; log it so post-timeout late replies are
             // diagnosable rather than invisible.
-            Debug.WriteLine($"AsyncResultBucket: no pending request for {result.RequestId}; result discarded");
+            Debug.WriteLine(
+                $"AsyncResultBucket: no pending request for {result.RequestId}; result discarded"
+            );
         }
     }
 
@@ -59,16 +62,22 @@ public class AsyncResultBucket
     {
         ArgumentNullException.ThrowIfNull(requestId);
 
-        var completionSource = _results.GetOrAdd(requestId, _ => new TaskCompletionSource<object>());
+        var completionSource = _results.GetOrAdd(
+            requestId,
+            _ => new TaskCompletionSource<object>()
+        );
         try
         {
-            Task awaitResult = await Task.WhenAny(Task.Delay(timeout, cancel), completionSource.Task);
+            var awaitResult = await Task.WhenAny(
+                Task.Delay(timeout, cancel),
+                completionSource.Task
+            );
 
             if (awaitResult == completionSource.Task)
             {
                 // await (not .Result): a faulted task surfaces the original AsyncCallException
                 // with its message/detail, instead of an AggregateException wrapping it.
-                return (T) await completionSource.Task;
+                return (T)await completionSource.Task;
             }
 
             // Task.Delay won the race: either the timeout elapsed OR the caller cancelled (e.g. the

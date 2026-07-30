@@ -4,15 +4,15 @@ using DiagnosticExplorer.Interface;
 namespace DiagnosticExplorer.UnitTests;
 
 /// <summary>
-/// PropertyBag is the unit of diagnostic data the library emits and serializes
-/// over the wire, so its category bookkeeping is core behaviour worth pinning.
+///     PropertyBag is the unit of diagnostic data the library emits and serializes
+///     over the wire, so its category bookkeeping is core behaviour worth pinning.
 /// </summary>
 public class PropertyBagTests
 {
     /// <summary>
-    /// Adding a property under a not-yet-seen category must create that category and
-    /// file the property in it — this is the primary way a bag is populated, and a
-    /// regression here would silently drop emitted diagnostics.
+    ///     Adding a property under a not-yet-seen category must create that category and
+    ///     file the property in it — this is the primary way a bag is populated, and a
+    ///     regression here would silently drop emitted diagnostics.
     /// </summary>
     [Fact]
     public void AddProperty_ForNewCategory_CreatesCategoryAndStoresProperty()
@@ -26,9 +26,9 @@ public class PropertyBagTests
     }
 
     /// <summary>
-    /// Repeated adds for the same category (matched case-insensitively) must reuse the
-    /// existing category rather than creating duplicates, otherwise the viewer would
-    /// show the same category several times.
+    ///     Repeated adds for the same category (matched case-insensitively) must reuse the
+    ///     existing category rather than creating duplicates, otherwise the viewer would
+    ///     show the same category several times.
     /// </summary>
     [Fact]
     public void AddProperty_ForExistingCategoryDifferingByCase_ReusesSingleCategory()
@@ -43,8 +43,8 @@ public class PropertyBagTests
     }
 
     /// <summary>
-    /// A null property is a programming error; failing fast with ArgumentNullException
-    /// is preferable to storing a null that blows up later during serialization.
+    ///     A null property is a programming error; failing fast with ArgumentNullException
+    ///     is preferable to storing a null that blows up later during serialization.
     /// </summary>
     [Fact]
     public void AddProperty_WithNullProperty_Throws()
@@ -57,9 +57,9 @@ public class PropertyBagTests
     }
 
     /// <summary>
-    /// FindOrCreateCategory is the dedupe primitive behind AddProperty; it must return
-    /// the same instance for names differing only by case so callers accumulate into
-    /// one category.
+    ///     FindOrCreateCategory is the dedupe primitive behind AddProperty; it must return
+    ///     the same instance for names differing only by case so callers accumulate into
+    ///     one category.
     /// </summary>
     [Fact]
     public void FindOrCreateCategory_CalledTwiceWithDifferentCase_ReturnsSameInstance()
@@ -74,8 +74,8 @@ public class PropertyBagTests
     }
 
     /// <summary>
-    /// GetProperty must return null (not throw) when the category is absent, so callers
-    /// can probe for optional properties without guarding every lookup.
+    ///     GetProperty must return null (not throw) when the category is absent, so callers
+    ///     can probe for optional properties without guarding every lookup.
     /// </summary>
     [Fact]
     public void GetProperty_WithUnknownCategory_ReturnsNull()

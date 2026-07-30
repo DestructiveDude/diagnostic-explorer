@@ -1,10 +1,10 @@
 namespace Diagnostic.Service.Common;
 
 /// <summary>
-/// Configuration for the Log Analytics Retro backend (DiagServiceSettings:LogAnalytics).
-/// Populated from the outputs of infra/retro-loganalytics.bicep. Credentials are NOT held
-/// here — the logger authenticates via DefaultAzureCredential (env-var service principal in
-/// the container, or `az login` locally).
+///     Configuration for the Log Analytics Retro backend (DiagServiceSettings:LogAnalytics).
+///     Populated from the outputs of infra/retro-loganalytics.bicep. Credentials are NOT held
+///     here — the logger authenticates via DefaultAzureCredential (env-var service principal in
+///     the container, or `az login` locally).
 /// </summary>
 public class LogAnalyticsSettings
 {

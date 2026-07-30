@@ -4,22 +4,25 @@ using DiagnosticExplorer.Trace;
 namespace DiagnosticExplorer.UnitTests;
 
 /// <summary>
-/// ScopeStack is the immutable persistent stack behind TraceScope's AsyncLocal nesting.
-/// It is internal (reached via InternalsVisibleTo) and its Remove must cope with the
-/// scope leaving from anywhere in the stack — not just the top — because async flows can
-/// dispose scopes out of order. The structural-sharing logic in Remove is the subtle part
-/// these tests pin directly, rather than only through TraceScope's higher-level behaviour.
+///     ScopeStack is the immutable persistent stack behind TraceScope's AsyncLocal nesting.
+///     It is internal (reached via InternalsVisibleTo) and its Remove must cope with the
+///     scope leaving from anywhere in the stack — not just the top — because async flows can
+///     dispose scopes out of order. The structural-sharing logic in Remove is the subtle part
+///     these tests pin directly, rather than only through TraceScope's higher-level behaviour.
 /// </summary>
 public class ScopeStackTests
 {
     // ScopeStack.Push needs TraceScope instances; only their reference identity matters
     // here. Constructing a TraceScope touches the global AsyncLocal, but these tests operate
     // entirely on local ScopeStack values, so that side effect is irrelevant to them.
-    private static TraceScope Scope() => new(_ => { });
+    private static TraceScope Scope()
+    {
+        return new TraceScope(_ => { });
+    }
 
     /// <summary>
-    /// The shared Empty sentinel reports itself empty with no current scope — the base case
-    /// every push/remove ultimately unwinds to.
+    ///     The shared Empty sentinel reports itself empty with no current scope — the base case
+    ///     every push/remove ultimately unwinds to.
     /// </summary>
     [Fact]
     public void Empty_HasNoCurrentAndIsEmpty()
@@ -29,8 +32,8 @@ public class ScopeStackTests
     }
 
     /// <summary>
-    /// Push returns a new stack whose Current is the pushed scope, leaving the original
-    /// (Empty) untouched — confirming immutability and that Current tracks the top.
+    ///     Push returns a new stack whose Current is the pushed scope, leaving the original
+    ///     (Empty) untouched — confirming immutability and that Current tracks the top.
     /// </summary>
     [Fact]
     public void Push_MakesScopeCurrentAndLeavesOriginalUnchanged()
@@ -45,8 +48,8 @@ public class ScopeStackTests
     }
 
     /// <summary>
-    /// Removing the current (top) scope returns the parent stack, so the previously-pushed
-    /// scope becomes current again — the normal nested-dispose case.
+    ///     Removing the current (top) scope returns the parent stack, so the previously-pushed
+    ///     scope becomes current again — the normal nested-dispose case.
     /// </summary>
     [Fact]
     public void Remove_TopScope_RestoresParentAsCurrent()
@@ -61,10 +64,10 @@ public class ScopeStackTests
     }
 
     /// <summary>
-    /// Removing a scope from the middle must drop only that scope while preserving the ones
-    /// above it — an out-of-order dispose. Verified by removing the middle scope, confirming
-    /// the top is still current, then removing the top and landing on the bottom (proving the
-    /// middle is gone, not merely hidden).
+    ///     Removing a scope from the middle must drop only that scope while preserving the ones
+    ///     above it — an out-of-order dispose. Verified by removing the middle scope, confirming
+    ///     the top is still current, then removing the top and landing on the bottom (proving the
+    ///     middle is gone, not merely hidden).
     /// </summary>
     [Fact]
     public void Remove_MiddleScope_DropsOnlyThatScope()
@@ -81,9 +84,9 @@ public class ScopeStackTests
     }
 
     /// <summary>
-    /// Removing a scope that is not in the stack changes nothing, so Remove returns the very
-    /// same instance (structural sharing — no needless reallocation). BeSameAs is the point:
-    /// it proves the no-change fast path, not just value equality.
+    ///     Removing a scope that is not in the stack changes nothing, so Remove returns the very
+    ///     same instance (structural sharing — no needless reallocation). BeSameAs is the point:
+    ///     it proves the no-change fast path, not just value equality.
     /// </summary>
     [Fact]
     public void Remove_ScopeNotPresent_ReturnsSameInstance()
@@ -97,9 +100,9 @@ public class ScopeStackTests
     }
 
     /// <summary>
-    /// Removing the sole remaining scope unwinds to an empty stack, and removing from Empty
-    /// is a safe no-op returning Empty — the boundary conditions Dispose relies on when the
-    /// outermost scope closes.
+    ///     Removing the sole remaining scope unwinds to an empty stack, and removing from Empty
+    ///     is a safe no-op returning Empty — the boundary conditions Dispose relies on when the
+    ///     outermost scope closes.
     /// </summary>
     [Fact]
     public void Remove_LastScopeOrFromEmpty_YieldsEmpty()

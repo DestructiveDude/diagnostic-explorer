@@ -1,21 +1,23 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Channels;
 using Diagnostic.Service.Transport;
 
 namespace Diagnostic.Service.Hubs;
 
-public class RetroSearchProcess : IDisposable
+public sealed class RetroSearchProcess : IDisposable
 {
-    private readonly IWebHubClient _client;
-    public RetroQuery Query { get; }
     private readonly CancellationTokenSource _cancelToken = new();
+    private readonly IWebHubClient _client;
     private readonly RetroManager _retroManager;
-    public event EventHandler? Finished;
-    public string ClientId { get; }
-    private readonly Stopwatch _watch = new Stopwatch();
+    private readonly Stopwatch _watch = new();
 
-
-    public RetroSearchProcess(RetroManager retroManager, string clientId, IWebHubClient client, RetroQuery query)
+    public RetroSearchProcess(
+        RetroManager retroManager,
+        string clientId,
+        IWebHubClient client,
+        RetroQuery query
+    )
     {
         _retroManager = retroManager ?? throw new ArgumentNullException(nameof(retroManager));
         ClientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
@@ -23,7 +25,23 @@ public class RetroSearchProcess : IDisposable
         Query = query ?? throw new ArgumentNullException(nameof(query));
     }
 
+    public RetroQuery Query { get; }
+    public string ClientId { get; }
 
+    public TimeSpan SearchTime => _watch.Elapsed;
+
+    public void Dispose()
+    {
+        _cancelToken.Dispose();
+    }
+
+    public event EventHandler? Finished;
+
+    [SuppressMessage(
+        "Reliability",
+        "S6966:Await CancelAsync instead",
+        Justification = "The public cancellation entry point is synchronous and callers require cancellation callbacks to finish before it returns."
+    )]
     public void Cancel()
     {
         try
@@ -32,46 +50,47 @@ public class RetroSearchProcess : IDisposable
         }
         catch (ObjectDisposedException)
         {
+            // A concurrently completed search has already released its cancellation source.
         }
     }
 
     public void Start()
     {
         _watch.Restart();
-        var channel = Channel.CreateBounded<RetroSearchResult>(new BoundedChannelOptions(200)
-        {
-            SingleReader = true,
-            SingleWriter = true,
-            FullMode = BoundedChannelFullMode.Wait,
-        });
-
+        var channel = Channel.CreateBounded<RetroSearchResult>(
+            new BoundedChannelOptions(200)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait,
+            }
+        );
 
         Task.Run(() => ExecuteQuery(channel, _cancelToken.Token));
         Task.Run(() => SendResults(channel, _cancelToken.Token));
     }
 
-    public TimeSpan SearchTime => _watch?.Elapsed ?? TimeSpan.Zero;
-
     private async Task SendResults(Channel<RetroSearchResult> channel, CancellationToken cancel)
     {
         try
         {
-            await foreach (RetroSearchResult result in channel.Reader.ReadAllAsync(cancel))
+            await foreach (var result in channel.Reader.ReadAllAsync(cancel))
             {
                 cancel.ThrowIfCancellationRequested();
                 await _client.ProcessSearchResults(result);
             }
+
             await _client.ProcessSearchEnd(Query.SearchId);
         }
         catch (OperationCanceledException)
         {
-            Trace.WriteLine("RetroSearchProcess.SendResults cancelled");
+            Trace.TraceInformation("RetroSearchProcess.SendResults cancelled");
         }
         catch (Exception ex)
         {
             // Cancel the query producer so ExecuteQuery exits promptly when delivery fails.
-            _cancelToken.Cancel();
-            Trace.WriteLine(ex);
+            await _cancelToken.CancelAsync();
+            Trace.TraceError(ex.ToString());
             await _client.ProcessSearchError(Query.SearchId, ex.Message, ex.ToString());
         }
         finally
@@ -87,36 +106,27 @@ public class RetroSearchProcess : IDisposable
         {
             cancel.ThrowIfCancellationRequested();
 
-            IAsyncEnumerable<RetroMsg[]> results = _retroManager.GetRetroLog(Query, cancel);
-            await foreach (RetroMsg[] messages in results.WithCancellation(cancel))
+            var results = _retroManager.GetRetroLog(Query, cancel);
+            await foreach (var messages in results)
             {
                 cancel.ThrowIfCancellationRequested();
 
                 // No debug Info: the old `cancelled: {IsCancellationRequested}` was always false here
                 // (we ThrowIfCancellationRequested above) and was only ever console.logged client-side.
-                RetroSearchResult result = new()
-                {
-                    SearchId = Query.SearchId,
-                    Results = messages,
-                };
+                RetroSearchResult result = new() { SearchId = Query.SearchId, Results = messages };
                 await channel.Writer.WriteAsync(result, cancel);
             }
 
-            channel.Writer.Complete();
+            channel.Writer.TryComplete();
         }
         catch (OperationCanceledException)
         {
-            channel.Writer.Complete();
-            Trace.WriteLine("RetroSearchProcess.ExecuteQuery cancelled");
+            channel.Writer.TryComplete();
+            Trace.TraceInformation("RetroSearchProcess.ExecuteQuery cancelled");
         }
         catch (Exception ex)
         {
-            channel.Writer.Complete(ex);
+            channel.Writer.TryComplete(ex);
         }
-    }
-
-    public void Dispose()
-    {
-        _cancelToken.Dispose();
     }
 }

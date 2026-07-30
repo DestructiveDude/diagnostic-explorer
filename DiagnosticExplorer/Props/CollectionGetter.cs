@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using DiagnosticExplorer.Interface;
@@ -24,51 +25,59 @@ internal class CollectionGetter : PropertyGetter
         _separator = attr.Separator ?? Environment.NewLine;
         _mode = attr.Mode;
 
-        Type genericType = GenericObjectCache.FindGenericInterface(info.PropertyType, typeof(IDictionary<,>));
+        Type genericType = GenericObjectCache.FindGenericInterface(
+            info.PropertyType,
+            typeof(IDictionary<,>)
+        );
         bool isDictionary = typeof(IDictionary).IsAssignableFrom(info.PropertyType);
 
         if (genericType != null)
         {
-            DictPropGetter propGetter = GenericObjectCache.CreateGenericObject<DictPropGetter>(typeof(DictPropGetter<,>),
-                genericType.GetGenericArguments());
+            IDictPropGetter propGetter = GenericObjectCache.CreateGenericObject<IDictPropGetter>(
+                typeof(DictPropGetter<,>),
+                genericType.GetGenericArguments()
+            );
             _nameFunc = propGetter.GetNameGetter();
             _valueFunc = propGetter.GetValueGetter();
         }
         else if (isDictionary)
         {
-            _nameFunc = x => ((DictionaryEntry) x).Key;
-            _valueFunc = x => ((DictionaryEntry) x).Value;
+            _nameFunc = x => ((DictionaryEntry)x).Key;
+            _valueFunc = x => ((DictionaryEntry)x).Value;
         }
         else
         {
             _nameFunc = PropertyToFunction(GetListProperty(info, attr.NameProperty), isStatic);
             _valueFunc = PropertyToFunction(GetListProperty(info, attr.ValueProperty), isStatic);
-            _descrFunc = PropertyToFunction(GetListProperty(info, attr.DescriptionProperty), isStatic);
+            _descrFunc = PropertyToFunction(
+                GetListProperty(info, attr.DescriptionProperty),
+                isStatic
+            );
             _catFunc = PropertyToFunction(GetListProperty(info, attr.CategoryProperty), isStatic);
         }
         _maxItems = attr.MaxItems;
     }
 
-    public abstract class DictPropGetter
+    public interface IDictPropGetter
     {
-        public abstract Func<object, object> GetNameGetter();
-        public abstract Func<object, object> GetValueGetter();
+        Func<object, object> GetNameGetter();
+        Func<object, object> GetValueGetter();
     }
 
-    public class DictPropGetter<TKey, TValue> : DictPropGetter
+    public sealed class DictPropGetter<TKey, TValue> : IDictPropGetter
     {
-        public override Func<object, object> GetNameGetter()
+        public Func<object, object> GetNameGetter()
         {
-            return value => ((KeyValuePair<TKey, TValue>) value).Key;
+            return value => ((KeyValuePair<TKey, TValue>)value).Key;
         }
 
-        public override Func<object, object> GetValueGetter()
+        public Func<object, object> GetValueGetter()
         {
-            return value => ((KeyValuePair<TKey, TValue>) value).Value;
+            return value => ((KeyValuePair<TKey, TValue>)value).Value;
         }
     }
 
-    private PropertyInfo GetListProperty(PropertyInfo info, string name)
+    private static PropertyInfo GetListProperty(PropertyInfo info, string name)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -82,7 +91,10 @@ internal class CollectionGetter : PropertyGetter
         }
         else
         {
-            Type enumerableType = GenericObjectCache.FindGenericInterface(info.PropertyType, typeof(IEnumerable<>));
+            Type enumerableType = GenericObjectCache.FindGenericInterface(
+                info.PropertyType,
+                typeof(IEnumerable<>)
+            );
             if (enumerableType != null)
             {
                 colType = enumerableType.GetGenericArguments()[0];
@@ -94,7 +106,10 @@ internal class CollectionGetter : PropertyGetter
             return null;
         }
 
-        PropertyInfo propInfo = colType.GetProperty(name, DiagnosticManager.PublicInstancePropertyFlags);
+        PropertyInfo propInfo = colType.GetProperty(
+            name,
+            DiagnosticManager.PublicInstancePropertyFlags
+        );
 
         if (propInfo == null)
         {
@@ -104,6 +119,11 @@ internal class CollectionGetter : PropertyGetter
         return propInfo;
     }
 
+    [SuppressMessage(
+        "Maintainability",
+        "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "The collection modes share bounded enumeration and property projection."
+    )]
     public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
     {
         try
@@ -121,16 +141,25 @@ internal class CollectionGetter : PropertyGetter
             }
             else
             {
-                PropertyInfo countProp = rawCol.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
-                if (countProp != null && countProp.PropertyType == typeof(int))
+                PropertyInfo countProp = rawCol
+                    .GetType()
+                    .GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+                if (
+                    countProp != null
+                    && countProp.PropertyType == typeof(int)
+                    && countProp.GetValue(rawCol) is int propertyCount
+                )
                 {
-                    count = (int) countProp.GetValue(rawCol);
+                    count = propertyCount;
                 }
             }
 
             if (_mode == CollectionMode.Count && count != -1)
             {
-                bag.AddProperty(new Property(Name, FormatValue(count)), PrependToCategory(catPrepend));
+                bag.AddProperty(
+                    new Property(Name, FormatValue(count)),
+                    PrependToCategory(catPrepend)
+                );
                 return;
             }
 
@@ -153,28 +182,34 @@ internal class CollectionGetter : PropertyGetter
             switch (_mode)
             {
                 case CollectionMode.Count:
-                    {
-                        string val = wasTruncated ? "10000+ items" : FormatValue(displayCount);
-                        bag.AddProperty(new Property(Name, val), PrependToCategory(catPrepend));
-                        break;
-                    }
+                {
+                    string val = wasTruncated ? "10000+ items" : FormatValue(displayCount);
+                    bag.AddProperty(new Property(Name, val), PrependToCategory(catPrepend));
+                    break;
+                }
                 case CollectionMode.Concatenate:
-                    {
-                        AppendConcatenated(col, bag, catPrepend);
-                        break;
-                    }
+                {
+                    AppendConcatenated(col, bag, catPrepend);
+                    break;
+                }
                 case CollectionMode.List:
                     AppendAllProperties(col, bag, catPrepend);
                     if (wasTruncated)
                     {
-                        bag.AddProperty(new Property("...", "Truncated at 10000 items"), PrependToCategory(catPrepend));
+                        bag.AddProperty(
+                            new Property("...", "Truncated at 10000 items"),
+                            PrependToCategory(catPrepend)
+                        );
                     }
                     break;
                 case CollectionMode.Categories:
                     AppendSeparateCategories(col, bag, catPrepend);
                     if (wasTruncated)
                     {
-                        bag.AddProperty(new Property("...", "Truncated at 10000 items"), CombineCategories(catPrepend, "..."));
+                        bag.AddProperty(
+                            new Property("...", "Truncated at 10000 items"),
+                            CombineCategories(catPrepend, "...")
+                        );
                     }
                     break;
             }
@@ -186,6 +221,11 @@ internal class CollectionGetter : PropertyGetter
         }
     }
 
+    [SuppressMessage(
+        "Maintainability",
+        "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "Cycle detection and recursive diagnostic projection are intentionally colocated."
+    )]
     private void AppendSeparateCategories(IEnumerable col, PropertyBag bag, string catPrepend)
     {
         int index = 0;
@@ -203,7 +243,7 @@ internal class CollectionGetter : PropertyGetter
                 {
                     Name = "<cycle>",
                     CanSet = false,
-                    SourceObject = listObject
+                    SourceObject = listObject,
                 };
                 string cycleCategory = $"Item {index++}";
                 string cyclePrepend = CombineCategories(catPrepend, cycleCategory);
@@ -216,7 +256,7 @@ internal class CollectionGetter : PropertyGetter
                 {
                     Name = "<max depth>",
                     CanSet = false,
-                    SourceObject = listObject
+                    SourceObject = listObject,
                 };
                 string depthCategory = $"Item {index++}";
                 string depthPrepend = CombineCategories(catPrepend, depthCategory);
@@ -228,7 +268,9 @@ internal class CollectionGetter : PropertyGetter
             string valCategory = Convert.ToString(catPropVal);
             if (!string.IsNullOrEmpty(Category))
             {
-                valCategory = Category.IndexOf("{") != -1 ? string.Format(Category, catPropVal) : $"{Category}.{valCategory}";
+                valCategory = Category.Contains('{')
+                    ? string.Format(Category, catPropVal)
+                    : $"{Category}.{valCategory}";
             }
 
             string newPrepend = CombineCategories(catPrepend, valCategory);
@@ -260,15 +302,13 @@ internal class CollectionGetter : PropertyGetter
         {
             object objectValue = obj;
             string name = Convert.ToString(GetNextPropVal(obj, _nameFunc, index++));
-            string val = _valueFunc == null ? FormatValue(obj) : GetValue(obj, _valueFunc, out objectValue);
+            string val =
+                _valueFunc == null ? FormatValue(obj) : GetValue(obj, _valueFunc, out objectValue);
 
             string desc = _descrFunc == null ? null : GetValue(obj, _descrFunc, out _);
             string cat = _catFunc == null ? null : GetValue(obj, _catFunc, out _);
 
-            Property prop = new Property(name, val, desc)
-            {
-                ValueObject = objectValue
-            };
+            Property prop = new Property(name, val, desc) { ValueObject = objectValue };
             bag.AddProperty(prop, CombineCategories(PrependToCategory(catPrepend), cat));
         }
     }
@@ -277,16 +317,18 @@ internal class CollectionGetter : PropertyGetter
     {
         if (_valueFunc != null)
         {
-            col = col.Cast<object>().Select(item => {
-                try
+            col = col.Cast<object>()
+                .Select(item =>
                 {
-                    return _valueFunc(item);
-                }
-                catch (Exception ex)
-                {
-                    return $"<{ex.Message}>";
-                }
-            });
+                    try
+                    {
+                        return _valueFunc(item);
+                    }
+                    catch (Exception ex)
+                    {
+                        return $"<{ex.Message}>";
+                    }
+                });
         }
 
         string val = FormatEnumerable(col, _separator, _maxItems);

@@ -5,9 +5,7 @@ namespace DiagnosticExplorer.Interface;
 [ProtoContract(UseProtoMembersOnly = true)]
 public class OperationParameter
 {
-    public OperationParameter()
-    {
-    }
+    public OperationParameter() { }
 
     public OperationParameter(string name, string type)
     {
@@ -20,5 +18,4 @@ public class OperationParameter
 
     [ProtoMember(2)]
     public string Type { get; set; }
-
 }

@@ -12,27 +12,14 @@ namespace Diagnostic.Service.Hubs;
 public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(DiagnosticHub));
-    private readonly RealtimeManager _rtManager;
-    private readonly RetroManager _retroManager;
     private static readonly AsyncResultBucket _clientResponses = new();
+    private readonly RetroManager _retroManager;
+    private readonly RealtimeManager _rtManager;
 
     public DiagnosticHub(RealtimeManager rtManager, RetroManager retroManager)
     {
         _rtManager = rtManager;
         _retroManager = retroManager;
-    }
-
-    public override Task OnConnectedAsync()
-    {
-        _rtManager.AddDiagnosticClient(new DiagnosticClientHandler(Context, Clients.Caller, _clientResponses));
-        return base.OnConnectedAsync();
-    }
-
-    public override Task OnDisconnectedAsync(Exception? ex)
-    {
-        Trace.WriteLine("Disconnected");
-        Trace.WriteLine(ex);
-        return base.OnDisconnectedAsync(ex);
     }
 
     // Not async: the body is synchronous (CS1998). SignalR awaits the returned Task either way.
@@ -46,7 +33,9 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         }
         catch (Exception ex)
         {
-            return Task.FromResult(RpcResult<RegistrationResponse>.Fail(requestId: null, ex.Message, ex.ToString()));
+            return Task.FromResult(
+                RpcResult<RegistrationResponse>.Fail(null, ex.Message, ex.ToString())
+            );
         }
     }
 
@@ -59,7 +48,7 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         }
         catch (Exception ex)
         {
-            return Task.FromResult(RpcResult.Fail(requestId: null, ex));
+            return Task.FromResult(RpcResult.Fail(null, ex));
         }
     }
 
@@ -68,7 +57,7 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
     {
         try
         {
-            DiagnosticMsg[]? messages = ProtobufUtil.Decompress<DiagnosticMsg[]>(eventData);
+            var messages = ProtobufUtil.Decompress<DiagnosticMsg[]>(eventData);
             if (messages?.Any() == true)
             {
                 _rtManager.RegisterAlertLevel(Context.ConnectionId, messages);
@@ -81,7 +70,7 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         catch (Exception ex)
         {
             _log.Error(ex);
-            return Task.FromResult(RpcResult.Fail(requestId: null, ex));
+            return Task.FromResult(RpcResult.Fail(null, ex));
         }
     }
 
@@ -99,8 +88,7 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 
     public Task SetPropertyReturn(RpcResult<OperationResponse> response)
     {
-        _clientResponses.SetResult(response, response.Response);
-        return Task.CompletedTask;
+        return ExecuteOperationReturn(response);
     }
 
     public Task SetEvents(SystemEvent[] events)
@@ -111,9 +99,28 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         return Task.CompletedTask;
     }
 
-    public Task StreamEvents(SystemEvent[] evts)
+    public Task StreamEvents(SystemEvent[] evt)
     {
-        _rtManager.GetClientHandler(Context.ConnectionId)?.StreamEvents(evts);
+        _rtManager.GetClientHandler(Context.ConnectionId)?.StreamEvents(evt);
         return Task.CompletedTask;
+    }
+
+    public override Task OnConnectedAsync()
+    {
+        _rtManager.AddDiagnosticClient(
+            new DiagnosticClientHandler(Context, Clients.Caller, _clientResponses)
+        );
+        return base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        Trace.TraceInformation("Disconnected");
+        if (exception != null)
+        {
+            Trace.TraceError(exception.ToString());
+        }
+
+        return base.OnDisconnectedAsync(exception);
     }
 }

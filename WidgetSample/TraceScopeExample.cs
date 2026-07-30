@@ -1,25 +1,21 @@
-using System.Threading.Tasks;
-using DiagnosticExplorer.Trace;
-
 namespace WidgetSample;
 
 public static class TraceScopeExample
 {
-    private static int _count;
-
     // Caps the (mutual) recursion below so the demo can't run away into unbounded TraceScope/
     // Task allocation. (M49)
     private const int MaxDepth = 5;
+    private static int _count;
 
     public static async Task TestTraceScope1()
     {
-        string ident = $"########## {_count++} ##########";
+        var ident = $"########## {_count++} ##########";
 
         using (new TraceScope())
         {
-            int times = ThreadSafeRandom.Next(1, 5);
+            var times = ThreadSafeRandom.Next(1, 5);
             TraceScope.Trace($"{ident} About to call TestTraceScope2() {times} times");
-            for (int i = 0; i < times; i++)
+            for (var i = 0; i < times; i++)
             {
                 await Task.Delay(20);
                 await TestTraceScope2(ident);
@@ -38,13 +34,14 @@ public static class TraceScopeExample
                 await TestTraceScope2(ident, depth + 1);
             }
 
-            int times = ThreadSafeRandom.Next(1, 3);
+            var times = ThreadSafeRandom.Next(1, 3);
             TraceScope.Trace($"{ident} About to call TestTraceScope3() {times} times");
-            for (int i = 0; i < times; i++)
+            for (var i = 0; i < times; i++)
             {
                 await Task.Delay(20);
                 await TestTraceScope3(ident, depth);
             }
+
             await Task.Delay(20);
             TraceScope.Trace($"{ident} Just called TestTraceScope3()");
         }
@@ -74,9 +71,11 @@ public static class TraceScopeExample
             await Task.Delay(20);
             TraceScope.Trace($"{ident} Your lucky random number is {ThreadSafeRandom.Next()}");
             await Task.Delay(20);
-            TraceScope.Trace($@"{ident} Here's a multiline trace message
+            TraceScope.Trace(
+                $@"{ident} Here's a multiline trace message
 which, as you can see,
-has more than one line");
+has more than one line"
+            );
         }
     }
 }

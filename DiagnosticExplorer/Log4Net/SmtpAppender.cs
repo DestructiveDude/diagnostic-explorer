@@ -12,7 +12,6 @@ namespace DiagnosticExplorer.Log4Net;
 
 public class SmtpAppender : AppenderSkeleton
 {
-
     internal const string DefaultHostName = "Default Smtp Host";
 
     public SmtpAppender()
@@ -29,8 +28,10 @@ public class SmtpAppender : AppenderSkeleton
 
     public string SmtpHost { get; set; }
 
-    /// <summary>Enable explicit TLS (STARTTLS) for the SMTP connection. Forced on when
-    /// <see cref="Authentication"/> is Basic so credentials never cross the wire in clear.</summary>
+    /// <summary>
+    ///     Enable explicit TLS (STARTTLS) for the SMTP connection. Forced on when
+    ///     <see cref="Authentication" /> is Basic so credentials never cross the wire in clear.
+    /// </summary>
     public bool EnableSsl { get; set; }
 
     /// <summary>SMTP port; 0 (default) leaves the SmtpClient default (25, or 587 with TLS).</summary>
@@ -44,29 +45,39 @@ public class SmtpAppender : AppenderSkeleton
 
     public MailPriority Priority { get; set; }
 
-    /// <summary>Used to specify the amount of minutes timeout to wait for before resetting that an error occurred on an appender.</summary>
+    /// <summary>
+    ///     Used to specify the amount of minutes timeout to wait for before resetting that an error occurred on an
+    ///     appender.
+    /// </summary>
     [Property]
     public TimeSpan FailTimeout { get; set; } = TimeSpan.FromSeconds(-1);
 
     [RateProperty(ExposeRate = false, ExposeTotal = true)]
-    public RateCounter EventsIn { get; set; } = new RateCounter(3);
+    public RateCounter EventsIn { get; set; } = new(3);
 
     [RateProperty(ExposeRate = false, ExposeTotal = true)]
-    public RateCounter EventsOut { get; set; } = new RateCounter(3);
+    public RateCounter EventsOut { get; set; } = new(3);
 
     [RateProperty(ExposeRate = false, ExposeTotal = true)]
-    public RateCounter EventsErrored { get; set; } = new RateCounter(3);
+    public RateCounter EventsErrored { get; set; } = new(3);
 
     protected override bool RequiresLayout => true;
 
-    [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(SmtpAppenderProxy.SmtpHost))]
+    [CollectionProperty(
+        CollectionMode.Categories,
+        CategoryProperty = nameof(SmtpAppenderProxy.SmtpHost)
+    )]
     public List<SmtpAppenderProxy> Proxies { get; private set; }
 
     public override void ActivateOptions()
     {
         base.ActivateOptions();
 
-        string[] hosts = (SmtpHost ?? "").Split(',', ';').Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+        var hosts = (SmtpHost ?? "")
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
 
         if (FailTimeout < TimeSpan.Zero)
         {
@@ -75,9 +86,16 @@ public class SmtpAppender : AppenderSkeleton
 
         Proxies = [];
 
-        foreach (string host in hosts)
+        foreach (var host in hosts)
         {
-            if (string.IsNullOrWhiteSpace(host) || string.Equals("Default", host.Trim(), StringComparison.InvariantCultureIgnoreCase))
+            if (
+                string.IsNullOrWhiteSpace(host)
+                || string.Equals(
+                    "Default",
+                    host.Trim(),
+                    StringComparison.InvariantCultureIgnoreCase
+                )
+            )
             {
                 Proxies.Add(new SmtpAppenderProxy(this, DefaultHostName, FailTimeout));
             }
@@ -103,23 +121,30 @@ public class SmtpAppender : AppenderSkeleton
 
     protected void PerformSend(LoggingEvent loggingEvent)
     {
-        using StringWriter bodyWriter = new StringWriter();
-
-        if (Layout.Header != null)
+        var layout = Layout;
+        if (layout == null)
         {
-            bodyWriter.Write(Layout.Header);
+            ErrorHandler.Error("No layout configured for SMTP appender.");
+            return;
+        }
+
+        using var bodyWriter = new StringWriter();
+
+        if (layout.Header != null)
+        {
+            bodyWriter.Write(layout.Header);
         }
 
         // Render the event and append the text to the buffer
         RenderLoggingEvent(bodyWriter, loggingEvent);
 
-        if (Layout.Footer != null)
+        if (layout.Footer != null)
         {
-            bodyWriter.Write(Layout.Footer);
+            bodyWriter.Write(layout.Footer);
         }
 
-        string body = bodyWriter.ToString();
-        string subject = RenderSubject(loggingEvent);
+        var body = bodyWriter.ToString();
+        var subject = RenderSubject(loggingEvent);
 
         SendToProxies(body, subject);
     }
@@ -133,7 +158,7 @@ public class SmtpAppender : AppenderSkeleton
 
         try
         {
-            using StringWriter subjectWriter = new StringWriter();
+            using var subjectWriter = new StringWriter();
             //format the layout
             Subject.Format(subjectWriter, loggingEvent);
 
@@ -147,9 +172,9 @@ public class SmtpAppender : AppenderSkeleton
 
     protected void SendToProxies(string body, string subject)
     {
-        foreach (SmtpAppenderProxy proxy in Proxies)
+        foreach (var proxy in Proxies)
         {
-            using (MailMessage message = new MailMessage())
+            using (var message = new MailMessage())
             {
                 message.Body = body;
                 if (!string.IsNullOrEmpty(From))
@@ -171,6 +196,7 @@ public class SmtpAppender : AppenderSkeleton
                     break;
                 }
             }
+
             EventsErrored.Register(1);
             RecordAppenderError(proxy);
         }
@@ -184,7 +210,9 @@ public class SmtpAppender : AppenderSkeleton
 
     private void RecordAppenderError(SmtpAppenderProxy appender)
     {
-        ForwardingAppenderBase.LogLogError(GetType(), $"appender [{appender.SmtpHost}] has an error.");
+        ForwardingAppenderBase.LogLogError(
+            GetType(),
+            $"appender [{appender.SmtpHost}] has an error."
+        );
     }
-
 }

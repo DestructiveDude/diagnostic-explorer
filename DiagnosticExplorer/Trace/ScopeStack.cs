@@ -2,17 +2,15 @@ namespace DiagnosticExplorer.Trace;
 
 internal sealed class ScopeStack
 {
-    public static ScopeStack Empty { get; } = new();
-
-    private ScopeStack()
-    {
-    }
+    private ScopeStack() { }
 
     private ScopeStack(TraceScope current, ScopeStack parent)
     {
         Current = current;
         Parent = parent;
     }
+
+    public static ScopeStack Empty { get; } = new();
 
     public TraceScope Current { get; }
 
@@ -37,7 +35,7 @@ internal sealed class ScopeStack
             return Parent ?? Empty;
         }
 
-        ScopeStack updatedParent = Parent?.Remove(scope) ?? Empty;
+        var updatedParent = Parent?.Remove(scope) ?? Empty;
         if (ReferenceEquals(updatedParent, Parent))
         {
             return this;

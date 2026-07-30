@@ -13,28 +13,35 @@ internal static class TypeUtil
             return ConvertTypeName(t);
         }
 
-        Type genericDef = t.GetGenericTypeDefinition();
+        var genericDef = t.GetGenericTypeDefinition();
 
         if (genericDef == typeof(Nullable<>))
         {
             return ConvertTypeName(t.GetGenericArguments()[0]) + "?";
         }
 
-        string name = Regex.Replace(genericDef.Name, "`[0-9]+", "");
-        string[] typeNames = t.GetGenericArguments().Select(GetFriendlyTypeName).ToArray();
+        var name = Regex.Replace(
+            genericDef.Name,
+            "`[0-9]+",
+            "",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(1)
+        );
+        var typeNames = t.GetGenericArguments().Select(GetFriendlyTypeName).ToArray();
         return string.Format("{0}<{1}>", name, string.Join(", ", typeNames));
     }
 
     /// <summary>
-    /// Returns true if type T is nullable
+    ///     Returns true if type T is nullable
     /// </summary>
     /// <exception cref="ArgumentNullException">if t is Null</exception>
     public static bool IsNullable(Type t)
     {
         ArgumentNullException.ThrowIfNull(t);
 
-        return t.IsValueType && t.IsGenericType
-                     && t.GetGenericTypeDefinition() == typeof(Nullable<>);
+        return t.IsValueType
+            && t.IsGenericType
+            && t.GetGenericTypeDefinition() == typeof(Nullable<>);
     }
 
     private static string ConvertTypeName(Type type)

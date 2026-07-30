@@ -9,17 +9,20 @@ using log4net.Util;
 
 namespace DiagnosticExplorer.Log4Net;
 
-public class AsyncProcessor : IDisposable
+public sealed class AsyncProcessor : IDisposable
 {
-    private BlockingCollection<LoggingEventContext> _loggingEvents;
-    private CancellationTokenSource _loggingCancelationTokenSource;
-    private readonly CancellationToken _loggingCancelationToken;
-    private Task _loggingTask;
     private readonly Action<LoggingEvent> _forwardLoggingEvent;
+    private readonly CancellationToken _loggingCancelationToken;
+    private CancellationTokenSource _loggingCancelationTokenSource;
+    private BlockingCollection<LoggingEventContext> _loggingEvents;
+    private Task _loggingTask;
     private volatile bool _shutDownRequested;
 
-
-    public AsyncProcessor(BufferOverflowMode overflow, int bufferSize, Action<LoggingEvent> forwardLoggingEvent)
+    public AsyncProcessor(
+        BufferOverflowMode overflow,
+        int bufferSize,
+        Action<LoggingEvent> forwardLoggingEvent
+    )
     {
         Overflow = overflow;
         BufferSize = bufferSize;
@@ -32,11 +35,107 @@ public class AsyncProcessor : IDisposable
 
         _loggingCancelationTokenSource = new CancellationTokenSource();
         _loggingCancelationToken = _loggingCancelationTokenSource.Token;
-        _loggingTask = new Task(SubscriberLoop, _loggingCancelationToken, TaskCreationOptions.LongRunning);
+        _loggingTask = new Task(
+            SubscriberLoop,
+            _loggingCancelationToken,
+            TaskCreationOptions.LongRunning
+        );
     }
 
     private BufferOverflowMode Overflow { get; }
     private int BufferSize { get; }
+
+    public FixFlags Fix { get; set; }
+
+    public int QueueSize
+    {
+        // Snapshot the field: Dispose nulls _loggingEvents on another thread and this is
+        // exposed as a diagnostic property polled from the UI.
+        get
+        {
+            var queue = _loggingEvents;
+            return queue?.Count ?? 0;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_loggingTask != null)
+        {
+            if (!(_loggingTask.IsCanceled || _loggingTask.IsCompleted || _loggingTask.IsFaulted))
+            {
+                try
+                {
+                    Close();
+                }
+                catch (Exception ex)
+                {
+                    ForwardingAppenderBase.LogLogError(
+                        GetType(),
+                        "Exception Completing Subscriber Task in Dispose Method",
+                        ex
+                    );
+                }
+            }
+
+            try
+            {
+                _loggingTask.Dispose();
+            }
+            catch (Exception ex)
+            {
+                ForwardingAppenderBase.LogLogError(
+                    GetType(),
+                    "Exception Disposing Logging Task",
+                    ex
+                );
+            }
+            finally
+            {
+                _loggingTask = null;
+            }
+        }
+
+        if (_loggingEvents != null)
+        {
+            try
+            {
+                _loggingEvents.Dispose();
+            }
+            catch (Exception ex)
+            {
+                ForwardingAppenderBase.LogLogError(
+                    GetType(),
+                    "Exception Disposing BlockingCollection",
+                    ex
+                );
+            }
+            finally
+            {
+                _loggingEvents = null;
+            }
+        }
+
+        if (_loggingCancelationTokenSource != null)
+        {
+            try
+            {
+                _loggingCancelationTokenSource.Dispose();
+            }
+            catch (Exception ex)
+            {
+                ForwardingAppenderBase.LogLogError(
+                    GetType(),
+                    "Exception Disposing CancellationTokenSource",
+                    ex
+                );
+            }
+            finally
+            {
+                _loggingCancelationTokenSource = null;
+            }
+        }
+    }
 
     public void Start()
     {
@@ -50,7 +149,7 @@ public class AsyncProcessor : IDisposable
         try
         {
             //This call blocks until an item is available or until adding is completed
-            foreach (LoggingEventContext entry in _loggingEvents.GetConsumingEnumerable(_loggingCancelationToken))
+            foreach (var entry in _loggingEvents.GetConsumingEnumerable(_loggingCancelationToken))
             {
                 try
                 {
@@ -90,7 +189,7 @@ public class AsyncProcessor : IDisposable
         }
     }
 
-    protected void ForwardInternalError(string message, Exception exception)
+    private void ForwardInternalError(string message, Exception exception)
     {
         try
         {
@@ -110,33 +209,21 @@ public class AsyncProcessor : IDisposable
         {
             return;
         }
+
         //Don't allow more entries to be added.
         _loggingEvents.CompleteAdding();
     }
 
-
-    public FixFlags Fix { get; set; }
-
-    public int QueueSize
-    {
-        // Snapshot the field: Dispose nulls _loggingEvents on another thread and this is
-        // exposed as a diagnostic property polled from the UI.
-        get {
-            BlockingCollection<LoggingEventContext> queue = _loggingEvents;
-            return queue?.Count ?? 0;
-        }
-    }
-
     public void Append(LoggingEvent loggingEvent)
     {
-        BlockingCollection<LoggingEventContext> queue = _loggingEvents;
+        var queue = _loggingEvents;
         if (_shutDownRequested || loggingEvent == null || queue == null)
         {
             return;
         }
 
         loggingEvent.Fix = Fix;
-        LoggingEventContext context = new LoggingEventContext(loggingEvent);
+        var context = new LoggingEventContext(loggingEvent);
 
         try
         {
@@ -186,7 +273,7 @@ public class AsyncProcessor : IDisposable
         _loggingEvents.CompleteAdding();
 
         //Wait 5 seconds for the events to flush
-        bool taskEnded = _loggingTask.Wait(TimeSpan.FromSeconds(5));
+        var taskEnded = _loggingTask.Wait(TimeSpan.FromSeconds(5));
 
         //If the task hasn't ended, cancel the task and record the error
         if (!taskEnded)
@@ -199,67 +286,10 @@ public class AsyncProcessor : IDisposable
             // wedged downstream still can't hang shutdown indefinitely. (B5)
             _loggingTask.Wait(TimeSpan.FromSeconds(1));
 
-            ForwardInternalError("The buffer was not able to be flushed before timeout occurred.", null);
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_loggingTask != null)
-        {
-            if (!(_loggingTask.IsCanceled || _loggingTask.IsCompleted || _loggingTask.IsFaulted))
-            {
-                try
-                {
-                    Close();
-                }
-                catch (Exception ex)
-                {
-                    ForwardingAppenderBase.LogLogError(GetType(), "Exception Completing Subscriber Task in Dispose Method", ex);
-                }
-            }
-            try
-            {
-                _loggingTask.Dispose();
-            }
-            catch (Exception ex)
-            {
-                ForwardingAppenderBase.LogLogError(GetType(), "Exception Disposing Logging Task", ex);
-            }
-            finally
-            {
-                _loggingTask = null;
-            }
-        }
-        if (_loggingEvents != null)
-        {
-            try
-            {
-                _loggingEvents.Dispose();
-            }
-            catch (Exception ex)
-            {
-                ForwardingAppenderBase.LogLogError(GetType(), "Exception Disposing BlockingCollection", ex);
-            }
-            finally
-            {
-                _loggingEvents = null;
-            }
-        }
-        if (_loggingCancelationTokenSource != null)
-        {
-            try
-            {
-                _loggingCancelationTokenSource.Dispose();
-            }
-            catch (Exception ex)
-            {
-                ForwardingAppenderBase.LogLogError(GetType(), "Exception Disposing CancellationTokenSource", ex);
-            }
-            finally
-            {
-                _loggingCancelationTokenSource = null;
-            }
+            ForwardInternalError(
+                "The buffer was not able to be flushed before timeout occurred.",
+                null
+            );
         }
     }
 }

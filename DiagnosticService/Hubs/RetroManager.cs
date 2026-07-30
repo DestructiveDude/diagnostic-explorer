@@ -16,14 +16,21 @@ namespace Diagnostic.Service.Hubs;
 public class RetroManager : IHostedService
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(RetroManager));
-    private IRetroLogger? _logger;
-    private Channel<IList<DiagnosticMsg>>? _writeChannel;
-    private Task? _loggingTask;
-    private Subject<IList<DiagnosticMsg>>? _ownedLogSubject;
+
+    private readonly ConcurrentDictionary<string, RetroSearchProcess> _searches = new();
     private ISubject<IList<DiagnosticMsg>>? _logSubject;
     private IDisposable? _logSubscription;
+    private IRetroLogger? _logger;
+    private Task? _loggingTask;
+    private Subject<IList<DiagnosticMsg>>? _ownedLogSubject;
+    private Channel<IList<DiagnosticMsg>>? _writeChannel;
     private long _writeQueueSize;
-    private readonly ConcurrentDictionary<string, RetroSearchProcess> _searches = new();
+
+    public RetroManager(IOptions<DiagServiceSettings> config)
+    {
+        Options = config.Value;
+    }
+
     public EventSink RetroEvents { get; } = EventSinkRepo.Default.GetSink("Retro Events", "Retro");
 
     // _logger and _writeChannel are only populated once StartAsync has run (and nulled out by
@@ -36,19 +43,26 @@ public class RetroManager : IHostedService
     private Channel<IList<DiagnosticMsg>> WriteChannel =>
         _writeChannel ?? throw new InvalidOperationException("RetroManager has not been started");
 
+    public long WriteQueueSize => _writeQueueSize;
+    public int ItemsInQueue => WriteChannel.Reader.CanCount ? WriteChannel.Reader.Count : -1;
 
-    private readonly IHostApplicationLifetime _lifetime;
+    [ExtendedProperty]
+    public DiagServiceSettings Options { get; set; }
 
-    public RetroManager(IHostApplicationLifetime lifetime, IOptions<DiagServiceSettings> config)
-    {
-        Options = config.Value;
-        // Lifecycle is now driven by the host (registered via AddHostedService); no ctor
-        // self-wiring. _lifetime is kept so StartAsync can tie the drain loop to ApplicationStopping.
-        _lifetime = lifetime;
-    }
+    [RateProperty(ExposeTotal = false, ExposeRate = true)]
+    public RateCounter EventsQueued { get; set; } = new(3);
 
+    [RateProperty(ExposeTotal = false, ExposeRate = true)]
+    public RateCounter EventsWritten { get; set; } = new(3);
 
-    public Task StartAsync(CancellationToken cancel)
+    /// <summary>
+    ///     Whether the active backend supports interactive per-record delete. Surfaced to the web
+    ///     client (via WebHub.RetroSupportsDelete) so the UI can hide the delete affordance for
+    ///     append-only backends such as Log Analytics.
+    /// </summary>
+    public bool SupportsDelete => Logger.SupportsDelete;
+
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         DiagnosticManager.Register(this, "Retro Manager", "Retro");
 
@@ -56,27 +70,29 @@ public class RetroManager : IHostedService
 
         // 10k batches is a real backlog cap (1_000_000 batches x up-to-50 msgs was effectively
         // unbounded, so DropWrite never engaged and memory was uncapped during a logger outage).
-        _writeChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(new BoundedChannelOptions(10_000)
-        {
-            SingleReader = true,
-            FullMode = BoundedChannelFullMode.DropWrite,
-        });
-
+        _writeChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(
+            new BoundedChannelOptions(10_000)
+            {
+                SingleReader = true,
+                FullMode = BoundedChannelFullMode.DropWrite,
+            }
+        );
 
         _ownedLogSubject = new Subject<IList<DiagnosticMsg>>();
         _logSubject = Subject.Synchronize(_ownedLogSubject);
 
         // Keep the subscription so StopAsync can dispose it (was discarded → leaked across restarts).
-        _logSubscription = _logSubject.SelectMany(list => list)
+        _logSubscription = _logSubject
+            .SelectMany(list => list)
             .Buffer(TimeSpan.FromSeconds(1), 50)
             .Where(evts => evts.Count != 0)
-            .Subscribe(evts => {
+            .Subscribe(evts =>
+            {
                 if (_writeChannel.Writer.TryWrite(evts))
                 {
                     Interlocked.Add(ref _writeQueueSize, evts.Count);
                 }
             });
-
 
         _logger = Options.CreateRetroLogger();
 
@@ -88,7 +104,7 @@ public class RetroManager : IHostedService
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken cancel)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         // Stop accepting input, then let the drain loop flush what's already queued before the
         // host tears the process down. Previously StopAsync returned immediately without awaiting
@@ -100,14 +116,12 @@ public class RetroManager : IHostedService
         _ownedLogSubject?.Dispose();
         _ownedLogSubject = null;
 
-        _writeChannel?.Writer.Complete();
+        _writeChannel?.Writer.TryComplete();
 
         if (_loggingTask != null)
         {
             await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5)));
         }
-
-        (_logger as IDisposable)?.Dispose();
     }
 
     private async Task RunLoop(CancellationToken cancel)
@@ -136,25 +150,11 @@ public class RetroManager : IHostedService
         }
     }
 
-
-    public long WriteQueueSize => _writeQueueSize;
-    public int ItemsInQueue => WriteChannel.Reader.CanCount ? WriteChannel.Reader.Count : -1;
-
-    [ExtendedProperty]
-    public DiagServiceSettings Options { get; set; }
-
-    [RateProperty(ExposeTotal = false, ExposeRate = true)]
-    public RateCounter EventsQueued { get; set; } = new(3);
-
-    [RateProperty(ExposeTotal = false, ExposeRate = true)]
-    public RateCounter EventsWritten { get; set; } = new(3);
-
-
     private async Task TryLog(IList<DiagnosticMsg> messages, CancellationToken cancel)
     {
         try
         {
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 try
                 {
@@ -183,10 +183,9 @@ public class RetroManager : IHostedService
         return Logger.GetMessages(query, cancel);
     }
 
-
     public void LogEvents(IList<DiagnosticMsg> messages)
     {
-        ISubject<IList<DiagnosticMsg>>? logSubject = _logSubject;
+        var logSubject = _logSubject;
 
         if (logSubject != null)
         {
@@ -200,33 +199,30 @@ public class RetroManager : IHostedService
 
     public Task StartRetroSearch(RetroQuery query, string connectionId, IWebHubClient client)
     {
-        RetroEvents.Info($"Retro search starting for connection {connectionId}",
-            JsonSerializer.SerializeToElement(query).ToString());
+        RetroEvents.Info(
+            $"Retro search starting for connection {connectionId}",
+            JsonSerializer.SerializeToElement(query).ToString()
+        );
 
         RetroSearchProcess search = new(this, connectionId, client, query);
         search.Finished += HandleSearchFinished;
 
         RetroSearchProcess? displaced = null;
-        _searches.AddOrUpdate(connectionId,
-            key => search,
-            (key, old) => {
+        _searches.AddOrUpdate(
+            connectionId,
+            _ => search,
+            (_, old) =>
+            {
                 displaced = old;
                 return search;
-            });
+            }
+        );
 
         displaced?.Cancel();
 
         search.Start();
         return Task.CompletedTask;
     }
-
-
-    /// <summary>
-    /// Whether the active backend supports interactive per-record delete. Surfaced to the web
-    /// client (via WebHub.RetroSupportsDelete) so the UI can hide the delete affordance for
-    /// append-only backends such as Log Analytics.
-    /// </summary>
-    public bool SupportsDelete => Logger.SupportsDelete;
 
     public Task<long> RetroDelete(string[] idList)
     {
@@ -237,23 +233,30 @@ public class RetroManager : IHostedService
 
     private void HandleSearchFinished(object? sender, EventArgs e)
     {
-        RetroSearchProcess search = (RetroSearchProcess) sender!;
+        var search = (RetroSearchProcess)sender!;
         // Remove the finished search so completed searches don't linger in the registry until the
         // connection starts another or disconnects. Pair-remove so a newer search that already
         // replaced this entry is left intact. (A3)
-        if (_searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search)))
+        if (
+            _searches.TryRemove(
+                new KeyValuePair<string, RetroSearchProcess>(search.ClientId, search)
+            )
+        )
         {
             search.Dispose();
         }
-        RetroEvents.Info($"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
-            JsonSerializer.SerializeToElement(search.Query).ToString());
+
+        RetroEvents.Info(
+            $"Retro search complete for connection {search.ClientId} in {search.SearchTime.TotalSeconds:N2}s",
+            JsonSerializer.SerializeToElement(search.Query).ToString()
+        );
     }
 
     public Task CancelConnectionSearch(string connectionId)
     {
         // Called on client disconnect: cancel and drop any in-flight retro search for the connection
         // so a disconnected client's search isn't left running or lingering in the registry. (A3)
-        if (_searches.TryRemove(connectionId, out RetroSearchProcess? running))
+        if (_searches.TryRemove(connectionId, out var running))
         {
             running.Cancel();
         }
@@ -263,15 +266,17 @@ public class RetroManager : IHostedService
 
     public Task CancelRetroSearch(int searchId, string connectionId)
     {
-        if (_searches.TryGetValue(connectionId, out RetroSearchProcess? running)
-            && running.Query.SearchId == searchId)
+        if (
+            _searches.TryGetValue(connectionId, out var running)
+            && running.Query.SearchId == searchId
+        )
         {
             running.Cancel();
-            _searches.TryRemove(new KeyValuePair<string, RetroSearchProcess>(connectionId, running));
+            _searches.TryRemove(
+                new KeyValuePair<string, RetroSearchProcess>(connectionId, running)
+            );
         }
 
         return Task.CompletedTask;
     }
-
-
 }
