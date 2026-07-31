@@ -257,4 +257,286 @@ public class PropertyGetterTests
         [ExtendedProperty]
         public ExtendedChainNode? Next { get; }
     }
+
+    // ---------------------------------------------------------------------
+    // DE-28: CollectionGetter render modes (CollectionGetter.cs:157-215) and
+    // PropertyGetter.FormatEnumerable's counted/uncounted wording
+    // (PropertyGetter.cs:228-313). All driven through ObjectToPropertyBag.
+    // ---------------------------------------------------------------------
+
+    private static string? SoleValue(object obj, string propName)
+    {
+        PropertyBag bag = DiagnosticManager.ObjectToPropertyBag(obj, "svc", null);
+        return bag.Categories
+            .SelectMany(c => c.Properties)
+            .Where(p => p.Name == propName)
+            .Select(p => p.Value)
+            .Single();
+    }
+
+    // A yield-based iterator exposes no public Count property, forcing CollectionGetter /
+    // FormatEnumerable down their uncounted paths deterministically.
+    private static IEnumerable<int> Stream(int items)
+    {
+        for (int i = 1; i <= items; i++)
+        {
+            yield return i;
+        }
+    }
+
+    /// <summary>
+    ///     (DE-28) Count mode on a counted collection renders FormatValue(count) — the item total
+    ///     as a plain number, no enumeration.
+    /// </summary>
+    [Fact]
+    public void CountMode_CountedCollection_RendersTheItemCount()
+    {
+        SoleValue(new CountedCollection(), nameof(CountedCollection.Items)).Should().Be("3");
+    }
+
+    /// <summary>
+    ///     (DE-28) Count mode on an uncounted enumerable past the 10,000-item cap renders the
+    ///     "10000+ items" sentinel rather than a number — the getter takes 10,001 items to detect
+    ///     truncation and must not pretend to know the real total.
+    /// </summary>
+    [Fact]
+    public void CountMode_UncountedOverTruncationCap_RendersSentinel()
+    {
+        SoleValue(new UncountedBigCollection(), nameof(UncountedBigCollection.Items))
+            .Should()
+            .Be("10000+ items");
+    }
+
+    /// <summary>
+    ///     (DE-28) List mode renders each item as its own property named "{Property} {index}"
+    ///     with the formatted item value.
+    /// </summary>
+    [Fact]
+    public void ListMode_RendersEachItemAsItsOwnProperty()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new ListedCollection(), "svc", null);
+
+        bag.GetProperty("Items 0", null)!.Value.Should().Be("a");
+        bag.GetProperty("Items 1", null)!.Value.Should().Be("b");
+        AllNames(bag).Should().Equal("Items 0", "Items 1");
+    }
+
+    /// <summary>
+    ///     (DE-28) List mode truncates at 10,000 items and appends a "..." marker property with
+    ///     the truncation wording. The items are plain objects so 10k formatting stays cheap.
+    /// </summary>
+    [Fact]
+    public void ListMode_OverTruncationCap_Renders10000ItemsPlusTruncationMarker()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new TruncatedListCollection(), "svc", null);
+
+        AllNames(bag).Where(n => n != "...").Should().HaveCount(10000);
+        bag.GetProperty("...", null)!.Value.Should().Be("Truncated at 10000 items");
+        bag.GetProperty("Items 9999", null).Should().NotBeNull();
+        bag.GetProperty("Items 10000", null).Should().BeNull();
+    }
+
+    /// <summary>
+    ///     (DE-28) Categories mode walks each item into its own category (keyed by the
+    ///     CategoryProperty) and renders the item's properties inside it.
+    /// </summary>
+    [Fact]
+    public void CategoriesMode_RendersEachItemUnderItsOwnCategory()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new CategorizedCollection(), "svc", null);
+
+        bag.GetProperty("Value", "alpha")!.Value.Should().Be("1");
+        bag.GetProperty("Value", "beta")!.Value.Should().Be("2");
+    }
+
+    /// <summary>
+    ///     (DE-28) Categories mode shares the 10,000-item cap: the 10,001st item is dropped and a
+    ///     "..." property is added under a "..." category with the truncation wording.
+    /// </summary>
+    [Fact]
+    public void CategoriesMode_OverTruncationCap_RendersTruncationMarkerCategory()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(
+            new TruncatedCategoriesCollection(),
+            "svc",
+            null
+        );
+
+        bag.GetProperty("Value", "item-9999").Should().NotBeNull();
+        bag.GetProperty("Value", "item-10000").Should().BeNull();
+        bag.GetProperty("...", "...")!.Value.Should().Be("Truncated at 10000 items");
+    }
+
+    /// <summary>
+    ///     (DE-28) Concatenate mode delegates to FormatEnumerable: a counted collection under the
+    ///     10-item cap renders "{n} item(s): " plus the separator-joined values.
+    /// </summary>
+    [Theory]
+    [InlineData(1, "1 item: 42")]
+    [InlineData(3, "3 items: 1, 2, 3")]
+    public void ConcatenateMode_CountedUnderCap_RendersCountPrefixAndValues(
+        int items,
+        string expected
+    )
+    {
+        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items))
+            .Should()
+            .Be(expected);
+    }
+
+    /// <summary>
+    ///     (DE-28) A counted collection over the cap knows its real total, so the remainder is
+    ///     spelled out as "... (N more item[s])" — singular and plural pinned separately.
+    /// </summary>
+    [Theory]
+    [InlineData(11, "11 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... (1 more item)")]
+    [InlineData(12, "12 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... (2 more items)")]
+    public void ConcatenateMode_CountedOverCap_RendersCountedRemainder(int items, string expected)
+    {
+        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items))
+            .Should()
+            .Be(expected);
+    }
+
+    /// <summary>
+    ///     (DE-28) The uncounted branch of FormatEnumerable is only reachable through the plain
+    ///     (non-[CollectionProperty]) property path: CollectionGetter materializes the source into
+    ///     a List before calling FormatEnumerable, so Concatenate mode always sees a counted
+    ///     collection. Via FormatValue, an uncounted enumerable is prefixed "Many items: " even
+    ///     when it fits under the cap — the getter never learned the total.
+    /// </summary>
+    [Fact]
+    public void PlainEnumerable_UncountedUnderCap_RendersManyItemsPrefix()
+    {
+        SoleValue(new PlainUncountedEnumerables(3), nameof(PlainUncountedEnumerables.Items))
+            .Should()
+            .Be("Many items: " + string.Join(Environment.NewLine, "1", "2", "3"));
+    }
+
+    /// <summary>
+    ///     (DE-28) An uncounted enumerable over the cap can only say "... (more items)": it takes
+    ///     maxItems + 1 to detect overflow and cannot compute the real remainder — the counted
+    ///     counterpart spells out "... (N more items)".
+    /// </summary>
+    [Fact]
+    public void PlainEnumerable_UncountedOverCap_RendersUncountedRemainder()
+    {
+        SoleValue(new PlainUncountedEnumerables(12), nameof(PlainUncountedEnumerables.Items))
+            .Should()
+            .Be(
+                "Many items: "
+                    + string.Join(
+                        Environment.NewLine,
+                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "... (more items)"
+                    )
+            );
+    }
+
+    /// <summary>
+    ///     (DE-28) A plain (non-[CollectionProperty]) enumerable property also flows through
+    ///     FormatEnumerable via FormatValue: empty renders "0 items", and values join on
+    ///     Environment.NewLine rather than the collection separator.
+    /// </summary>
+    [Fact]
+    public void PlainEnumerableProperty_RendersViaFormatEnumerable()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new PlainEnumerables(), "svc", null);
+
+        bag.GetProperty("Empty", null)!.Value.Should().Be("0 items");
+        bag.GetProperty("Some", null)!
+            .Value.Should()
+            .Be("3 items: " + string.Join(Environment.NewLine, "1", "2", "3"));
+    }
+
+    private sealed class CountedCollection
+    {
+        [CollectionProperty(CollectionMode.Count)]
+        public List<int> Items => [1, 2, 3];
+    }
+
+    private sealed class UncountedBigCollection
+    {
+        [CollectionProperty(CollectionMode.Count)]
+        public IEnumerable<int> Items => Stream(15_000);
+    }
+
+    private sealed class ListedCollection
+    {
+        [CollectionProperty(CollectionMode.List)]
+        public List<string> Items => ["a", "b"];
+    }
+
+    private sealed class TruncatedListCollection
+    {
+        [CollectionProperty(CollectionMode.List)]
+        public List<object> Items => Enumerable.Range(1, 10_001).Select(_ => new object()).ToList();
+    }
+
+    private sealed class CategorizedItem
+    {
+        public CategorizedItem(string name, int value)
+        {
+            Name = name;
+            Value = value;
+        }
+
+        public string Name { get; }
+
+        public int Value { get; }
+    }
+
+    private sealed class CategorizedCollection
+    {
+        [CollectionProperty(
+            CollectionMode.Categories,
+            CategoryProperty = nameof(CategorizedItem.Name)
+        )]
+        public List<CategorizedItem> Items => [new("alpha", 1), new("beta", 2)];
+    }
+
+    private sealed class TruncatedCategoriesCollection
+    {
+        [CollectionProperty(
+            CollectionMode.Categories,
+            CategoryProperty = nameof(CategorizedItem.Name)
+        )]
+        public List<CategorizedItem> Items =>
+            Enumerable.Range(0, 10_001).Select(i => new CategorizedItem($"item-{i}", i)).ToList();
+    }
+
+    private sealed class ConcatCountedCollection
+    {
+        private readonly int _items;
+
+        public ConcatCountedCollection(int items)
+        {
+            _items = items;
+        }
+
+        [CollectionProperty(CollectionMode.Concatenate, Separator = ", ")]
+        public List<int> Items =>
+            _items == 1 ? [42] : Enumerable.Range(1, _items).ToList();
+    }
+
+    private sealed class PlainUncountedEnumerables
+    {
+        private readonly int _items;
+
+        public PlainUncountedEnumerables(int items)
+        {
+            _items = items;
+        }
+
+        [Property]
+        public IEnumerable<int> Items => Stream(_items);
+    }
+
+    private sealed class PlainEnumerables
+    {
+        [Property]
+        public List<int> Empty => [];
+
+        [Property]
+        public List<int> Some => [1, 2, 3];
+    }
 }
