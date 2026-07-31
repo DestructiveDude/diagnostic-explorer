@@ -86,10 +86,7 @@ public class RetroManagerRetryTests
             // Batch 1 (exactly 50 messages — one count-triggered buffer emission) is picked up
             // by the reader and held inside the gated WriteMessages.
             manager.LogEvents(FloodChunk(50));
-            await writeEntered.Task.WaitAsync(
-                GuardTimeout,
-                TestContext.Current.CancellationToken
-            );
+            await writeEntered.Task.WaitAsync(GuardTimeout, TestContext.Current.CancellationToken);
 
             // Each 500-message call forms exactly ten 50-message batches (count-triggered, so
             // the 1-second buffer timer only ever flushes an empty, filtered-out buffer between
