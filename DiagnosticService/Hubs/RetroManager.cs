@@ -69,12 +69,17 @@ public class RetroManager : IHostedService
         _writeQueueSize = 0;
 
         // 10k batches is a real backlog cap (1_000_000 batches x up-to-50 msgs was effectively
-        // unbounded, so DropWrite never engaged and memory was uncapped during a logger outage).
+        // unbounded, so the drop mode never engaged and memory was uncapped during a logger
+        // outage). FullMode.Wait, not DropWrite: a full Wait channel makes TryWrite return false,
+        // so the subscription below only counts batches that were actually queued. DropWrite also
+        // discards the incoming batch when full, but TryWrite still returns true for it — which
+        // leaked WriteQueueSize upward on every dropped batch, since only the reader's finally
+        // in TryLog ever decrements.
         _writeChannel = Channel.CreateBounded<IList<DiagnosticMsg>>(
             new BoundedChannelOptions(10_000)
             {
                 SingleReader = true,
-                FullMode = BoundedChannelFullMode.DropWrite,
+                FullMode = BoundedChannelFullMode.Wait,
             }
         );
 
@@ -191,8 +196,9 @@ public class RetroManager : IHostedService
         {
             logSubject.OnNext(messages);
             // Do NOT increment _writeQueueSize here: the Rx subscription increments it when the
-            // batch is actually written to the channel (and skips it on DropWrite). Counting it
-            // here too double-counted the backlog and never reversed on a dropped write.
+            // batch is actually written to the channel, and TryWrite returns false when the
+            // channel is full, so a dropped batch is never counted. Counting it here too
+            // double-counted the backlog and never reversed on a dropped write.
             EventsQueued.Register(messages.Count);
         }
     }
