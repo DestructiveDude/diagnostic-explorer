@@ -83,6 +83,31 @@ public class DiagnosticManagerTests
         result.ErrorDetail.Should().NotContain(nameof(TargetInvocationException));
     }
 
+    /// <summary>
+    ///     The [DiagnosticMethod] selection gate in IsMethodValidOperationTarget is the single point
+    ///     of failure standing between an arbitrary public method and anonymous hub execution:
+    ///     ExecuteOperation matches by Signature and never re-checks the attribute, so a public method
+    ///     without [DiagnosticMethod] must be absent from the OperationSet outright — asserted here by
+    ///     name, independent of any Operations[0] indexing or ordering. (DE-12b)
+    /// </summary>
+    [Fact]
+    public void OperationSet_ExcludesPublicMethodWithoutDiagnosticMethodAttribute()
+    {
+        var obj = new MixedAttributedMethodsClass();
+        var registered = new RegisteredObject(obj, "TestCategory", "TestBag");
+        var response = DiagnosticManager.GetDiagnostics(new[] { registered });
+
+        response.OperationSets.Should().HaveCount(1);
+        var opSet = response.OperationSets[0];
+
+        opSet
+            .Operations.Should()
+            .Contain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.Decorated)));
+        opSet
+            .Operations.Should()
+            .NotContain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.NotDecorated)));
+    }
+
     [Fact]
     public void EventSinkRepo_CanBeDisposed()
     {
@@ -137,6 +162,20 @@ public class DiagnosticManagerTests
         public void Run()
         {
             throw new InvalidOperationException("Operation failed explicitly");
+        }
+    }
+
+    public class MixedAttributedMethodsClass
+    {
+        [DiagnosticMethod]
+        public void Decorated()
+        {
+            // Empty method for testing
+        }
+
+        public void NotDecorated()
+        {
+            // Empty method for testing — must never appear in the OperationSet (DE-12b)
         }
     }
 }
