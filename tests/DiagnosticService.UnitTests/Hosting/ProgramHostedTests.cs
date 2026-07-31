@@ -186,6 +186,43 @@ public sealed class ProgramHostedTests
             .Contain("AllowedCorsOrigins is empty");
     }
 
+    /// <summary>
+    ///     (DE-20) With UseSpaProxy=false the service serves the SPA from SpaDirectory, so
+    ///     Program.cs refuses to boot when that directory does not exist — otherwise a production
+    ///     deploy missing diagnostics-web/dist would start and fail on every request. Every other
+    ///     fixture here sets UseSpaProxy=true, which skips the guard.
+    /// </summary>
+    [Fact]
+    public void SpaProxyDisabledWithMissingSpaDirectory_FailsAtStartup()
+    {
+        using var factory = CreateFactory(
+            new Dictionary<string, string?>
+            {
+                ["DiagServiceSettings:UseSpaProxy"] = "false",
+                ["DiagServiceSettings:SpaDirectory"] = Path.Combine(
+                    Path.GetTempPath(),
+                    $"de20-missing-spa-directory-{Guid.NewGuid():N}"
+                ),
+            }
+        );
+
+        Exception? exception = null;
+        try
+        {
+            _ = factory.Server.BaseAddress;
+        }
+        catch (Exception ex)
+        {
+            exception = ex;
+        }
+
+        exception
+            .Should()
+            .BeOfType<InvalidOperationException>()
+            .Which.Message.Should()
+            .Contain("Diagnostics SPA directory not found");
+    }
+
     private static HttpRequestMessage CreateHubOriginRequest(string origin)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/web-hub");
