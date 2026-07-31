@@ -2,13 +2,35 @@ import {DatePipe} from '@angular/common';
 import {RetroModel} from './RetroModel';
 import {Level} from './Level';
 
-function makeHub() {
+/**
+ * A fake hub connection that records the handlers RetroModel registers via
+ * `connection.on(name, handler)`, so a test can fire an inbound push by
+ * invoking the captured handler directly. Same pattern as RealtimeModel.spec.
+ */
+function makeConnection() {
+    const handlers: Record<string, (...args: any[]) => void> = {};
     return {
-        connectionReady: {subscribe: jest.fn()},
+        on: jest.fn((name: string, handler: (...args: any[]) => void) => {
+            handlers[name] = handler;
+        }),
+        handlers,
+    };
+}
+
+/**
+ * A fake DiagHubService. connectionReady captures its subscriber so the test
+ * can emit a connection on demand and exercise the wiring set up in the
+ * model's constructor.
+ */
+function makeHub() {
+    let readyCb: ((c: any) => void) | undefined;
+    return {
+        connectionReady: {subscribe: jest.fn((cb: (c: any) => void) => (readyCb = cb))},
         startRetroSearch: jest.fn().mockResolvedValue(undefined),
         cancelRetroSearch: jest.fn().mockResolvedValue(undefined),
         deleteRecords: jest.fn().mockResolvedValue(0),
         retroSupportsDelete: jest.fn().mockResolvedValue(true),
+        emitReady(c: any) { readyCb?.(c); },
     };
 }
 
@@ -125,18 +147,100 @@ describe('RetroModel', () => {
         it('queries the backend delete capability when the connection becomes ready', async () => {
             const hub = makeHub();
             hub.retroSupportsDelete.mockResolvedValue(false);
-            let readyCallback: ((connection: any) => void) | undefined;
-            hub.connectionReady.subscribe.mockImplementation((cb: (connection: any) => void) => {
-                readyCallback = cb;
-            });
 
             const {model} = makeModel(hub);
-            readyCallback!({on: jest.fn()});
+            hub.emitReady(makeConnection());
             await Promise.resolve();
             await Promise.resolve();
 
             expect(hub.retroSupportsDelete).toHaveBeenCalled();
             expect(model.supportsDelete).toBe(false);
+        });
+    });
+
+    describe('SignalR wiring', () => {
+        it('registers the three retro push handlers on connectionReady', () => {
+            const {hub} = makeModel();
+            const connection = makeConnection();
+
+            hub.emitReady(connection);
+
+            expect(Object.keys(connection.handlers).sort()).toEqual([
+                'ProcessSearchEnd', 'ProcessSearchError', 'ProcessSearchResults',
+            ]);
+        });
+
+        it('routes ProcessSearchResults to appendResponse for the active search', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.currentSearchId = 7;
+            model.searchStartTime = new Date();
+
+            connection.handlers['ProcessSearchResults']({
+                searchId: 7,
+                results: [{msgId: 'm-1', message: 'Timeout'}],
+            });
+
+            expect(model.results).toHaveLength(1);
+            expect(model.titleMessage).toBe('Searching... 1 records');
+            expect(model.resultsMessage).toBe('1 events');
+        });
+
+        it('ignores ProcessSearchResults for a different search id', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.currentSearchId = 7;
+            model.searchStartTime = new Date();
+
+            connection.handlers['ProcessSearchResults']({
+                searchId: 99,
+                results: [{msgId: 'm-1', message: 'Timeout'}],
+            });
+
+            expect(model.results).toHaveLength(0);
+        });
+
+        it('routes ProcessSearchEnd to onSearchComplete for the active search', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.currentSearchId = 7;
+            model.searchStartTime = new Date();
+
+            connection.handlers['ProcessSearchEnd'](7);
+
+            expect(model.currentSearchId).toBe(0);
+            expect(model.titleMessage).toMatch(/^Search complete in /);
+        });
+
+        it('routes ProcessSearchError to a snackbar and clears the active search', () => {
+            const {model, hub, messages} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.currentSearchId = 7;
+            model.searchStartTime = new Date();
+
+            connection.handlers['ProcessSearchError'](7, 'boom', 'detail');
+
+            expect(model.currentSearchId).toBe(0);
+            expect(model.titleMessage).toBe('Search failed: boom');
+            expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({severity: 'error', detail: 'boom'}));
+        });
+
+        it('ignores ProcessSearchEnd and ProcessSearchError for a different search id', () => {
+            const {model, hub, messages} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.currentSearchId = 7;
+            model.searchStartTime = new Date();
+
+            connection.handlers['ProcessSearchEnd'](99);
+            connection.handlers['ProcessSearchError'](99, 'boom', 'detail');
+
+            expect(model.currentSearchId).toBe(7);
+            expect(messages.add).not.toHaveBeenCalled();
         });
     });
 });
