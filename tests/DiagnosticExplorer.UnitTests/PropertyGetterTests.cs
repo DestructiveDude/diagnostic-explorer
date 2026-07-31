@@ -144,6 +144,28 @@ public class PropertyGetterTests
         return node!;
     }
 
+    /// <summary>
+    ///     DateGetter's elapsed path must normalize UTC values — and Unspecified values on an
+    ///     IsUTC-attributed property — to local time before diffing against DateTime.Now; without
+    ///     it "Time since" is wrong by the local UTC offset while the throwing-branch test still
+    ///     passes. Four properties hold the same instant in different kinds: all must render the
+    ///     same elapsed value, and that value must be ~90 seconds, not off by an offset. The
+    ///     equality assertion pins the normalization; the magnitude assertion pins that it is the
+    ///     local offset being applied (a dropped ToLocalTime shifts the UTC value by the offset).
+    ///     The two-string tolerance absorbs a second boundary crossing between the fixture's clock
+    ///     read and the getter's. (DE-29)
+    /// </summary>
+    [Fact]
+    public void DateProperty_UtcAndUnspecifiedKinds_AreNormalizedToLocalBeforeElapsed()
+    {
+        var bag = DiagnosticManager.ObjectToPropertyBag(new NormalizableDates(), "svc", null);
+
+        var values = AllValues(bag).ToList();
+        values.Should().HaveCount(4);
+        values.Distinct().Should().ContainSingle();
+        values[0].Should().BeOneOf("00:01:30", "00:01:31");
+    }
+
     private sealed class ThrowingRate
     {
         [RateProperty]
@@ -154,6 +176,25 @@ public class PropertyGetterTests
     {
         [DateProperty(ExposeDate = false, ExposeElapsed = true)]
         public DateTime Boom => throw new InvalidOperationException("date boom");
+    }
+
+    private sealed class NormalizableDates
+    {
+        private readonly DateTime _instantUtc = DateTime.UtcNow.AddSeconds(-90);
+
+        [DateProperty(ExposeDate = false, ExposeElapsed = true)]
+        public DateTime UtcValue => _instantUtc;
+
+        [DateProperty(ExposeDate = false, ExposeElapsed = true, IsUTC = true)]
+        public DateTime UnspecifiedAsUtc => DateTime.SpecifyKind(_instantUtc, DateTimeKind.Unspecified);
+
+        [DateProperty(ExposeDate = false, ExposeElapsed = true)]
+        public DateTime LocalValue => _instantUtc.ToLocalTime();
+
+        // Unspecified without IsUTC is taken at face value (already local) — must render the same.
+        [DateProperty(ExposeDate = false, ExposeElapsed = true)]
+        public DateTime UnspecifiedLocal =>
+            DateTime.SpecifyKind(_instantUtc.ToLocalTime(), DateTimeKind.Unspecified);
     }
 
     private sealed class CountingEnumerable : IEnumerable<int>

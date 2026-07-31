@@ -103,6 +103,29 @@ public class EventSinkTests
     }
 
     /// <summary>
+    ///     AddSingleEvent bounds the queue at MaxMessages by dequeuing the oldest once the cap is
+    ///     exceeded — a long-running sink must not grow without bound. Logging past the cap keeps
+    ///     exactly MaxMessages events, and the survivors are the most recent: the oldest were
+    ///     dropped. (DE-22)
+    /// </summary>
+    [Fact]
+    public void LogEvent_BeyondMaxMessages_QueueStaysAtCapAndDropsOldest()
+    {
+        var repo = new EventSinkRepo();
+        var sink = repo.GetSink("svc", "cat");
+
+        for (var i = 0; i < EventSink.MaxMessages + 100; i++)
+        {
+            sink.Info($"event {i}");
+        }
+
+        var events = sink.Events.ToArray();
+        events.Should().HaveCount(EventSink.MaxMessages);
+        events[0].Message.Should().Be("event 100");
+        events[^1].Message.Should().Be($"event {EventSink.MaxMessages + 99}");
+    }
+
+    /// <summary>
     ///     Clear() resets the sink set, so the aggregated backlog is empty afterwards and a sink
     ///     requested again is a fresh instance. (M34 — Clear now also takes the stream lock so it
     ///     can't race the CreateSinkStream/GetEvents snapshots; that's a concurrency property not

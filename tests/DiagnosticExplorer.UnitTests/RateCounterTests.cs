@@ -1,3 +1,4 @@
+using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Props;
 
@@ -91,4 +92,63 @@ public class RateCounterTests
 
         act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("secondsAverage");
     }
+
+    /// <summary>
+    ///     Register must ignore non-positive counts: a negative would wrap the ulong Total into a
+    ///     huge value (and diverge from the per-second bucket accounting, producing negative
+    ///     rates); zero is a no-op. Only Total is asserted — the shared static timer legitimately
+    ///     advances the rate buckets during the test, but it never touches Total. (DE-26)
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(int.MinValue)]
+    public void Register_WithNonPositiveCount_DoesNotCorruptTotal(int count)
+    {
+        var counter = new RateCounter(60);
+        counter.Register(5);
+
+        counter.Register(count);
+
+        counter.Total.Should().Be(5UL);
+    }
+
+    /// <summary>
+    ///     CalcRate divides the summed counts by the summed sample windows; when every window is
+    ///     zero (before the timer has moved the clock on) the guard must yield rate 0 rather than
+    ///     0/0 = NaN, which would poison every downstream rate display. CalcRate is private and
+    ///     reachable only from the timer-driven Increment, so the test drives it directly via
+    ///     reflection with the sample windows forced to zero — holding the same _counts lock
+    ///     Increment uses, so the shared timer cannot interleave a non-zero window. (DE-26)
+    /// </summary>
+    [Fact]
+    public void CalcRate_WithAllZeroSampleWindows_YieldsZeroRateNotNaN()
+    {
+        var counter = new RateCounter(5);
+        var counts = (int[])CountsField.GetValue(counter)!;
+        var times = (TimeSpan[])TimesField.GetValue(counter)!;
+
+        lock (counts)
+        {
+            Array.Clear(times);
+            CalcRateMethod.Invoke(counter, null);
+        }
+
+        counter.Rate.Should().Be(0, "an all-zero averaging window must not divide by zero");
+    }
+
+    private static readonly FieldInfo CountsField = typeof(RateCounter).GetField(
+        "_counts",
+        BindingFlags.NonPublic | BindingFlags.Instance
+    )!;
+
+    private static readonly FieldInfo TimesField = typeof(RateCounter).GetField(
+        "_times",
+        BindingFlags.NonPublic | BindingFlags.Instance
+    )!;
+
+    private static readonly MethodInfo CalcRateMethod = typeof(RateCounter).GetMethod(
+        "CalcRate",
+        BindingFlags.NonPublic | BindingFlags.Instance
+    )!;
 }
