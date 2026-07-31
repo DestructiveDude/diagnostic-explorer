@@ -427,26 +427,24 @@ handler registered.
 
 ---
 
-### Part 3f — v3.2.2: public-API surface lock (PublicApiAnalyzers)
+### Part 3f — v3.2.2: public-API surface lock (PublicApiAnalyzers) — added, then removed
 
-Both published NuGet projects (`DiagnosticExplorer`, `DiagnosticExplorer.Hosting`) now include
-`Microsoft.CodeAnalysis.PublicApiAnalyzers` (v3.3.4, private analyzer asset) with fully-bootstrapped
-`PublicAPI.Shipped.txt` files that declare every public symbol in Roslyn's fully-qualified
-`ToDisplayString` format. Any future commit that adds, removes, or renames a public member will
-produce a **build error** (RS0016/RS0017) until the author either updates `PublicAPI.Shipped.txt`
-(shipped change) or `PublicAPI.Unshipped.txt` (pending-release addition), making the public-API
-contract visible in code review. RS0041 ("oblivious reference types") is held at warning level via
-`WarningsNotAsErrors` — the library targets `netstandard2.0` and pre-dates `#nullable enable`, so
-blanket annotation is out of scope here.
+v3.2.2 briefly added `Microsoft.CodeAnalysis.PublicApiAnalyzers` (v3.3.4, private analyzer asset)
+to both published NuGet projects (`DiagnosticExplorer`, `DiagnosticExplorer.Hosting`), with
+fully-bootstrapped `PublicAPI.Shipped.txt` files declaring every public symbol in Roslyn's
+fully-qualified `ToDisplayString` format (commit `3166ea1`). While it was in place, any commit that
+added, removed, or renamed a public member produced a **build error** (RS0016/RS0017) until the
+author updated `PublicAPI.Shipped.txt` or `PublicAPI.Unshipped.txt`. RS0041 ("oblivious reference
+types") was held at warning level via `WarningsNotAsErrors`, and the analyzer was conditioned to
+`$(TargetFramework) != 'net48'` for `DiagnosticExplorer.Hosting`.
 
-`DiagnosticExplorer.Hosting` targets `net8.0;net6.0;net48`. The Hosting APIs (`IHostedService`,
-`IServiceCollection`, SignalR) are only compiled into the modern TFMs; the analyzer is conditioned to
-`$(TargetFramework) != 'net48'` so RS0017 is not raised for symbols that legitimately don't exist in
-the net48 build.
-
-This addition is build-tooling only — no runtime behaviour changes, no new public API, no removed
-API. It is internal infrastructure for the FixPortal fork; upstream can adopt or ignore it
-independently.
+**The gate was subsequently removed and no longer protects either package.** The analyzer
+references were dropped in `17f2a5b` ("chore: remove PublicApiAnalyzers and fix StartupObject
+namespace"), and the then-orphaned `PublicAPI.Shipped.txt` / `PublicAPI.Unshipped.txt` files were
+deleted in `a40fbf5` ("chore: delete orphaned PublicAPI.Shipped/Unshipped.txt files"). The
+public-API surface is currently **not locked**: public members can be added, removed, or renamed
+with no build-time signal. Restoring the gate is a separate, deliberate decision — it is not in
+force today.
 
 ---
 
@@ -502,7 +500,8 @@ confirmed findings were hardened:
   service `net8.0`.
 - **Package version:** the headline release is **3.2.0** (git tag + Docker image). The internal
   NuGet repackaged with the post-tag defect fixes (Part 3b) is **3.2.1**; the further review-pass
-  fixes and the PublicApiAnalyzers tooling (Parts 3d–3f) are **3.2.2**. The EMS consumer picks up
+  fixes and the PublicApiAnalyzers tooling (Parts 3d–3f) are **3.2.2**. (The PublicApiAnalyzers
+  gate of Part 3f was later removed — see Part 3f.) The EMS consumer picks up
   each version via the existing local-feed nupkg flow. Neither `3.2.0` nor `3.1.38` is reused.
 - **Deferred, with rationale (not regressions):** Tailwind `important: true` (a visual-specificity
   change that needs a running-app pass, not a blind edit; the deprecated `~` SCSS import and the
