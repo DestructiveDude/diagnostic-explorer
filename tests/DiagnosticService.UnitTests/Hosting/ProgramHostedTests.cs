@@ -1,3 +1,4 @@
+using System.Net;
 using AwesomeAssertions;
 using Diagnostic.Service;
 using Diagnostic.Service.Common;
@@ -73,6 +74,126 @@ public sealed class ProgramHostedTests
         connection.State.Should().Be(HubConnectionState.Connected);
     }
 
+    /// <summary>
+    ///     (DE-3) A presented key that does not match any configured key must be rejected — the
+    ///     handler's <c>if (!valid)</c> branch is the only thing standing between a wrong-but-non-empty
+    ///     key and a hub connection.
+    /// </summary>
+    [Theory]
+    [InlineData("/web-hub")]
+    [InlineData("/diagnostics")]
+    public async Task ApiKeyModeRejectsWrongApiKeyHubConnection(string hubPath)
+    {
+        using var factory = CreateAuthenticatedFactory();
+        await using var connection = CreateConnection(factory, hubPath, "wrong-api-key-99");
+
+        var exception = await Record.ExceptionAsync(() =>
+            connection.StartAsync(TestContext.Current.CancellationToken)
+        );
+
+        exception.Should().NotBeNull();
+        connection.State.Should().Be(HubConnectionState.Disconnected);
+    }
+
+    /// <summary>
+    ///     (DE-3) The documented <c>X-Diag-ApiKey</c> header extraction path has no fallback — a
+    ///     client presenting the valid key via the header (rather than the SignalR bearer token /
+    ///     access_token query pair) must be accepted on both hubs.
+    /// </summary>
+    [Theory]
+    [InlineData("/web-hub")]
+    [InlineData("/diagnostics")]
+    public async Task ApiKeyModeAcceptsHeaderApiKeyHubConnection(string hubPath)
+    {
+        using var factory = CreateAuthenticatedFactory();
+        await using var connection = CreateHeaderConnection(factory, hubPath, TestApiKey);
+
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+
+        connection.State.Should().Be(HubConnectionState.Connected);
+    }
+
+    /// <summary>
+    ///     (DE-5) CORS does not police the WebSocket upgrade (F9), so the pipeline middleware
+    ///     validates the Origin header on the hub paths. A cross-origin browser holding a valid key
+    ///     must still get 403. The key must be present: <c>UseAuthorization</c> runs before the
+    ///     Origin middleware, so an unauthenticated request 401s before the 403 branch is reachable.
+    /// </summary>
+    [Fact]
+    public async Task DisallowedOriginWithValidKey_ForbiddenOnHubPath()
+    {
+        using var factory = CreateAuthenticatedFactory();
+        using var client = factory.CreateClient();
+        using var request = CreateHubOriginRequest("http://evil.example");
+
+        using var response = await client.SendAsync(
+            request,
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    ///     (DE-5) Control for the 403 case: an allowlisted Origin with a valid key must pass the
+    ///     Origin middleware — the request may still fail downstream (a plain GET is not a hub
+    ///     handshake), but anything other than 403 proves the allowlist accepted it.
+    /// </summary>
+    [Fact]
+    public async Task AllowedOriginWithValidKey_NotForbiddenOnHubPath()
+    {
+        using var factory = CreateAuthenticatedFactory();
+        using var client = factory.CreateClient();
+        using var request = CreateHubOriginRequest(TestOrigin);
+
+        using var response = await client.SendAsync(
+            request,
+            TestContext.Current.CancellationToken
+        );
+
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    ///     (DE-18) ApiKey mode with an empty <c>AllowedCorsOrigins</c> allowlist must fail closed at
+    ///     startup — otherwise the service would boot key auth alongside credentialed any-origin CORS.
+    /// </summary>
+    [Fact]
+    public void ApiKeyModeWithoutCorsOrigins_FailsAtStartup()
+    {
+        using var factory = CreateFactory(
+            new Dictionary<string, string?>
+            {
+                ["DiagServiceSettings:Security:AuthMode"] = nameof(AuthMode.ApiKey),
+                ["DiagServiceSettings:Security:ApiKeys:0"] = TestApiKey,
+            }
+        );
+
+        Exception? exception = null;
+        try
+        {
+            _ = factory.Server.BaseAddress;
+        }
+        catch (Exception ex)
+        {
+            exception = ex;
+        }
+
+        exception
+            .Should()
+            .BeOfType<InvalidOperationException>()
+            .Which.Message.Should()
+            .Contain("AllowedCorsOrigins is empty");
+    }
+
+    private static HttpRequestMessage CreateHubOriginRequest(string origin)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/web-hub");
+        request.Headers.Add("X-Diag-ApiKey", TestApiKey);
+        request.Headers.Add("Origin", origin);
+        return request;
+    }
+
     [Fact]
     public void EnvironmentVariablesOverrideJsonConfiguration()
     {
@@ -135,6 +256,25 @@ public sealed class ProgramHostedTests
                     options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
                     options.AccessTokenProvider =
                         apiKey == null ? null : () => Task.FromResult<string?>(apiKey);
+                }
+            )
+            .Build();
+    }
+
+    private static HubConnection CreateHeaderConnection(
+        WebApplicationFactory<Program> factory,
+        string hubPath,
+        string apiKey
+    )
+    {
+        var baseAddress = factory.Server.BaseAddress;
+        return new HubConnectionBuilder()
+            .WithUrl(
+                new Uri(baseAddress, hubPath),
+                options =>
+                {
+                    options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+                    options.Headers["X-Diag-ApiKey"] = apiKey;
                 }
             )
             .Build();
