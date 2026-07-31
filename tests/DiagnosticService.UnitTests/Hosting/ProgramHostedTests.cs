@@ -126,10 +126,7 @@ public sealed class ProgramHostedTests
         using var client = factory.CreateClient();
         using var request = CreateHubOriginRequest("http://evil.example");
 
-        using var response = await client.SendAsync(
-            request,
-            TestContext.Current.CancellationToken
-        );
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -146,10 +143,7 @@ public sealed class ProgramHostedTests
         using var client = factory.CreateClient();
         using var request = CreateHubOriginRequest(TestOrigin);
 
-        using var response = await client.SendAsync(
-            request,
-            TestContext.Current.CancellationToken
-        );
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
     }

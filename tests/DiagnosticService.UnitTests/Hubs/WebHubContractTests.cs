@@ -70,7 +70,8 @@ public sealed class WebHubContractTests
         string[] hubMethods = typeof(WebHub)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(m =>
-                m.Name is not (nameof(WebHub.OnConnectedAsync) or nameof(WebHub.OnDisconnectedAsync))
+                m.Name
+                    is not (nameof(WebHub.OnConnectedAsync) or nameof(WebHub.OnDisconnectedAsync))
             )
             .Select(m => m.Name)
             .Order()

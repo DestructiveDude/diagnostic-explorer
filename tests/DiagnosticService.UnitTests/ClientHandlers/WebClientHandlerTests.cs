@@ -61,10 +61,7 @@ public sealed class WebClientHandlerTests
     public async Task FailingSend_IsObserved_AndChainContinuesInOrder()
     {
         RealtimeManager manager = new(TimeProvider.System);
-        RecordingWebHubClient client = new(expectedUpdates: 2)
-        {
-            FailSetProcesses = true,
-        };
+        RecordingWebHubClient client = new(expectedUpdates: 2) { FailSetProcesses = true };
         client.FailOnUpdateIds.Add("process-0");
         WebClientHandler handler = new("connection-1", client);
         RecordingTraceListener listener = new();
@@ -91,7 +88,10 @@ public sealed class WebClientHandlerTests
             listener
                 .Messages.Should()
                 .Contain(m =>
-                    m.Contains("WebClientHandler connection-1 send failed", StringComparison.Ordinal)
+                    m.Contains(
+                        "WebClientHandler connection-1 send failed",
+                        StringComparison.Ordinal
+                    )
                 );
         }
         finally
@@ -117,8 +117,12 @@ public sealed class WebClientHandlerTests
         handler.StartStreamingEvents("process-1", repo);
         handler.StartStreamingEvents("process-1", repo);
 
-        SystemEvent systemEvent =
-            new() { SinkName = "sink", SinkCategory = "category", Message = "hello" };
+        SystemEvent systemEvent = new()
+        {
+            SinkName = "sink",
+            SinkCategory = "category",
+            Message = "hello",
+        };
         repo.LogEvent(systemEvent);
 
         await client.FirstStreamedBatch.Task.WaitAsync(
@@ -219,8 +223,7 @@ public sealed class WebClientHandlerTests
 
         public Task RemoveProcess(string id) => Task.CompletedTask;
 
-        public Task ShowDiagnostics(string id, DiagnosticResponse response) =>
-            Task.CompletedTask;
+        public Task ShowDiagnostics(string id, DiagnosticResponse response) => Task.CompletedTask;
 
         public Task ShowDiagnosticsError(string id, string message) => Task.CompletedTask;
 

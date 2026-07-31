@@ -186,7 +186,8 @@ public class PropertyGetterTests
         public DateTime UtcValue => _instantUtc;
 
         [DateProperty(ExposeDate = false, ExposeElapsed = true, IsUTC = true)]
-        public DateTime UnspecifiedAsUtc => DateTime.SpecifyKind(_instantUtc, DateTimeKind.Unspecified);
+        public DateTime UnspecifiedAsUtc =>
+            DateTime.SpecifyKind(_instantUtc, DateTimeKind.Unspecified);
 
         [DateProperty(ExposeDate = false, ExposeElapsed = true)]
         public DateTime LocalValue => _instantUtc.ToLocalTime();
@@ -267,8 +268,8 @@ public class PropertyGetterTests
     private static string? SoleValue(object obj, string propName)
     {
         PropertyBag bag = DiagnosticManager.ObjectToPropertyBag(obj, "svc", null);
-        return bag.Categories
-            .SelectMany(c => c.Properties)
+        return bag
+            .Categories.SelectMany(c => c.Properties)
             .Where(p => p.Name == propName)
             .Select(p => p.Value)
             .Single();
@@ -427,7 +428,17 @@ public class PropertyGetterTests
                 "Many items: "
                     + string.Join(
                         Environment.NewLine,
-                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "... (more items)"
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9",
+                        "10",
+                        "... (more items)"
                     )
             );
     }
@@ -514,8 +525,7 @@ public class PropertyGetterTests
         }
 
         [CollectionProperty(CollectionMode.Concatenate, Separator = ", ")]
-        public List<int> Items =>
-            _items == 1 ? [42] : Enumerable.Range(1, _items).ToList();
+        public List<int> Items => _items == 1 ? [42] : Enumerable.Range(1, _items).ToList();
     }
 
     private sealed class PlainUncountedEnumerables

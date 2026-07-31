@@ -68,10 +68,7 @@ public sealed class HubProxyBaseTests
     public async Task SendRequest_WhenNoReplyArrives_TimesOutWithConfiguredTimeout()
     {
         AsyncResultBucket bucket = new();
-        TestProxy proxy = new(bucket)
-        {
-            ConfiguredTimeout = TimeSpan.FromMilliseconds(50),
-        };
+        TestProxy proxy = new(bucket) { ConfiguredTimeout = TimeSpan.FromMilliseconds(50) };
         using CancellationTokenSource watchdog = new(TimeSpan.FromSeconds(5));
 
         Func<Task> act = () => proxy.Call<object>(_ => Task.CompletedTask, watchdog.Token);

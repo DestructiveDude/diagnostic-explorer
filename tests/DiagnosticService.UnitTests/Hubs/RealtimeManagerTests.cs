@@ -25,7 +25,12 @@ public sealed class RealtimeManagerTests
         RealtimeManager manager = new(TimeProvider.System);
 
         OperationResponse response = await manager.SetProperty(
-            new SetPropertyRequest { Id = "no-such-process", Path = "a|b||c", Value = "1" }
+            new SetPropertyRequest
+            {
+                Id = "no-such-process",
+                Path = "a|b||c",
+                Value = "1",
+            }
         );
 
         response.IsSuccess.Should().BeFalse();
@@ -57,7 +62,12 @@ public sealed class RealtimeManagerTests
         var processId = RegisterProcess(manager);
 
         OperationResponse response = await manager.SetProperty(
-            new SetPropertyRequest { Id = processId, Path = "a|b||c", Value = "1" }
+            new SetPropertyRequest
+            {
+                Id = processId,
+                Path = "a|b||c",
+                Value = "1",
+            }
         );
 
         response.IsSuccess.Should().BeFalse();
@@ -100,7 +110,12 @@ public sealed class RealtimeManagerTests
         );
 
         OperationResponse response = await manager.SetProperty(
-            new SetPropertyRequest { Id = processId, Path = "a|b||c", Value = "1" }
+            new SetPropertyRequest
+            {
+                Id = processId,
+                Path = "a|b||c",
+                Value = "1",
+            }
         );
 
         response.IsSuccess.Should().BeFalse();
@@ -115,11 +130,7 @@ public sealed class RealtimeManagerTests
             manager,
             client =>
                 client
-                    .ExecuteOperation(
-                        Arg.Any<string>(),
-                        Arg.Any<string>(),
-                        Arg.Any<string[]>()
-                    )
+                    .ExecuteOperation(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string[]>())
                     .Returns(
                         Task.FromException<OperationResponse>(
                             new InvalidOperationException("client exploded")

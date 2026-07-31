@@ -47,10 +47,7 @@ public class AsyncProcessorTests
         var third = TestLoggingEvents.NewEvent("third");
 
         processor.Append(first);
-        await forwardStarted.Task.WaitAsync(
-            GuardTimeout,
-            TestContext.Current.CancellationToken
-        ); // worker holds "first", queue empty
+        await forwardStarted.Task.WaitAsync(GuardTimeout, TestContext.Current.CancellationToken); // worker holds "first", queue empty
 
         processor.Append(second); // fills the size-1 queue
         processor.Append(third); // queue full: must be dropped in Discard mode
@@ -92,10 +89,7 @@ public class AsyncProcessorTests
         var third = TestLoggingEvents.NewEvent("third");
 
         processor.Append(first);
-        await forwardStarted.Task.WaitAsync(
-            GuardTimeout,
-            TestContext.Current.CancellationToken
-        ); // worker holds "first", queue empty
+        await forwardStarted.Task.WaitAsync(GuardTimeout, TestContext.Current.CancellationToken); // worker holds "first", queue empty
 
         processor.Append(second); // fills the size-1 queue
 

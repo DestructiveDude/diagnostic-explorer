@@ -156,7 +156,9 @@ public sealed class DiagnosticHubTests
             TimeSpan.FromSeconds(10),
             CancellationToken.None
         );
-        await hub.ExecuteOperationReturn(RpcResult<OperationResponse>.Success("de23-execop", response));
+        await hub.ExecuteOperationReturn(
+            RpcResult<OperationResponse>.Success("de23-execop", response)
+        );
 
         (await pending).Should().BeSameAs(response);
     }

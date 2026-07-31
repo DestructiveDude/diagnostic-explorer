@@ -105,7 +105,9 @@ public class DiagnosticManagerTests
             .Contain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.Decorated)));
         opSet
             .Operations.Should()
-            .NotContain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.NotDecorated)));
+            .NotContain(o =>
+                o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.NotDecorated))
+            );
     }
 
     [Fact]

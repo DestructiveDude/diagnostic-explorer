@@ -19,9 +19,24 @@ public class SetPropertyGateTests
     public static IEnumerable<object[]> Cases =>
         new List<object[]>
         {
-            new object[] { (Func<object>)(() => new PlainWritable()), nameof(PlainWritable.Value), false },
-            new object[] { (Func<object>)(() => new AllSettable()), nameof(AllSettable.Value), true },
-            new object[] { (Func<object>)(() => new AllowSetProperty()), nameof(AllowSetProperty.Value), true },
+            new object[]
+            {
+                (Func<object>)(() => new PlainWritable()),
+                nameof(PlainWritable.Value),
+                false,
+            },
+            new object[]
+            {
+                (Func<object>)(() => new AllSettable()),
+                nameof(AllSettable.Value),
+                true,
+            },
+            new object[]
+            {
+                (Func<object>)(() => new AllowSetProperty()),
+                nameof(AllowSetProperty.Value),
+                true,
+            },
             new object[] { (Func<object>)(() => new ReadOnly()), nameof(ReadOnly.Value), false },
         };
 

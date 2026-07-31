@@ -49,9 +49,14 @@ public class HubServerAdapterFailureTests
             )
             .Returns(callInfo =>
             {
-                RpcResult failure = callInfo.Arg<Type>() == typeof(RpcResult)
-                    ? RpcResult.Fail("request-1", "hub exploded", "detail")
-                    : RpcResult<RegistrationResponse>.Fail("request-1", "hub exploded", "detail");
+                RpcResult failure =
+                    callInfo.Arg<Type>() == typeof(RpcResult)
+                        ? RpcResult.Fail("request-1", "hub exploded", "detail")
+                        : RpcResult<RegistrationResponse>.Fail(
+                            "request-1",
+                            "hub exploded",
+                            "detail"
+                        );
                 return Task.FromResult<object?>(failure);
             });
 
@@ -77,16 +82,11 @@ public class HubServerAdapterFailureTests
                 Arg.Any<object?[]>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(
-                Task.FromResult<object?>(RpcResult<RegistrationResponse>.Success(response))
-            );
+            .Returns(Task.FromResult<object?>(RpcResult<RegistrationResponse>.Success(response)));
 
         using IDisposable adapter = CreateAdapter(hub);
 
-        RegistrationResponse result = await (Task<RegistrationResponse>)Invoke(
-            adapter,
-            "Register"
-        );
+        RegistrationResponse result = await (Task<RegistrationResponse>)Invoke(adapter, "Register");
 
         result.Should().BeSameAs(response);
     }

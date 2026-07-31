@@ -23,11 +23,7 @@ public class PropertyInclusionTests
     private static string[] BagPropertyNames(object obj)
     {
         PropertyBag bag = DiagnosticManager.ObjectToPropertyBag(obj, "svc", null);
-        return bag.Categories
-            .SelectMany(c => c.Properties)
-            .Select(p => p.Name)
-            .Order()
-            .ToArray();
+        return bag.Categories.SelectMany(c => c.Properties).Select(p => p.Name).Order().ToArray();
     }
 
     /// <summary>
