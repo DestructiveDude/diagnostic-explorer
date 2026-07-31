@@ -57,6 +57,9 @@ public class PropertyInclusionTests
             .Equal("Attributed", "Browsable");
     }
 
+    // Fixture properties are read through reflection by DiagnosticManager; they are instance
+    // members by design (the walk is over instance properties), so S1144/S2325 do not apply.
+#pragma warning disable S1144, S2325
     private sealed class PlainPropertyCarrier
     {
         public string Included => "yes";
@@ -94,4 +97,5 @@ public class PropertyInclusionTests
         // Still excluded by type even under AttributedPropertiesOnly.
         public EventSink Sink { get; } = EventSinkRepo.Default.GetSink("DE25 Sink 2", "DE25");
     }
+#pragma warning restore S1144, S2325
 }
