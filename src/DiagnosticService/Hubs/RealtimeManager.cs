@@ -18,6 +18,7 @@ public class RealtimeManager : IHostedService
 
     private static readonly TimeSpan _alertDuration = TimeSpan.FromSeconds(2);
     private readonly object _configLockObj = new();
+    private readonly object _publicationGate = new();
 
     private readonly ConcurrentDictionary<string, DiagnosticClientHandler> _diagClients = new();
     private readonly ConcurrentDictionary<string, DiagProcess> _processes = new();
@@ -29,6 +30,7 @@ public class RealtimeManager : IHostedService
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
     private IDisposable? _alertLevelSubscription;
+    private bool _stopped;
 
     // Lifecycle is driven by the host (registered via AddHostedService); no ctor self-wiring.
     public RealtimeManager(TimeProvider timeProvider)
@@ -85,6 +87,13 @@ public class RealtimeManager : IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         Interlocked.Exchange(ref _alertLevelSubscription, null)?.Dispose();
+        lock (_publicationGate)
+        {
+            _stopped = true;
+            _processChangedSubject.Dispose();
+            _processRemovedSubject.Dispose();
+        }
+
         foreach (DiagnosticClientHandler client in _diagClients.Values)
         {
             client.Disconnected -= HandleClientDisconnected;
@@ -92,20 +101,19 @@ public class RealtimeManager : IHostedService
         }
 
         _diagClients.Clear();
-        _processChangedSubject.Dispose();
-        _processRemovedSubject.Dispose();
         return Task.CompletedTask;
     }
 
-    private static void Publish(ISubject<DiagProcess> subject, DiagProcess process)
+    private void Publish(ISubject<DiagProcess> subject, DiagProcess process)
     {
-        try
+        lock (_publicationGate)
         {
+            if (_stopped)
+            {
+                return;
+            }
+
             subject.OnNext(process);
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore a late hub/timer publication racing host shutdown.
         }
     }
 

@@ -20,6 +20,17 @@ namespace DiagnosticService.UnitTests.Hubs;
 public sealed class RealtimeManagerTests
 {
     [Fact]
+    public void Register_WhenSubscriberThrowsObjectDisposedException_Propagates()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        using var subscription = manager.ProcessChanged.Subscribe(_ => throw new ObjectDisposedException("subscriber"));
+
+        Action register = () => RegisterProcess(manager);
+
+        register.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
     public async Task StopAsync_ReleasesOwnedSubjects()
     {
         RealtimeManager manager = new(TimeProvider.System);
