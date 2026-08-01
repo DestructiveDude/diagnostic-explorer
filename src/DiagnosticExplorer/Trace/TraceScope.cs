@@ -125,28 +125,18 @@ public sealed class TraceScope : IDisposable
 
     public void StartAutoTraceTimer(TimeSpan time)
     {
-        Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
-        bool timerTransferred = false;
-        try
+        Timer oldTimer = Interlocked.Exchange(
+            ref _autoTraceTimer,
+            new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite)
+        );
+        oldTimer?.Dispose();
+        // Guard against a concurrent Dispose() that ran while the replacement timer was created:
+        // the replacement is now orphaned in _autoTraceTimer, so clear and dispose it.
+        if (_disposed != null)
         {
-            Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
-            timerTransferred = true;
-            oldTimer?.Dispose();
-            // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
-            // above: newTimer is now orphaned in _autoTraceTimer, so clear and dispose it.
-            if (_disposed != null)
-            {
-                Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
-                // ReSharper disable once ConstantConditionalAccessQualifier -- Dispose can race here.
-                orphan?.Dispose();
-            }
-        }
-        finally
-        {
-            if (!timerTransferred)
-            {
-                newTimer.Dispose();
-            }
+            Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
+            // ReSharper disable once ConstantConditionalAccessQualifier -- Dispose can race here.
+            orphan?.Dispose();
         }
     }
 
@@ -367,6 +357,8 @@ public sealed class TraceScope : IDisposable
     {
         if (disposing)
         {
+            _disposed = DateTime.UtcNow;
+
             Timer timer = Interlocked.Exchange(ref _autoTraceTimer, null);
             if (timer != null)
             {
@@ -379,8 +371,6 @@ public sealed class TraceScope : IDisposable
                 }
                 timer.Dispose();
             }
-
-            _disposed = DateTime.UtcNow;
 
             ScopeStack currentStack = _scopeStack.Value;
             if (currentStack != null)
