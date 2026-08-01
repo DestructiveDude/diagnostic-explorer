@@ -22,12 +22,8 @@ public class AsyncProcessorTests
     [Fact]
     public async Task Append_WhenQueueFullInDiscardMode_DropsIncomingEvent()
     {
-        var forwardStarted = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        var releaseForward = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
+        var forwardStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseForward = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var received = new ConcurrentQueue<LoggingEvent>();
 
         using var processor = new AsyncProcessor(
@@ -64,12 +60,8 @@ public class AsyncProcessorTests
     [Fact]
     public async Task Append_WhenQueueFullInBlockMode_WaitsUntilSpaceFreesUp()
     {
-        var forwardStarted = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        var releaseForward = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
+        var forwardStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseForward = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var received = new ConcurrentQueue<LoggingEvent>();
 
         using var processor = new AsyncProcessor(
@@ -92,11 +84,9 @@ public class AsyncProcessorTests
         await forwardStarted.Task.WaitAsync(GuardTimeout, TestContext.Current.CancellationToken); // worker holds "first", queue empty
 
         processor.Append(second); // fills the size-1 queue
+        Action<LoggingEvent> append = processor.Append;
 
-        var blockedAppend = Task.Run(
-            () => processor.Append(third),
-            TestContext.Current.CancellationToken
-        );
+        var blockedAppend = Task.Run(() => append(third), TestContext.Current.CancellationToken);
 
         // Nothing can free queue space until the forward is released, so the Append
         // cannot have completed — Block mode is applying back-pressure.

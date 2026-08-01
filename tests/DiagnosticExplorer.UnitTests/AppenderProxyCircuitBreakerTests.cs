@@ -43,21 +43,21 @@ public sealed class AppenderProxyCircuitBreakerTests : IDisposable
     [Fact]
     public void DoAppend_AfterFailure_OpensBreakerAndRejectsWithoutCallingAction()
     {
-        var attempts = 0;
+        var attempts = new List<byte>();
         AppendResult Failing()
         {
-            attempts++;
+            attempts.Add(0);
             return new AppendResult(false, "target is down");
         }
 
         _proxy.TryAppend(Failing).Should().BeFalse();
         _proxy.IsInError.Should().BeTrue();
 
-        attempts = 0;
+        attempts.Clear();
         _proxy.TryAppend(Failing).Should().BeFalse();
         _proxy.TryAppend(Failing).Should().BeFalse();
 
-        attempts.Should().Be(0);
+        attempts.Should().BeEmpty();
     }
 
     /// <summary>

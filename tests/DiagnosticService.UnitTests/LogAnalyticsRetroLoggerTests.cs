@@ -61,10 +61,7 @@ public class LogAnalyticsRetroLoggerTests
     [InlineData("User", "alice")]
     [InlineData("Process", "ems.exe")]
     [InlineData("Message", "timeout")]
-    public void BuildKql_WithTextFilter_EmitsCaseInsensitiveRegexClause(
-        string field,
-        string pattern
-    )
+    public void BuildKql_WithTextFilter_EmitsCaseInsensitiveRegexClause(string field, string pattern)
     {
         var query = BaseQuery();
         switch (field)

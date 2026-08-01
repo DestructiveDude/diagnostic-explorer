@@ -119,7 +119,9 @@ public class PropertyGetterTests
     [Fact]
     public void ExtendedProperty_ChainDeeperThan50_RendersMaxDepthPlaceholder_InsteadOfRecursing()
     {
-        var bag = DiagnosticManager.ObjectToPropertyBag(BuildExtendedChain(60), "svc", null);
+        var root = BuildExtendedChain(60);
+        root.Next.Should().NotBeNull();
+        var bag = DiagnosticManager.ObjectToPropertyBag(root, "svc", null);
 
         AllNames(bag).Should().Contain("<max depth>");
     }
@@ -186,16 +188,14 @@ public class PropertyGetterTests
         public DateTime UtcValue => _instantUtc;
 
         [DateProperty(ExposeDate = false, ExposeElapsed = true, IsUTC = true)]
-        public DateTime UnspecifiedAsUtc =>
-            DateTime.SpecifyKind(_instantUtc, DateTimeKind.Unspecified);
+        public DateTime UnspecifiedAsUtc => DateTime.SpecifyKind(_instantUtc, DateTimeKind.Unspecified);
 
         [DateProperty(ExposeDate = false, ExposeElapsed = true)]
         public DateTime LocalValue => _instantUtc.ToLocalTime();
 
         // Unspecified without IsUTC is taken at face value (already local) — must render the same.
         [DateProperty(ExposeDate = false, ExposeElapsed = true)]
-        public DateTime UnspecifiedLocal =>
-            DateTime.SpecifyKind(_instantUtc.ToLocalTime(), DateTimeKind.Unspecified);
+        public DateTime UnspecifiedLocal => DateTime.SpecifyKind(_instantUtc.ToLocalTime(), DateTimeKind.Unspecified);
     }
 
     private sealed class CountingEnumerable : IEnumerable<int>
@@ -303,9 +303,7 @@ public class PropertyGetterTests
     [Fact]
     public void CountMode_UncountedOverTruncationCap_RendersSentinel()
     {
-        SoleValue(new UncountedBigCollection(), nameof(UncountedBigCollection.Items))
-            .Should()
-            .Be("10000+ items");
+        SoleValue(new UncountedBigCollection(), nameof(UncountedBigCollection.Items)).Should().Be("10000+ items");
     }
 
     /// <summary>
@@ -317,8 +315,8 @@ public class PropertyGetterTests
     {
         var bag = DiagnosticManager.ObjectToPropertyBag(new ListedCollection(), "svc", null);
 
-        bag.GetProperty("Items 0", null)!.Value.Should().Be("a");
-        bag.GetProperty("Items 1", null)!.Value.Should().Be("b");
+        bag.GetProperty("Items 0")!.Value.Should().Be("a");
+        bag.GetProperty("Items 1")!.Value.Should().Be("b");
         AllNames(bag).Should().Equal("Items 0", "Items 1");
     }
 
@@ -332,9 +330,9 @@ public class PropertyGetterTests
         var bag = DiagnosticManager.ObjectToPropertyBag(new TruncatedListCollection(), "svc", null);
 
         AllNames(bag).Where(n => n != "...").Should().HaveCount(10000);
-        bag.GetProperty("...", null)!.Value.Should().Be("Truncated at 10000 items");
-        bag.GetProperty("Items 9999", null).Should().NotBeNull();
-        bag.GetProperty("Items 10000", null).Should().BeNull();
+        bag.GetProperty("...")!.Value.Should().Be("Truncated at 10000 items");
+        bag.GetProperty("Items 9999").Should().NotBeNull();
+        bag.GetProperty("Items 10000").Should().BeNull();
     }
 
     /// <summary>
@@ -344,7 +342,9 @@ public class PropertyGetterTests
     [Fact]
     public void CategoriesMode_RendersEachItemUnderItsOwnCategory()
     {
-        var bag = DiagnosticManager.ObjectToPropertyBag(new CategorizedCollection(), "svc", null);
+        var source = new CategorizedCollection();
+        source.Items.Select(item => item.Value).Should().Equal(1, 2);
+        var bag = DiagnosticManager.ObjectToPropertyBag(source, "svc", null);
 
         bag.GetProperty("Value", "alpha")!.Value.Should().Be("1");
         bag.GetProperty("Value", "beta")!.Value.Should().Be("2");
@@ -357,11 +357,7 @@ public class PropertyGetterTests
     [Fact]
     public void CategoriesMode_OverTruncationCap_RendersTruncationMarkerCategory()
     {
-        var bag = DiagnosticManager.ObjectToPropertyBag(
-            new TruncatedCategoriesCollection(),
-            "svc",
-            null
-        );
+        var bag = DiagnosticManager.ObjectToPropertyBag(new TruncatedCategoriesCollection(), "svc", null);
 
         bag.GetProperty("Value", "item-9999").Should().NotBeNull();
         bag.GetProperty("Value", "item-10000").Should().BeNull();
@@ -375,14 +371,9 @@ public class PropertyGetterTests
     [Theory]
     [InlineData(1, "1 item: 42")]
     [InlineData(3, "3 items: 1, 2, 3")]
-    public void ConcatenateMode_CountedUnderCap_RendersCountPrefixAndValues(
-        int items,
-        string expected
-    )
+    public void ConcatenateMode_CountedUnderCap_RendersCountPrefixAndValues(int items, string expected)
     {
-        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items))
-            .Should()
-            .Be(expected);
+        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items)).Should().Be(expected);
     }
 
     /// <summary>
@@ -394,9 +385,7 @@ public class PropertyGetterTests
     [InlineData(12, "12 items: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ... (2 more items)")]
     public void ConcatenateMode_CountedOverCap_RendersCountedRemainder(int items, string expected)
     {
-        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items))
-            .Should()
-            .Be(expected);
+        SoleValue(new ConcatCountedCollection(items), nameof(ConcatCountedCollection.Items)).Should().Be(expected);
     }
 
     /// <summary>
@@ -453,10 +442,8 @@ public class PropertyGetterTests
     {
         var bag = DiagnosticManager.ObjectToPropertyBag(new PlainEnumerables(), "svc", null);
 
-        bag.GetProperty("Empty", null)!.Value.Should().Be("0 items");
-        bag.GetProperty("Some", null)!
-            .Value.Should()
-            .Be("3 items: " + string.Join(Environment.NewLine, "1", "2", "3"));
+        bag.GetProperty("Empty")!.Value.Should().Be("0 items");
+        bag.GetProperty("Some")!.Value.Should().Be("3 items: " + string.Join(Environment.NewLine, "1", "2", "3"));
     }
 
     private sealed class CountedCollection
@@ -498,19 +485,13 @@ public class PropertyGetterTests
 
     private sealed class CategorizedCollection
     {
-        [CollectionProperty(
-            CollectionMode.Categories,
-            CategoryProperty = nameof(CategorizedItem.Name)
-        )]
+        [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(CategorizedItem.Name))]
         public List<CategorizedItem> Items => [new("alpha", 1), new("beta", 2)];
     }
 
     private sealed class TruncatedCategoriesCollection
     {
-        [CollectionProperty(
-            CollectionMode.Categories,
-            CategoryProperty = nameof(CategorizedItem.Name)
-        )]
+        [CollectionProperty(CollectionMode.Categories, CategoryProperty = nameof(CategorizedItem.Name))]
         public List<CategorizedItem> Items =>
             Enumerable.Range(0, 10_001).Select(i => new CategorizedItem($"item-{i}", i)).ToList();
     }

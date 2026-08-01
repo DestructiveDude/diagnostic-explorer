@@ -18,13 +18,13 @@ WORKDIR /src
 COPY ["nuget.config", "./"]
 COPY ["Directory.Packages.props", "./"]
 COPY ["Directory.Build.props", "./"]
-COPY ["DiagnosticService/Diagnostic.Service.csproj", "DiagnosticService/"]
-COPY ["DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj", "DiagnosticExplorer.Hosting/"]
-COPY ["DiagnosticExplorer/DiagnosticExplorer.csproj", "DiagnosticExplorer/"]
+COPY ["src/DiagnosticService/Diagnostic.Service.csproj", "src/DiagnosticService/"]
+COPY ["src/DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj", "src/DiagnosticExplorer.Hosting/"]
+COPY ["src/DiagnosticExplorer/DiagnosticExplorer.csproj", "src/DiagnosticExplorer/"]
 RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN \
-    dotnet restore "DiagnosticService/Diagnostic.Service.csproj" -p:MaxCpuCount=1
+    dotnet restore "src/DiagnosticService/Diagnostic.Service.csproj" -p:MaxCpuCount=1
 COPY . .
-RUN dotnet publish "DiagnosticService/Diagnostic.Service.csproj" \
+RUN dotnet publish "src/DiagnosticService/Diagnostic.Service.csproj" \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
     --no-restore \

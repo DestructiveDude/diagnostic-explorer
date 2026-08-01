@@ -20,14 +20,10 @@ public class DiagnosticManagerTests
 
         opSet
             .Operations.Should()
-            .Contain(o =>
-                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod))
-            );
+            .Contain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.NonGenericMethod)));
         opSet
             .Operations.Should()
-            .NotContain(o =>
-                o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod))
-            );
+            .NotContain(o => o.Signature.StartsWith(nameof(GenericAndNonGenericMethodsClass.GenericMethod)));
     }
 
     [Fact]
@@ -100,14 +96,10 @@ public class DiagnosticManagerTests
         response.OperationSets.Should().HaveCount(1);
         var opSet = response.OperationSets[0];
 
+        opSet.Operations.Should().Contain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.Decorated)));
         opSet
             .Operations.Should()
-            .Contain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.Decorated)));
-        opSet
-            .Operations.Should()
-            .NotContain(o =>
-                o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.NotDecorated))
-            );
+            .NotContain(o => o.Signature.StartsWith(nameof(MixedAttributedMethodsClass.NotDecorated)));
     }
 
     [Fact]

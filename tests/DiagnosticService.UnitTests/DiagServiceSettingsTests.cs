@@ -52,9 +52,7 @@ public class DiagServiceSettingsTests
     [Theory]
     [InlineData("bogus")]
     [InlineData("")]
-    public void CreateRetroLogger_WhenRetroTypeIsUnsupported_ThrowsNotSupportedException(
-        string retroType
-    )
+    public void CreateRetroLogger_WhenRetroTypeIsUnsupported_ThrowsNotSupportedException(string retroType)
     {
         DiagServiceSettings settings = new() { RetroType = retroType };
 

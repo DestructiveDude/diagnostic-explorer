@@ -102,11 +102,7 @@ public sealed class RealtimeManagerTests
             client =>
                 client
                     .SetProperty(Arg.Any<string>(), Arg.Any<string?>())
-                    .Returns(
-                        Task.FromException<OperationResponse>(
-                            new InvalidOperationException("client exploded")
-                        )
-                    )
+                    .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 
         OperationResponse response = await manager.SetProperty(
@@ -131,11 +127,7 @@ public sealed class RealtimeManagerTests
             client =>
                 client
                     .ExecuteOperation(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string[]>())
-                    .Returns(
-                        Task.FromException<OperationResponse>(
-                            new InvalidOperationException("client exploded")
-                        )
-                    )
+                    .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 
         OperationResponse response = await manager.ExecuteOperation(

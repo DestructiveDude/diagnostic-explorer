@@ -63,12 +63,8 @@ public class RetroManagerRetryTests
     public async Task LogEvents_WhenChannelIsFull_DroppedBatchesDoNotInflateWriteQueueSize()
     {
         RetroManager manager = CreateManager();
-        var writeEntered = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        var releaseWrites = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
+        var writeEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWrites = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var gatedLogger = Substitute.For<IRetroLogger>();
         gatedLogger
             .WriteMessages(Arg.Any<ICollection<DiagnosticMsg>>(), Arg.Any<CancellationToken>())
@@ -121,29 +117,20 @@ public class RetroManagerRetryTests
 
     private static RetroManager CreateManager()
     {
-        DiagServiceSettings settings = new()
-        {
-            RetroType = "mongo",
-            RetroConnection = "mongodb://unused",
-        };
+        DiagServiceSettings settings = new() { RetroType = "mongo", RetroConnection = "mongodb://unused" };
         return new RetroManager(Options.Create(settings));
     }
 
     private static async Task InvokeTryLog(RetroManager manager, IList<DiagnosticMsg> messages)
     {
-        var method = typeof(RetroManager).GetMethod(
-            "TryLog",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
+        var method = typeof(RetroManager).GetMethod("TryLog", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var task = (Task)method.Invoke(manager, [messages, CancellationToken.None])!;
         await task;
     }
 
     private static void SetPrivateField(object target, string fieldName, object? value)
     {
-        var field = target
-            .GetType()
-            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
         field.SetValue(target, value);
     }
 }

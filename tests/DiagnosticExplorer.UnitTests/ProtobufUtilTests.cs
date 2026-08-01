@@ -270,8 +270,7 @@ public class ProtobufUtilTests
     [InlineData(typeof(SystemEvent), nameof(SystemEvent.SinkCategory), 8)]
     public void ProtoMemberOrdinals_MatchTheWireContract(Type type, string propertyName, int tag)
     {
-        ProtoMemberAttribute? attr = type.GetProperty(propertyName)!
-            .GetCustomAttribute<ProtoMemberAttribute>();
+        ProtoMemberAttribute? attr = type.GetProperty(propertyName)!.GetCustomAttribute<ProtoMemberAttribute>();
 
         attr.Should().NotBeNull($"{type.Name}.{propertyName} must carry an explicit ProtoMember");
         attr!.Tag.Should().Be(tag);

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net48</TargetFrameworks>
+    <AssemblyName>DiagnosticExplorer</AssemblyName>
+    <RootNamespace>DiagnosticExplorer</RootNamespace>
+    <Version>3.2.2</Version>
+    <AssemblyVersion>3.2.2.0</AssemblyVersion>
+    <FileVersion>3.2.2.0</FileVersion>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  
+  
+
+  <!-- Expose internal helpers (ScopeStack, TypeUtil) to the unit test project.
+       The attribute lands in the shipped assembly but only names the test
+       assembly, so it grants no access to anything else. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="DiagnosticExplorer.UnitTests" />
+  </ItemGroup>
+ 
+  <ItemGroup>
+    <None Remove="DiagnosticExplorer.csproj.DotSettings" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="log4net" />
+    <PackageReference Include="protobuf-net" />
+    <PackageReference Include="System.Reactive" />
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="System.Threading.Channels" />
+
+  </ItemGroup>
+
+</Project>

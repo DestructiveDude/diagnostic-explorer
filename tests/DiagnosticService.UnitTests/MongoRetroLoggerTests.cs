@@ -18,8 +18,7 @@ public class MongoRetroLoggerTests
     // A syntactically valid connection string with a short server-selection timeout: no server
     // is listening, so any code path that accidentally reaches the driver fails fast instead of
     // hanging for the default 30s selection timeout.
-    private const string DummyConnectionString =
-        "mongodb://127.0.0.1:27017/?serverSelectionTimeoutMS=500";
+    private const string DummyConnectionString = "mongodb://127.0.0.1:27017/?serverSelectionTimeoutMS=500";
 
     private static MongoRetroLogger CreateLogger()
     {
@@ -58,12 +57,11 @@ public class MongoRetroLoggerTests
     }
 
     public static IEnumerable<object?[]> DeleteCasesReturningZero =>
-        new object?[][]
-        {
+        [
             new object?[] { null },
             new object?[] { Array.Empty<string>() },
             new object?[] { new[] { "not-an-objectid", "also-not-valid" } },
-        };
+        ];
 
     /// <summary>
     ///     A null or empty id list is a no-op returning 0, and an all-malformed id list must
@@ -89,10 +87,7 @@ public class MongoRetroLoggerTests
     public async Task Delete_WithMoreThan10000Ids_ThrowsArgumentException()
     {
         MongoRetroLogger logger = CreateLogger();
-        var idList = Enumerable
-            .Range(0, 10_001)
-            .Select(_ => ObjectId.GenerateNewId().ToString())
-            .ToArray();
+        var idList = Enumerable.Range(0, 10_001).Select(_ => ObjectId.GenerateNewId().ToString()).ToArray();
 
         Func<Task> act = async () => await logger.Delete(idList);
 
@@ -118,7 +113,8 @@ public class MongoRetroLoggerTests
         await using var enumerator = logger
             .GetMessages(query, TestContext.Current.CancellationToken)
             .GetAsyncEnumerator(TestContext.Current.CancellationToken);
-        Func<Task> act = async () => await enumerator.MoveNextAsync();
+        var moveNext = enumerator.MoveNextAsync().AsTask();
+        Func<Task> act = () => moveNext;
 
         await act.Should().ThrowAsync<ArgumentException>().WithMessage($"*{field}*");
     }
@@ -136,7 +132,8 @@ public class MongoRetroLoggerTests
         await using var enumerator = logger
             .GetMessages(query, TestContext.Current.CancellationToken)
             .GetAsyncEnumerator(TestContext.Current.CancellationToken);
-        Func<Task> act = async () => await enumerator.MoveNextAsync();
+        var moveNext = enumerator.MoveNextAsync().AsTask();
+        Func<Task> act = () => moveNext;
 
         await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Machine*");
     }

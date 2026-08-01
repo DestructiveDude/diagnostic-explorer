@@ -82,12 +82,7 @@ public class RetroSearchLifecycleTests
         client
             .ProcessSearchError(7, Arg.Any<string>(), Arg.Any<string>())
             .Returns(_ => throw new InvalidOperationException("client-gone"));
-        RetroSearchProcess process = new(
-            manager,
-            "conn-1",
-            client,
-            new RetroQuery { SearchId = 7 }
-        );
+        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 7 });
         var finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
@@ -109,12 +104,7 @@ public class RetroSearchLifecycleTests
     {
         var manager = CreateManager();
         var client = Substitute.For<IWebHubClient>();
-        RetroSearchProcess process = new(
-            manager,
-            "conn-1",
-            client,
-            new RetroQuery { SearchId = 8 }
-        );
+        RetroSearchProcess process = new(manager, "conn-1", client, new RetroQuery { SearchId = 8 });
         var finishedRaised = false;
         process.Finished += (_, _) => finishedRaised = true;
 
@@ -197,10 +187,7 @@ public class RetroSearchLifecycleTests
         try
         {
             using OverlapDetectingObserver<IList<DiagnosticMsg>> observer = new();
-            var field = typeof(RetroManager).GetField(
-                "_logSubject",
-                BindingFlags.Instance | BindingFlags.NonPublic
-            )!;
+            var field = typeof(RetroManager).GetField("_logSubject", BindingFlags.Instance | BindingFlags.NonPublic)!;
             var subject = (IObservable<IList<DiagnosticMsg>>)field.GetValue(manager)!;
 
             using var subscription = subject.Subscribe(observer);
@@ -231,19 +218,11 @@ public class RetroSearchLifecycleTests
 
     private static RetroManager CreateManager()
     {
-        DiagServiceSettings settings = new()
-        {
-            RetroType = "mongo",
-            RetroConnection = "mongodb://unused",
-        };
+        DiagServiceSettings settings = new() { RetroType = "mongo", RetroConnection = "mongodb://unused" };
         return new RetroManager(Options.Create(settings));
     }
 
-    private static RetroSearchProcess CreateSearch(
-        RetroManager manager,
-        string connectionId,
-        int searchId
-    )
+    private static RetroSearchProcess CreateSearch(RetroManager manager, string connectionId, int searchId)
     {
         return new RetroSearchProcess(
             manager,
@@ -255,10 +234,7 @@ public class RetroSearchLifecycleTests
 
     private static ConcurrentDictionary<string, RetroSearchProcess> SearchMap(RetroManager manager)
     {
-        var field = typeof(RetroManager).GetField(
-            "_searches",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
+        var field = typeof(RetroManager).GetField("_searches", BindingFlags.Instance | BindingFlags.NonPublic)!;
         return (ConcurrentDictionary<string, RetroSearchProcess>)field.GetValue(manager)!;
     }
 
@@ -280,10 +256,7 @@ public class RetroSearchLifecycleTests
         method.Invoke(manager, [process, EventArgs.Empty]);
     }
 
-    private static async Task InvokeSendResults(
-        RetroSearchProcess process,
-        Channel<RetroSearchResult> channel
-    )
+    private static async Task InvokeSendResults(RetroSearchProcess process, Channel<RetroSearchResult> channel)
     {
         var method = typeof(RetroSearchProcess).GetMethod(
             "SendResults",
@@ -295,9 +268,7 @@ public class RetroSearchLifecycleTests
 
     private static void SetPrivateField(object target, string fieldName, object? value)
     {
-        var field = target
-            .GetType()
-            .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!;
         field.SetValue(target, value);
     }
 

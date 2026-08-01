@@ -15,18 +15,19 @@ TOMI engine and its surrounding services.
 ## Repository layout
 
 ```
-DiagnosticExplorer/          netstandard2.0 core library
+src/DiagnosticExplorer/      netstandard2.0 core library
                              - PropertyBag, TraceScope, OperationSet,
                                protobuf transport types, log4net forwarding
-DiagnosticExplorer.Hosting/  net8.0 / net6.0 / net48 hosting integration
+src/DiagnosticExplorer.Hosting/
+                             net8.0 / net6.0 / net48 hosting integration
                              - AddDiagnosticExplorer DI extension,
                                DiagnosticHostingService, RegistrationHandler
-DiagnosticService/           Standalone web service (Docker payload)
+src/DiagnosticService/       Standalone web service (Docker payload)
                              - ASP.NET Core + SignalR hubs + SPA host
 diagnostics-web/             Angular 21 SPA (the dashboard UI)
 Docker/                      Dockerfile and compose YAMLs for the service
-WidgetSample/                WinForms demo of the library
-ConsoleApp/                  Smaller CLI demo
+src/WidgetSample/            WinForms demo of the library
+src/ConsoleApp/              Smaller CLI demo
 ```
 
 ## Using the library
@@ -129,8 +130,8 @@ different store.
 ```bash
 dotnet tool restore
 dotnet csharpier check .
-dotnet build DiagnosticExplorer.slnx -c Release
-dotnet test DiagnosticExplorer.slnx -c Release --no-build
+dotnet build DiagnosticExplorer.slnx --configuration Release
+dotnet test DiagnosticExplorer.slnx --configuration Release --no-build
 dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore
 
 # Angular dashboard (Node 20.19+ / 22 for Angular 21):
@@ -159,7 +160,7 @@ entry in `DiagnosticExplorer.csproj`; the generated attribute ships in the
 assembly but only names the test project, so it exposes nothing else.
 
 ```bash
-dotnet test DiagnosticExplorer.slnx -c Release
+dotnet test DiagnosticExplorer.slnx --configuration Release
 ```
 
 Both test projects target `net10.0` and run cross-platform. In Visual Studio,
@@ -236,4 +237,4 @@ triggers a container-image publish to GHCR.
 ## License
 
 LGPL v3 or later — see `LICENSE` and the file headers in
-`DiagnosticExplorer/`.
+`src/DiagnosticExplorer/`.

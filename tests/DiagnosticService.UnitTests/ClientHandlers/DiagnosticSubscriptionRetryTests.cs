@@ -43,11 +43,9 @@ public sealed class DiagnosticSubscriptionRetryTests
         private readonly Subject<SystemEvent[]> _eventsStreamed = new();
         private int _subscribeCallCount;
 
-        public TaskCompletionSource FirstAttempted { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FirstAttempted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public TaskCompletionSource RetryCompleted { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource RetryCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int SubscribeCallCount => _subscribeCallCount;
 
@@ -61,11 +59,7 @@ public sealed class DiagnosticSubscriptionRetryTests
             return Task.FromResult(new OperationResponse());
         }
 
-        public Task<OperationResponse> ExecuteOperation(
-            string path,
-            string operation,
-            string[] arguments
-        )
+        public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
         {
             return Task.FromResult(new OperationResponse());
         }
@@ -76,9 +70,7 @@ public sealed class DiagnosticSubscriptionRetryTests
             if (attempt == 1)
             {
                 FirstAttempted.TrySetResult();
-                return Task.FromException(
-                    new InvalidOperationException("Transient subscription failure")
-                );
+                return Task.FromException(new InvalidOperationException("Transient subscription failure"));
             }
 
             RetryCompleted.TrySetResult();

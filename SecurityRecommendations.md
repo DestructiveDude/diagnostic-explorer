@@ -5,7 +5,7 @@ repository (rule packs: `p/csharp`, `p/javascript`, `p/typescript`,
 `p/security-audit`, `p/secrets`, `p/default`).
 
 The scan raised three issues. One — an unconditional `UseDeveloperExceptionPage()`
-in `DiagnosticService/Program.cs` — has already been fixed (the developer
+in `src/DiagnosticService/Program.cs` — has already been fixed (the developer
 exception page is now guarded by `IWebHostEnvironment.IsDevelopment()`, with a
 generic `UseExceptionHandler` for non-development environments).
 
@@ -75,7 +75,7 @@ Notes:
 
 ## 2. Permissive CORS policy combined with credentials
 
-**File:** `DiagnosticService/Program.cs:59`
+**File:** `src/DiagnosticService/Program.cs:59`
 **Severity:** Medium if DiagnosticService is reachable from untrusted browsers;
 lower if the service is strictly internal. **Confirm the deployment topology
 before changing this.**

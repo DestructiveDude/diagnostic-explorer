@@ -35,9 +35,7 @@ public class PropertyInclusionTests
     [Fact]
     public void UnattributedClass_AppliesBrowsableIgnoreAndEventSinkRules()
     {
-        BagPropertyNames(new PlainPropertyCarrier())
-            .Should()
-            .Equal("Included", "PropertyAttrBeatsBrowsable");
+        BagPropertyNames(new PlainPropertyCarrier()).Should().Equal("Included", "PropertyAttrBeatsBrowsable");
     }
 
     /// <summary>
@@ -48,9 +46,7 @@ public class PropertyInclusionTests
     [Fact]
     public void AttributedPropertiesOnlyClass_RequiresAnExplicitAttribute()
     {
-        BagPropertyNames(new AttributedOnlyPropertyCarrier())
-            .Should()
-            .Equal("Attributed", "Browsable");
+        BagPropertyNames(new AttributedOnlyPropertyCarrier()).Should().Equal("Attributed", "Browsable");
     }
 
     // Fixture properties are read through reflection by DiagnosticManager; they are instance

@@ -28,11 +28,7 @@ public class PropertyTests
         string expected
     )
     {
-        var property = new Property("N", value, description)
-        {
-            CanSet = canSet,
-            OperationSet = operationSet,
-        };
+        var property = new Property("N", value, description) { CanSet = canSet, OperationSet = operationSet };
 
         property.ToString().Should().Be(expected);
     }

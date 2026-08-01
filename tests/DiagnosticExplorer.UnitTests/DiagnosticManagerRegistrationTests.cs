@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using DiagnosticExplorer.Props;
 
 namespace DiagnosticExplorer.UnitTests;
 

@@ -69,10 +69,7 @@ public sealed class WebHubContractTests
     {
         string[] hubMethods = typeof(WebHub)
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(m =>
-                m.Name
-                    is not (nameof(WebHub.OnConnectedAsync) or nameof(WebHub.OnDisconnectedAsync))
-            )
+            .Where(m => m.Name is not (nameof(WebHub.OnConnectedAsync) or nameof(WebHub.OnDisconnectedAsync)))
             .Select(m => m.Name)
             .Order()
             .ToArray();
@@ -93,11 +90,7 @@ public sealed class WebHubContractTests
     [Fact]
     public void WebHubClient_CallbackNames_MatchTheSpaPushHandlers()
     {
-        string[] callbackNames = typeof(IWebHubClient)
-            .GetMethods()
-            .Select(m => m.Name)
-            .Order()
-            .ToArray();
+        string[] callbackNames = typeof(IWebHubClient).GetMethods().Select(m => m.Name).Order().ToArray();
 
         callbackNames
             .Should()

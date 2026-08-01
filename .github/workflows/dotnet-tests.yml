@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'DiagnosticExplorer/**'
+      - 'src/**'
       - 'tests/**'
       - '.github/workflows/dotnet-tests.yml'
   workflow_dispatch:

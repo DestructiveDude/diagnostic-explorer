@@ -25,9 +25,7 @@ public class HubServerAdapterFailureTests
 {
     private static readonly Type AdapterType =
         typeof(RegistrationHandler).Assembly.GetType("DiagnosticExplorer.Hosting.HubServerAdapter")
-        ?? throw new InvalidOperationException(
-            "DiagnosticExplorer.Hosting.HubServerAdapter not found"
-        );
+        ?? throw new InvalidOperationException("DiagnosticExplorer.Hosting.HubServerAdapter not found");
 
     /// <summary>
     ///     A failed RpcResult from the hub must throw InvalidOperationException carrying the
@@ -41,28 +39,20 @@ public class HubServerAdapterFailureTests
     public async Task FailedRpcResult_ThrowsInvalidOperationException(string methodName)
     {
         HubConnection hub = CreateHubSubstitute();
-        hub.InvokeCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<Type>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            )
+        hub.InvokeCoreAsync(Arg.Any<string>(), Arg.Any<Type>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .Returns(callInfo =>
             {
                 RpcResult failure =
                     callInfo.Arg<Type>() == typeof(RpcResult)
                         ? RpcResult.Fail("request-1", "hub exploded", "detail")
-                        : RpcResult<RegistrationResponse>.Fail(
-                            "request-1",
-                            "hub exploded",
-                            "detail"
-                        );
+                        : RpcResult<RegistrationResponse>.Fail("request-1", "hub exploded", "detail");
                 return Task.FromResult<object?>(failure);
             });
 
         using IDisposable adapter = CreateAdapter(hub);
+        Task invocation = Invoke(adapter, methodName);
 
-        Func<Task> act = async () => await Invoke(adapter, methodName);
+        Func<Task> act = () => invocation;
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("hub exploded");
     }
@@ -76,12 +66,7 @@ public class HubServerAdapterFailureTests
     {
         RegistrationResponse response = new(TimeSpan.FromSeconds(30));
         HubConnection hub = CreateHubSubstitute();
-        hub.InvokeCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<Type>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            )
+        hub.InvokeCoreAsync(Arg.Any<string>(), Arg.Any<Type>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<object?>(RpcResult<RegistrationResponse>.Success(response)));
 
         using IDisposable adapter = CreateAdapter(hub);
@@ -101,17 +86,13 @@ public class HubServerAdapterFailureTests
     public async Task SuccessfulRpcResult_CompletesWithoutThrowing(string methodName)
     {
         HubConnection hub = CreateHubSubstitute();
-        hub.InvokeCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<Type>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            )
+        hub.InvokeCoreAsync(Arg.Any<string>(), Arg.Any<Type>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<object?>(RpcResult.Success("request-1")));
 
         using IDisposable adapter = CreateAdapter(hub);
+        Task invocation = Invoke(adapter, methodName);
 
-        Func<Task> act = async () => await Invoke(adapter, methodName);
+        Func<Task> act = () => invocation;
 
         await act.Should().NotThrowAsync();
     }

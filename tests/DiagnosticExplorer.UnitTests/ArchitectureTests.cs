@@ -9,10 +9,7 @@ namespace DiagnosticExplorer.UnitTests;
 public class ArchitectureTests
 {
     private static readonly Architecture Architecture = new ArchLoader()
-        .LoadAssemblies(
-            typeof(DiagnosticManager).Assembly,
-            typeof(DiagnosticHostingService).Assembly
-        )
+        .LoadAssemblies(typeof(DiagnosticManager).Assembly, typeof(DiagnosticHostingService).Assembly)
         .Build();
 
     [Fact]
@@ -30,8 +27,6 @@ public class ArchitectureTests
     [Fact]
     public void Namespace_slices_must_be_free_of_cycles()
     {
-        FixPortalArchRules
-            .NamespaceSlicesMustBeFreeOfCycles("DiagnosticExplorer.(*)")
-            .Check(Architecture);
+        FixPortalArchRules.NamespaceSlicesMustBeFreeOfCycles("DiagnosticExplorer.(*)").Check(Architecture);
     }
 }

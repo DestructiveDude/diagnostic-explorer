@@ -38,10 +38,7 @@ public sealed class DiagnosticHubTests
 
     private static DiagnosticHub CreateHub(RealtimeManager realtimeManager)
     {
-        return new DiagnosticHub(
-            realtimeManager,
-            new RetroManager(Options.Create(new DiagServiceSettings()))
-        );
+        return new DiagnosticHub(realtimeManager, new RetroManager(Options.Create(new DiagServiceSettings())));
     }
 
     private static HubCallerContext ContextWithConnectionId(string connectionId)
@@ -156,9 +153,7 @@ public sealed class DiagnosticHubTests
             TimeSpan.FromSeconds(10),
             CancellationToken.None
         );
-        await hub.ExecuteOperationReturn(
-            RpcResult<OperationResponse>.Success("de23-execop", response)
-        );
+        await hub.ExecuteOperationReturn(RpcResult<OperationResponse>.Success("de23-execop", response));
 
         (await pending).Should().BeSameAs(response);
     }
@@ -197,14 +192,10 @@ public sealed class DiagnosticHubTests
             TimeSpan.FromSeconds(10),
             CancellationToken.None
         );
-        await hub.ExecuteOperationReturn(
-            RpcResult<OperationResponse>.Fail("de23-execfail", "op failed", "op detail")
-        );
+        await hub.ExecuteOperationReturn(RpcResult<OperationResponse>.Fail("de23-execfail", "op failed", "op detail"));
 
         Func<Task> act = async () => await pending;
-        (await act.Should().ThrowAsync<AsyncCallException>())
-            .Which.Message.Should()
-            .Be("op failed");
+        (await act.Should().ThrowAsync<AsyncCallException>()).Which.Message.Should().Be("op failed");
     }
 
     /// <summary>
@@ -216,8 +207,7 @@ public sealed class DiagnosticHubTests
     {
         DiagnosticHub hub = CreateHub(new RealtimeManager(TimeProvider.System));
 
-        Func<Task> act = async () =>
-            await hub.GetDiagnosticsReturn(RpcResult<byte[]>.Success("de23-orphan", [1]));
+        Func<Task> act = async () => await hub.GetDiagnosticsReturn(RpcResult<byte[]>.Success("de23-orphan", [1]));
 
         await act.Should().NotThrowAsync();
     }

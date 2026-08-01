@@ -1,58 +1,42 @@
+# Thin formatter configuration. Analyzer/style rules come from FixPortal.CodeStyle;
+# only documented project-specific exceptions belong below.
+
 root = true
 
-[*.cs]
-# Naming conventions are intentional - suppress all naming rule violations
-dotnet_diagnostic.IDE1006.severity = none
-resharper_inconsistent_naming_highlighting = none
+#### Baseline (applies to every file type) ####
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+tab_width = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
 
-# dotnet format compatibility entries mirrored from FixPortal.CodeStyle 0.1.11.
+#### Project / config files (2-space convention) ####
+[*.{csproj,fsproj,vbproj,proj,props,targets}]
+indent_size = 2
+
+[*.{json,yml,yaml,xml,config}]
+indent_size = 2
+
+[*.md]
+# markdown line breaks are two trailing spaces — don't trim them
+trim_trailing_whitespace = false
+
+#### C# files ####
+[*.cs]
+end_of_line = crlf
+indent_size = 4
+indent_style = space
+tab_width = 4
+max_line_length = 120
+
+# Roslyn formatter compatibility. FixPortal.CodeStyle owns these values, but
+# dotnet format needs them in a hierarchical .editorconfig to activate its fixers.
 csharp_prefer_braces = true:error
 dotnet_style_predefined_type_for_locals_parameters_members = true:error
 dotnet_style_predefined_type_for_member_access = true:error
 
-# Core editorconfig formatting - indentation
-indent_style = space
-indent_size = 4
-charset = utf-8
-
-# Formatting - new line options
-csharp_new_line_before_catch = true
-csharp_new_line_before_else = true
-csharp_new_line_before_finally = true
-csharp_new_line_before_members_in_object_initializers = true
-csharp_new_line_before_open_brace = methods, object_collection_array_initializers, control_blocks, types, properties
-
-# Formatting - organize using options
-dotnet_sort_system_directives_first = true
-
-# Formatting - spacing options
-csharp_space_after_cast = true
-csharp_space_after_colon_in_inheritance_clause = true
-csharp_space_after_keywords_in_control_flow_statements = true
-csharp_space_before_colon_in_inheritance_clause = true
-csharp_space_between_method_call_empty_parameter_list_parentheses = false
-csharp_space_between_method_call_name_and_opening_parenthesis = false
-csharp_space_between_method_call_parameter_list_parentheses = false
-csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
-csharp_space_between_method_declaration_parameter_list_parentheses = false
-
-# Formatting - wrapping options
-csharp_preserve_single_line_blocks = true
-csharp_preserve_single_line_statements = true
-
-
-
-[*.json]
-indent_style = space
-indent_size = 2
-charset = utf-8
-
-[*.md]
-indent_style = space
-indent_size = 4
-charset = utf-8
-
-[*.csproj]
-indent_style = space
-indent_size = 2
-charset = utf-8
+# The upstream public API intentionally retains its established names.
+dotnet_diagnostic.IDE1006.severity = none
+resharper_inconsistent_naming_highlighting = none

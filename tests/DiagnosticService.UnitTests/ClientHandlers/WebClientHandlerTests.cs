@@ -33,19 +33,13 @@ public sealed class WebClientHandlerTests
         WebClientHandler handler = new("connection-1", client);
         handler.Start(manager);
 
-        DiagProcess[] pushed = Enumerable
-            .Range(0, 5)
-            .Select(i => new DiagProcess { Id = $"process-{i}" })
-            .ToArray();
+        DiagProcess[] pushed = Enumerable.Range(0, 5).Select(i => new DiagProcess { Id = $"process-{i}" }).ToArray();
         foreach (DiagProcess process in pushed)
         {
             manager.ProcessChanged.OnNext(process);
         }
 
-        await client.AllUpdatesReceived.Task.WaitAsync(
-            SignalTimeout,
-            TestContext.Current.CancellationToken
-        );
+        await client.AllUpdatesReceived.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
 
         client.UpdateOrder.Should().Equal(pushed.Select(p => p.Id));
         handler.Stop();
@@ -74,25 +68,14 @@ public sealed class WebClientHandlerTests
 
             // The initial SetProcesses failed and process-0's update failed, yet every
             // update must still be attempted, in push order.
-            await client.AllUpdatesReceived.Task.WaitAsync(
-                SignalTimeout,
-                TestContext.Current.CancellationToken
-            );
+            await client.AllUpdatesReceived.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
             client.UpdateOrder.Should().Equal("process-0", "process-1");
 
             // Both failures were observed on the trace, not thrown away on the chain.
-            await listener.FailuresObserved.Task.WaitAsync(
-                SignalTimeout,
-                TestContext.Current.CancellationToken
-            );
+            await listener.FailuresObserved.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
             listener
                 .Messages.Should()
-                .Contain(m =>
-                    m.Contains(
-                        "WebClientHandler connection-1 send failed",
-                        StringComparison.Ordinal
-                    )
-                );
+                .Contain(m => m.Contains("WebClientHandler connection-1 send failed", StringComparison.Ordinal));
         }
         finally
         {
@@ -125,10 +108,7 @@ public sealed class WebClientHandlerTests
         };
         repo.LogEvent(systemEvent);
 
-        await client.FirstStreamedBatch.Task.WaitAsync(
-            SignalTimeout,
-            TestContext.Current.CancellationToken
-        );
+        await client.FirstStreamedBatch.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
 
         // Each stream start pushes its initial snapshot.
         client.SetEventsCallCount.Should().Be(2);
@@ -231,8 +211,7 @@ public sealed class WebClientHandlerTests
 
         public Task ProcessSearchEnd(int searchId) => Task.CompletedTask;
 
-        public Task ProcessSearchError(int searchId, string message, string detail) =>
-            Task.CompletedTask;
+        public Task ProcessSearchError(int searchId, string message, string detail) => Task.CompletedTask;
     }
 
     private sealed class RecordingTraceListener : TraceListener
@@ -240,8 +219,7 @@ public sealed class WebClientHandlerTests
         private readonly ConcurrentQueue<string> _messages = new();
         private int _failuresObserved;
 
-        public TaskCompletionSource FailuresObserved { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FailuresObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public IReadOnlyCollection<string> Messages => _messages;
 

@@ -70,8 +70,9 @@ public sealed class HubProxyBaseTests
         AsyncResultBucket bucket = new();
         TestProxy proxy = new(bucket) { ConfiguredTimeout = TimeSpan.FromMilliseconds(50) };
         using CancellationTokenSource watchdog = new(TimeSpan.FromSeconds(5));
+        var cancellationToken = watchdog.Token;
 
-        Func<Task> act = () => proxy.Call<object>(_ => Task.CompletedTask, watchdog.Token);
+        Func<Task> act = () => proxy.Call<object>(_ => Task.CompletedTask, cancellationToken);
 
         await act.Should().ThrowAsync<TimeoutException>();
     }

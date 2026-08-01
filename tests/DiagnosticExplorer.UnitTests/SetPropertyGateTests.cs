@@ -19,24 +19,9 @@ public class SetPropertyGateTests
     public static IEnumerable<object[]> Cases =>
         new List<object[]>
         {
-            new object[]
-            {
-                (Func<object>)(() => new PlainWritable()),
-                nameof(PlainWritable.Value),
-                false,
-            },
-            new object[]
-            {
-                (Func<object>)(() => new AllSettable()),
-                nameof(AllSettable.Value),
-                true,
-            },
-            new object[]
-            {
-                (Func<object>)(() => new AllowSetProperty()),
-                nameof(AllowSetProperty.Value),
-                true,
-            },
+            new object[] { (Func<object>)(() => new PlainWritable()), nameof(PlainWritable.Value), false },
+            new object[] { (Func<object>)(() => new AllSettable()), nameof(AllSettable.Value), true },
+            new object[] { (Func<object>)(() => new AllowSetProperty()), nameof(AllowSetProperty.Value), true },
             new object[] { (Func<object>)(() => new ReadOnly()), nameof(ReadOnly.Value), false },
         };
 
@@ -46,11 +31,7 @@ public class SetPropertyGateTests
     /// </summary>
     [Theory]
     [MemberData(nameof(Cases))]
-    public void SetProperty_RespectsTheCanSetGate(
-        Func<object> fixtureFactory,
-        string propertyName,
-        bool expectedCanSet
-    )
+    public void SetProperty_RespectsTheCanSetGate(Func<object> fixtureFactory, string propertyName, bool expectedCanSet)
     {
         var fixture = fixtureFactory();
         var propInfo = fixture.GetType().GetProperty(propertyName)!;
@@ -59,11 +40,7 @@ public class SetPropertyGateTests
         getter.CanSet.Should().Be(expectedCanSet);
 
         var registered = new RegisteredObject(fixture, "TestCategory", "TestBag");
-        var result = DiagnosticManager.SetProperty(
-            new[] { registered },
-            $"TestCategory|TestBag||{propertyName}",
-            "42"
-        );
+        var result = DiagnosticManager.SetProperty(new[] { registered }, $"TestCategory|TestBag||{propertyName}", "42");
 
         if (expectedCanSet)
         {
@@ -99,6 +76,11 @@ public class SetPropertyGateTests
 
     private sealed class ReadOnly
     {
+        public ReadOnly()
+        {
+            Value = 0;
+        }
+
         public int Value { get; }
     }
 #pragma warning restore S3459

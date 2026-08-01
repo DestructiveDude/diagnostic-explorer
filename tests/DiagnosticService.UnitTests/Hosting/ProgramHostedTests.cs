@@ -53,9 +53,7 @@ public sealed class ProgramHostedTests
         using var factory = CreateAuthenticatedFactory();
         await using var connection = CreateConnection(factory, hubPath, null);
 
-        var exception = await Record.ExceptionAsync(() =>
-            connection.StartAsync(TestContext.Current.CancellationToken)
-        );
+        var exception = await Record.ExceptionAsync(() => connection.StartAsync(TestContext.Current.CancellationToken));
 
         exception.Should().NotBeNull();
         connection.State.Should().Be(HubConnectionState.Disconnected);
@@ -87,9 +85,7 @@ public sealed class ProgramHostedTests
         using var factory = CreateAuthenticatedFactory();
         await using var connection = CreateConnection(factory, hubPath, "wrong-api-key-99");
 
-        var exception = await Record.ExceptionAsync(() =>
-            connection.StartAsync(TestContext.Current.CancellationToken)
-        );
+        var exception = await Record.ExceptionAsync(() => connection.StartAsync(TestContext.Current.CancellationToken));
 
         exception.Should().NotBeNull();
         connection.State.Should().Be(HubConnectionState.Disconnected);
@@ -250,9 +246,7 @@ public sealed class ProgramHostedTests
         );
     }
 
-    private static DiagnosticServiceFactory CreateFactory(
-        IReadOnlyDictionary<string, string?>? overrides = null
-    )
+    private static DiagnosticServiceFactory CreateFactory(IReadOnlyDictionary<string, string?>? overrides = null)
     {
         Dictionary<string, string?> settings = new()
         {
@@ -285,8 +279,7 @@ public sealed class ProgramHostedTests
                 options =>
                 {
                     options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
-                    options.AccessTokenProvider =
-                        apiKey == null ? null : () => Task.FromResult<string?>(apiKey);
+                    options.AccessTokenProvider = apiKey == null ? null : () => Task.FromResult<string?>(apiKey);
                 }
             )
             .Build();
@@ -318,10 +311,7 @@ public sealed class ProgramHostedTests
         public DiagnosticServiceFactory(IReadOnlyDictionary<string, string?> settings)
         {
             _environment = settings
-                .Select(setting => new EnvironmentVariableScope(
-                    setting.Key.Replace(":", "__"),
-                    setting.Value
-                ))
+                .Select(setting => new EnvironmentVariableScope(setting.Key.Replace(":", "__"), setting.Value))
                 .ToArray();
         }
 

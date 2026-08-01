@@ -24,8 +24,7 @@ public class AsyncResultBucketTests
         cancel.CancelAfter(50);
 
         // ReSharper disable once AccessToDisposedClosure -- assertion completes before disposal.
-        Func<Task> act = async () =>
-            await bucket.GetResult<string>("req-1", TimeSpan.FromSeconds(5), cancel.Token);
+        Func<Task> act = async () => await bucket.GetResult<string>("req-1", TimeSpan.FromSeconds(5), cancel.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
@@ -40,11 +39,7 @@ public class AsyncResultBucketTests
         AsyncResultBucket bucket = new();
 
         Func<Task> act = async () =>
-            await bucket.GetResult<string>(
-                "req-2",
-                TimeSpan.FromMilliseconds(20),
-                CancellationToken.None
-            );
+            await bucket.GetResult<string>("req-2", TimeSpan.FromMilliseconds(20), CancellationToken.None);
 
         await act.Should().ThrowAsync<TimeoutException>();
     }
@@ -69,11 +64,7 @@ public class AsyncResultBucketTests
         Task<string> pending;
         try
         {
-            pending = bucket.GetResult<string>(
-                "req-dup",
-                TimeSpan.FromMinutes(1),
-                CancellationToken.None
-            );
+            pending = bucket.GetResult<string>("req-dup", TimeSpan.FromMinutes(1), CancellationToken.None);
 
             // Complete the waiter while SynchronizationContext.Current is null: a captured-context
             // continuation can otherwise inline on the completing thread, which would run

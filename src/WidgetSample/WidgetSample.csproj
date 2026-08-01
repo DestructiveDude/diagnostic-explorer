@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-windows;net48</TargetFrameworks>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>WidgetSample</AssemblyName>
+    <StartupObject>WidgetSample.Program</StartupObject>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <DefineConstants>NET48</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net5.0-windows'">
+    <DefineConstants>NET5</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net5.0-windows'">
+       <PackageReference Include="Microsoft.Extensions.Configuration" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="DiagnosticExplorer" />
+    <Using Include="DiagnosticExplorer.Props" />
+    <Using Include="DiagnosticExplorer.Hosting" />
+    <Using Include="DiagnosticExplorer.Trace" />
+    <Using Include="log4net" />
+    <Using Include="log4net.Config" />
+    <Using Include="log4net.Core" />
+    <Using Include="System.ComponentModel" />
+    <Using Include="System.Configuration" />
+    <Using Include="System.Diagnostics" />
+    <Using Include="System.Drawing.Text" />
+    <Using Include="System.Text" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <PackageReference Include="log4net" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="Snappier" />
+    <PackageReference Include="protobuf-net" />
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DiagnosticExplorer.Hosting\DiagnosticExplorer.Hosting.csproj" />
+    <ProjectReference Include="..\DiagnosticExplorer\DiagnosticExplorer.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

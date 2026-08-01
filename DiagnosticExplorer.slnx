@@ -17,17 +17,19 @@
     <Project Path="tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj" />
     <Project Path="tests/DiagnosticService.UnitTests/DiagnosticService.UnitTests.csproj" />
   </Folder>
-  <Project Path="ConsoleApp/ConsoleApp.csproj" />
-  <Project Path="DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj" />
-  <Project Path="DiagnosticExplorer/DiagnosticExplorer.csproj">
-    <Build Solution="*|x86" Project="false" />
-  </Project>
-  <Project Path="DiagnosticService/Diagnostic.Service.csproj" />
-  <Project Path="WidgetSample/WidgetSample.csproj">
-    <Build Solution="*|Any CPU" Project="false" />
-    <Build Solution="*|Mixed Platforms" Project="false" />
-    <Build Solution="*|x64" Project="false" />
-  </Project>
+  <Folder Name="/src/">
+    <Project Path="src/ConsoleApp/ConsoleApp.csproj" />
+    <Project Path="src/DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj" />
+    <Project Path="src/DiagnosticExplorer/DiagnosticExplorer.csproj">
+      <Build Solution="*|x86" Project="false" />
+    </Project>
+    <Project Path="src/DiagnosticService/Diagnostic.Service.csproj" />
+    <Project Path="src/WidgetSample/WidgetSample.csproj">
+      <Build Solution="*|Any CPU" Project="false" />
+      <Build Solution="*|Mixed Platforms" Project="false" />
+      <Build Solution="*|x64" Project="false" />
+    </Project>
+  </Folder>
   <Properties Name="ExtensibilityGlobals" Scope="PostLoad">
     <Property Name="EnterpriseLibraryConfigurationToolBinariesPathV6" Value="packages\EnterpriseLibrary.Common.6.0.1304.0\lib\NET45;packages\EnterpriseLibrary.Data.6.0.1304.0\lib\NET45" />
   </Properties>
