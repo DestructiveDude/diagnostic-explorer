@@ -20,6 +20,19 @@ namespace DiagnosticService.UnitTests.Hubs;
 public sealed class RealtimeManagerTests
 {
     [Fact]
+    public async Task StopAsync_ReleasesOwnedSubjects()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+
+        await manager.StopAsync(TestContext.Current.CancellationToken);
+
+        Action changeProcess = () => manager.ProcessChanged.OnNext(new DiagProcess());
+        Action removeProcess = () => manager.ProcessRemoved.OnNext(new DiagProcess());
+        changeProcess.Should().Throw<ObjectDisposedException>();
+        removeProcess.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
     public async Task SetProperty_ProcessNotFound_ReturnsErrorResponse()
     {
         RealtimeManager manager = new(TimeProvider.System);

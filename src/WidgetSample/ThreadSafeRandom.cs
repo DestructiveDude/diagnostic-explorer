@@ -5,6 +5,9 @@ namespace WidgetSample;
 /// </summary>
 internal static class ThreadSafeRandom
 {
+    private static readonly System.Security.Cryptography.RandomNumberGenerator _generator =
+        System.Security.Cryptography.RandomNumberGenerator.Create();
+
     public static int Next()
     {
         return Next(int.MaxValue);
@@ -40,8 +43,7 @@ internal static class ThreadSafeRandom
     private static uint NextUInt32()
     {
         byte[] bytes = new byte[sizeof(uint)];
-        using var generator = System.Security.Cryptography.RandomNumberGenerator.Create();
-        generator.GetBytes(bytes);
+        _generator.GetBytes(bytes);
         return BitConverter.ToUInt32(bytes, 0);
     }
 }

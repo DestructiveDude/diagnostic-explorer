@@ -126,15 +126,23 @@ public sealed class TraceScope : IDisposable
     public void StartAutoTraceTimer(TimeSpan time)
     {
         Timer newTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
-        Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
-        oldTimer?.Dispose();
-        // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
-        // above: newTimer is now orphaned in _autoTraceTimer, so clear and dispose it.
-        if (_disposed != null)
+        try
         {
-            Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
-            // ReSharper disable once ConstantConditionalAccessQualifier -- Dispose can race here.
-            orphan?.Dispose();
+            Timer oldTimer = Interlocked.Exchange(ref _autoTraceTimer, newTimer);
+            newTimer = null;
+            oldTimer?.Dispose();
+            // Guard against a concurrent Dispose() that ran between creating newTimer and the exchange
+            // above: newTimer is now orphaned in _autoTraceTimer, so clear and dispose it.
+            if (_disposed != null)
+            {
+                Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
+                // ReSharper disable once ConstantConditionalAccessQualifier -- Dispose can race here.
+                orphan?.Dispose();
+            }
+        }
+        finally
+        {
+            newTimer?.Dispose();
         }
     }
 

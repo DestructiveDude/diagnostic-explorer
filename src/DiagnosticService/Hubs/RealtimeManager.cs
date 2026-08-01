@@ -23,6 +23,8 @@ public class RealtimeManager : IHostedService
     private readonly ConcurrentDictionary<string, DiagProcess> _processes = new();
 
     private readonly ConcurrentDictionary<DiagProcess, DiagnosticSubscription> _subscriptions = new();
+    private readonly Subject<DiagProcess> _processChangedSubject = new();
+    private readonly Subject<DiagProcess> _processRemovedSubject = new();
 
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
@@ -32,6 +34,8 @@ public class RealtimeManager : IHostedService
     public RealtimeManager(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider;
+        ProcessChanged = Subject.Synchronize(_processChangedSubject);
+        ProcessRemoved = Subject.Synchronize(_processRemovedSubject);
     }
 
     public EventSink RealtimEvents { get; } = EventSinkRepo.Default.GetSink("Realtime Events", "Realtime");
@@ -40,9 +44,9 @@ public class RealtimeManager : IHostedService
     // from hub-call threads (RegisterAlertLevel), and from inside the config write lock
     // (Register/Deregister/RemoveProcess/TidyProcesses). Subject<T>.OnNext is not safe for
     // concurrent callers, so wrap it in Subject.Synchronize to serialize notifications.
-    public ISubject<DiagProcess> ProcessChanged { get; } = Subject.Synchronize(new Subject<DiagProcess>());
+    public ISubject<DiagProcess> ProcessChanged { get; }
 
-    public ISubject<DiagProcess> ProcessRemoved { get; } = Subject.Synchronize(new Subject<DiagProcess>());
+    public ISubject<DiagProcess> ProcessRemoved { get; }
 
     [CollectionProperty(CollectionMode.Categories, Category = "Processes", CategoryProperty = nameof(DiagProcess.Id))]
     public ICollection<DiagProcess> Processes => _processes.Values;
@@ -80,7 +84,16 @@ public class RealtimeManager : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _alertLevelSubscription?.Dispose();
+        Interlocked.Exchange(ref _alertLevelSubscription, null)?.Dispose();
+        foreach (DiagnosticClientHandler client in _diagClients.Values)
+        {
+            client.Disconnected -= HandleClientDisconnected;
+            client.Dispose();
+        }
+
+        _diagClients.Clear();
+        _processChangedSubject.Dispose();
+        _processRemovedSubject.Dispose();
         return Task.CompletedTask;
     }
 
@@ -157,7 +170,15 @@ public class RealtimeManager : IHostedService
         var client = (DiagnosticClientHandler)sender!;
         RealtimEvents.Notice($"Client {client.ConnectionId} disconnected");
         _diagClients.TryRemove(client.ConnectionId, out _);
-        Deregister(client);
+        try
+        {
+            Deregister(client);
+        }
+        finally
+        {
+            client.Disconnected -= HandleClientDisconnected;
+            client.Dispose();
+        }
     }
 
     internal DiagnosticClientHandler? GetClientHandler(string connectionId)

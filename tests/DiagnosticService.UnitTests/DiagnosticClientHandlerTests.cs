@@ -21,7 +21,8 @@ public class DiagnosticClientHandlerTests
 
         var publishes = StartConcurrentPublishes(
             24,
-            index => handler.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } })
+            handler,
+            static (target, index) => target.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } })
         );
 
         try
@@ -31,7 +32,14 @@ public class DiagnosticClientHandlerTests
         finally
         {
             observer.ReleaseCallbacks();
-            await Task.WhenAll(publishes);
+            try
+            {
+                await Task.WhenAll(publishes);
+            }
+            finally
+            {
+                handler.Dispose();
+            }
         }
 
         observer.OverlapDetected.Should().BeFalse();
@@ -48,7 +56,8 @@ public class DiagnosticClientHandlerTests
 
         var publishes = StartConcurrentPublishes(
             24,
-            index => handler.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } })
+            handler,
+            static (target, index) => target.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } })
         );
 
         try
@@ -58,7 +67,14 @@ public class DiagnosticClientHandlerTests
         finally
         {
             observer.ReleaseCallbacks();
-            await Task.WhenAll(publishes);
+            try
+            {
+                await Task.WhenAll(publishes);
+            }
+            finally
+            {
+                handler.Dispose();
+            }
         }
 
         observer.OverlapDetected.Should().BeFalse();
@@ -75,7 +91,7 @@ public class DiagnosticClientHandlerTests
         return new DiagnosticClientHandler(callerContext, client, new AsyncResultBucket());
     }
 
-    private static Task[] StartConcurrentPublishes(int count, Action<int> publish)
+    private static Task[] StartConcurrentPublishes<TState>(int count, TState state, Action<TState, int> publish)
     {
         ManualResetEventSlim start = new(false);
         var tasks = Enumerable
@@ -84,7 +100,7 @@ public class DiagnosticClientHandlerTests
                 Task.Run(() =>
                 {
                     start.Wait();
-                    publish(index);
+                    publish(state, index);
                 })
             )
             .ToArray();

@@ -8,14 +8,15 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Diagnostic.Service.ClientHandlers;
 
-public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
+public sealed class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient, IDisposable
 {
     private readonly HubCallerContext _callerContext;
     private readonly IDiagnosticHubClient _client;
-
-    private readonly ISubject<SystemEvent[]> _eventsSet = Subject.Synchronize(new Subject<SystemEvent[]>());
-
-    private readonly ISubject<SystemEvent[]> _eventsStreamed = Subject.Synchronize(new Subject<SystemEvent[]>());
+    private readonly Subject<SystemEvent[]> _eventsSetSubject = new();
+    private readonly Subject<SystemEvent[]> _eventsStreamedSubject = new();
+    private readonly ISubject<SystemEvent[]> _eventsSet;
+    private readonly ISubject<SystemEvent[]> _eventsStreamed;
+    private int _disposed;
 
     public DiagnosticClientHandler(
         HubCallerContext callerContext,
@@ -26,6 +27,8 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
     {
         _client = client;
         _callerContext = callerContext;
+        _eventsSet = Subject.Synchronize(_eventsSetSubject);
+        _eventsStreamed = Subject.Synchronize(_eventsStreamedSubject);
         ConnectionId = callerContext.ConnectionId;
     }
 
@@ -91,5 +94,16 @@ public class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient
     public void CloseConnection()
     {
         _callerContext.Abort();
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
+        _eventsSetSubject.Dispose();
+        _eventsStreamedSubject.Dispose();
     }
 }
