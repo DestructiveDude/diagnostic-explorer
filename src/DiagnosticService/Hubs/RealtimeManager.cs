@@ -97,6 +97,18 @@ public class RealtimeManager : IHostedService
         return Task.CompletedTask;
     }
 
+    private static void Publish(ISubject<DiagProcess> subject, DiagProcess process)
+    {
+        try
+        {
+            subject.OnNext(process);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore a late hub/timer publication racing host shutdown.
+        }
+    }
+
     public void ProcessesAlertLevels()
     {
         DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
@@ -110,7 +122,7 @@ public class RealtimeManager : IHostedService
                 {
                     process.AlertLevel = 0;
                     process.AlertLevelDate = null;
-                    ProcessChanged.OnNext(process);
+                    Publish(ProcessChanged, process);
                 }
             }
         }
@@ -146,7 +158,7 @@ public class RealtimeManager : IHostedService
             process.AlertLevelDate = utcNow;
             if (levelChanged)
             {
-                ProcessChanged.OnNext(process);
+                Publish(ProcessChanged, process);
             }
         }
     }
@@ -223,7 +235,7 @@ public class RealtimeManager : IHostedService
                 GetClientHandler(item.ConnectionId)?.CloseConnection();
             }
 
-            ProcessRemoved.OnNext(item);
+            Publish(ProcessRemoved, item);
         }
         finally
         {
@@ -351,7 +363,7 @@ public class RealtimeManager : IHostedService
 
             if (process.State != previousState)
             {
-                ProcessChanged.OnNext(process);
+                Publish(ProcessChanged, process);
             }
         }
         finally
@@ -379,7 +391,7 @@ public class RealtimeManager : IHostedService
             {
                 proc.State = OnlineState.Offline;
                 proc.Message = "Failed to renew";
-                ProcessChanged.OnNext(proc);
+                Publish(ProcessChanged, proc);
             }
         }
 
@@ -411,7 +423,7 @@ public class RealtimeManager : IHostedService
             {
                 _processes.TryRemove(proc.Id, out _);
                 RemoveSubscription(proc);
-                ProcessRemoved.OnNext(proc);
+                Publish(ProcessRemoved, proc);
             }
         }
 
@@ -420,7 +432,7 @@ public class RealtimeManager : IHostedService
         {
             _processes.TryRemove(proc.Id, out _);
             RemoveSubscription(proc);
-            ProcessRemoved.OnNext(proc);
+            Publish(ProcessRemoved, proc);
         }
     }
 
@@ -475,7 +487,7 @@ public class RealtimeManager : IHostedService
                     subscription.SetDiagnosticClient(null);
                 }
 
-                ProcessChanged.OnNext(process);
+                Publish(ProcessChanged, process);
             }
 
             TidyProcesses();

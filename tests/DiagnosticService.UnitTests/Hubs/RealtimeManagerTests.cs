@@ -30,6 +30,17 @@ public sealed class RealtimeManagerTests
         Action removeProcess = () => manager.ProcessRemoved.OnNext(new DiagProcess());
         changeProcess.Should().Throw<ObjectDisposedException>();
         removeProcess.Should().Throw<ObjectDisposedException>();
+
+        Action lateRegistration = () =>
+            manager.Register(
+                new Registration
+                {
+                    ProcessName = "late-process",
+                    MachineName = "test-machine",
+                    InstanceId = "late-instance",
+                }
+            );
+        lateRegistration.Should().NotThrow();
     }
 
     [Fact]
