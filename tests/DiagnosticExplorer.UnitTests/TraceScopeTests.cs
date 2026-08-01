@@ -15,6 +15,21 @@ namespace DiagnosticExplorer.UnitTests;
 public class TraceScopeTests
 {
     /// <summary>
+    ///     Disposal owns the timer lifecycle lock, so a late timer request is ignored rather than
+    ///     creating an orphaned timer after the scope has closed.
+    /// </summary>
+    [Fact]
+    public void StartAutoTraceTimer_AfterDispose_IsIgnored()
+    {
+        var scope = new TraceScope(_ => { });
+        scope.Dispose();
+
+        scope.StartAutoTraceTimer(TimeSpan.Zero);
+
+        TraceScope.Current.Should().BeNull();
+    }
+
+    /// <summary>
     ///     Outside any scope there is nothing to attach to, so the static Trace is a no-op that
     ///     returns null — callers can trace unconditionally without guarding for "no active scope".
     /// </summary>

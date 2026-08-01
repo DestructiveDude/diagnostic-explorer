@@ -46,6 +46,7 @@ public sealed class TraceScope : IDisposable
     private DateTime? _disposed;
     private readonly List<ATraceItem> _traceItems = [];
     private readonly ReaderWriterLockSlim _traceItemsLock = new();
+    private readonly object _autoTraceTimerLock = new();
     private bool _forceTrace;
     private bool _isRoot;
     private Timer _autoTraceTimer;
@@ -125,18 +126,21 @@ public sealed class TraceScope : IDisposable
 
     public void StartAutoTraceTimer(TimeSpan time)
     {
-        Timer oldTimer = Interlocked.Exchange(
-            ref _autoTraceTimer,
-            new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite)
-        );
-        oldTimer?.Dispose();
-        // Guard against a concurrent Dispose() that ran while the replacement timer was created:
-        // the replacement is now orphaned in _autoTraceTimer, so clear and dispose it.
-        if (_disposed != null)
+        lock (_autoTraceTimerLock)
         {
-            Timer orphan = Interlocked.Exchange(ref _autoTraceTimer, null);
-            // ReSharper disable once ConstantConditionalAccessQualifier -- Dispose can race here.
-            orphan?.Dispose();
+            if (_disposed != null)
+            {
+                return;
+            }
+
+            if (_autoTraceTimer == null)
+            {
+                _autoTraceTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
+            }
+            else
+            {
+                _autoTraceTimer.Change((int)time.TotalMilliseconds, Timeout.Infinite);
+            }
         }
     }
 
@@ -357,19 +361,11 @@ public sealed class TraceScope : IDisposable
     {
         if (disposing)
         {
-            _disposed = DateTime.UtcNow;
-
-            Timer timer = Interlocked.Exchange(ref _autoTraceTimer, null);
-            if (timer != null)
+            lock (_autoTraceTimerLock)
             {
-                try
-                {
-                    timer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
-                catch (ObjectDisposedException)
-                { /* concurrently disposed — disarm is best-effort, ignore */
-                }
-                timer.Dispose();
+                _disposed = DateTime.UtcNow;
+                _autoTraceTimer?.Dispose();
+                _autoTraceTimer = null;
             }
 
             ScopeStack currentStack = _scopeStack.Value;
