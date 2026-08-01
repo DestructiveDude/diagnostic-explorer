@@ -26,7 +26,7 @@ public class TraceScopeTests
 
         scope.StartAutoTraceTimer(TimeSpan.Zero);
 
-        TraceScope.Current.Should().BeNull();
+        scope.HasAutoTraceTimer.Should().BeFalse();
     }
 
     /// <summary>

@@ -144,6 +144,17 @@ public sealed class TraceScope : IDisposable
         }
     }
 
+    internal bool HasAutoTraceTimer
+    {
+        get
+        {
+            lock (_autoTraceTimerLock)
+            {
+                return _autoTraceTimer != null;
+            }
+        }
+    }
+
     private void AutoTraceAfterTimeout(object state)
     {
         try
