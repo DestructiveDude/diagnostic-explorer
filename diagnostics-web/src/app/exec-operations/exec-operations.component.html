@@ -27,7 +27,7 @@
       <div class="container-parameters">
         @if (model.activeOperation) {
           <div class="grid grid-cols-auto-1fr gap-y-2 gap-x-4">
-            @if (model.activeOperation?.parameters?.length === 0) {
+            @if (model.activeOperation.parameters.length === 0) {
               <p class="col-span-2">No arguments</p>
             }
             @for (param of model.activeOperation.parameters; track param) {

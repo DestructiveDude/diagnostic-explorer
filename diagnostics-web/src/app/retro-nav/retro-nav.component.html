@@ -52,7 +52,7 @@
   </div>
 
   @if (model.currentSearchId) {
-    <p-progressbar [value]="(model.percentComplete ?? 0) * 100" />
+    <p-progressbar [value]="model.percentComplete * 100" />
   }
 
   <div class="flex items-center justify-between pt-2">
