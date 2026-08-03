@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {ExecOperationsModel} from '../Model/ExecOperationsModel';
 import {DynamicDialogConfig} from 'primeng/dynamicdialog';
 
@@ -6,6 +6,7 @@ import {DynamicDialogConfig} from 'primeng/dynamicdialog';
     selector: 'app-exec-operations',
     templateUrl: './exec-operations.component.html',
     styleUrls: ['./exec-operations.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class ExecOperationsComponent {

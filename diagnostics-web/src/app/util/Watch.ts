@@ -1,5 +1,5 @@
 ﻿import {SimpleChange, SimpleChanges} from '@angular/core';
-import * as _ from 'lodash';
+import _ from 'lodash';
 
 export function Watch(
     method: ((arg: any, changes: SimpleChanges) => void),

@@ -1,4 +1,4 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, Input, OnInit, ChangeDetectionStrategy} from '@angular/core';
 import {CategoryModel} from '../Model/CategoryModel';
 import {MessageService} from 'primeng/api';
 import {Clipboard} from '@angular/cdk/clipboard';
@@ -15,6 +15,7 @@ import {RealtimeModel} from '../Model/RealtimeModel';
     selector: 'app-realtime-category',
     templateUrl: './realtime-category.component.html',
     styleUrls: ['./realtime-category.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RealtimeCategoryComponent implements OnInit {
@@ -22,7 +23,8 @@ export class RealtimeCategoryComponent implements OnInit {
     @Input()
     category?: CategoryModel;
 
-    constructor(private messages: MessageService, private realtimeModel: RealtimeModel, private dialogService: DialogService) {
+    constructor(private messages: MessageService, private realtimeModel: RealtimeModel, private dialogService: DialogService,
+                private clipboard: Clipboard) {
     }
 
     ngOnInit(): void {
@@ -30,7 +32,7 @@ export class RealtimeCategoryComponent implements OnInit {
 
     handleDoubleClick(prop: PropModel, evt: MouseEvent) {
         if (evt.detail === 2) {
-            new Clipboard(document).copy(prop.value);
+            this.clipboard.copy(prop.value);
             this.messages.add({ severity: 'success', detail: 'Value copied to clipboard!', life: 1000 });
         }
     }
@@ -42,7 +44,7 @@ export class RealtimeCategoryComponent implements OnInit {
     showOperationsDialog(evt: MouseEvent, subCat: SubCat): void {
 
         evt.cancelBubble = true;
-        const model = new ExecOperationsModel(this.realtimeModel, subCat);
+        const model = new ExecOperationsModel(this.realtimeModel, subCat, this.clipboard);
 
         const ref = this.dialogService.open(ExecOperationsComponent, {
             header: 'Execute Operation',

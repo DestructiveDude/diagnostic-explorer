@@ -4,7 +4,7 @@ import {RetroQuery, RetroSearchResult} from './RetroQuery';
 import {DatePipe} from '@angular/common';
 import {DiagnosticMsg} from './DiagnosticMsg';
 import {FilterCriteria} from './FilterCriteria';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {Watch} from '../util/Watch';
 import {DiagHubService} from '../services/diag-hub.service';
 import {plainToInstance} from 'class-transformer';

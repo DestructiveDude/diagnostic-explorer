@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {AppModel} from './Model/AppModel';
 import {RealtimeModel} from './Model/RealtimeModel';
 import {RetroModel} from './Model/RetroModel';
@@ -8,6 +8,7 @@ import {RetroModel} from './Model/RetroModel';
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss'],
     providers: [AppModel, RealtimeModel, RetroModel],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AppComponent {

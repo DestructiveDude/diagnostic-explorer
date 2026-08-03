@@ -1,10 +1,11 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnInit, ChangeDetectionStrategy} from '@angular/core';
 import {RealtimeModel} from '../Model/RealtimeModel';
 
 @Component({
     selector: 'app-realtime-display',
     templateUrl: './realtime-display.component.html',
     styleUrls: ['./realtime-display.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RealtimeDisplayComponent implements OnInit {

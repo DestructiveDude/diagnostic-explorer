@@ -1,6 +1,6 @@
 ﻿import {Property} from './DiagResponse';
 import {PropGroup} from './PropGroup';
-import * as _ from 'lodash';
+import _ from 'lodash';
 
 export class PropModel {
     group: PropGroup;

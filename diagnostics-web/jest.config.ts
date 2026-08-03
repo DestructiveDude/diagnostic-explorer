@@ -17,6 +17,7 @@ const config: Config = {
             },
         ],
     },
+    transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$|@noble/)'],
     collectCoverageFrom: [
         'src/**/*.ts',
         '!src/**/*.spec.ts',

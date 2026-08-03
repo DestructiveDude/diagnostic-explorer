@@ -3,7 +3,7 @@ import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
 import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
 import {customMerge, simpleMerge} from '../util/Merge';
 import {Injectable} from '@angular/core';

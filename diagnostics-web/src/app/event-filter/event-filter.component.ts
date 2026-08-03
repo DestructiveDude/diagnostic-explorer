@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnInit, Output} from '@angular/core';
+import {Component, EventEmitter, Input, OnInit, Output, ChangeDetectionStrategy} from '@angular/core';
 import {FilterCriteria} from '../Model/FilterCriteria';
 import {Watch} from '../util/Watch';
 
@@ -6,6 +6,7 @@ import {Watch} from '../util/Watch';
     selector: 'app-event-filter',
     templateUrl: './event-filter.component.html',
     styleUrls: ['./event-filter.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class EventFilterComponent implements OnInit {

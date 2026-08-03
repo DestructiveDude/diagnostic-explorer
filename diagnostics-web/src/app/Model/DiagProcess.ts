@@ -1,6 +1,6 @@
 ﻿import 'reflect-metadata';
 import {Null} from '../util/Null';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {Type} from 'class-transformer';
 import {OnlineState} from './OnlineState';
 import {Level} from './Level';

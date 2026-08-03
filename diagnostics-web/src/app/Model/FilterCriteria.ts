@@ -1,5 +1,5 @@
 import {Null} from '../util/Null';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {Watch} from '../util/Watch';
 import {IFilterableEvent} from './IFilterableEvent';
 import {Level} from './Level';

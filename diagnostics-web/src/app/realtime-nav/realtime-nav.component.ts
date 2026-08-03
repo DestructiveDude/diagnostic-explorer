@@ -1,4 +1,4 @@
-import {Component, ElementRef, HostListener, ViewChild} from '@angular/core';
+import {Component, ElementRef, HostListener, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {Table} from 'primeng/table';
 import {AppModel} from '../Model/AppModel';
 import {DiagProcess} from '../Model/DiagProcess';
@@ -9,6 +9,7 @@ import {MenuItem} from 'primeng/api';
     selector: 'app-realtime-nav',
     templateUrl: './realtime-nav.component.html',
     styleUrls: ['./realtime-nav.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RealtimeNavComponent {

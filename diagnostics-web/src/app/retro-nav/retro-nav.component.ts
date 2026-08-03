@@ -1,10 +1,11 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnInit, ChangeDetectionStrategy} from '@angular/core';
 import {RetroModel} from '../Model/RetroModel';
 
 @Component({
     selector: 'app-retro-nav',
     templateUrl: './retro-nav.component.html',
     styleUrls: ['./retro-nav.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RetroNavComponent implements OnInit {

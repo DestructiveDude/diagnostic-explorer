@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
 import {RealtimeModel} from './RealtimeModel';
 import {RetroModel} from './RetroModel';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {DiagHubService} from '../services/diag-hub.service';
 import {DiagProcess} from './DiagProcess';
 

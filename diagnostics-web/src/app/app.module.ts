@@ -8,7 +8,7 @@ import {RetroNavComponent} from './retro-nav/retro-nav.component';
 import {RetroDisplayComponent} from './retro-display/retro-display.component';
 import {RealtimeNavComponent} from './realtime-nav/realtime-nav.component';
 import {RealtimeDisplayComponent} from './realtime-display/realtime-display.component';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import {FormsModule} from '@angular/forms';
 import {RealtimeCategoryComponent} from './realtime-category/realtime-category.component';
 import {RealtimeEventsComponent} from './realtime-events/realtime-events.component';
@@ -107,7 +107,7 @@ import {MessageService} from 'primeng/api';
         DatePipe,
         DialogService,
         MessageService,
-        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClient(withXhr(), withInterceptorsFromDi()),
         providePrimeNG({ theme: { preset: SalmonAura, options: { darkModeSelector: '.app-dark' } } })
     ] })
 export class AppModule {

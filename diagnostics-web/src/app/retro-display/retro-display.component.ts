@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {RetroModel} from '../Model/RetroModel';
 import {EventModel} from '../Model/EventModel';
 import {DiagnosticMsg} from '../Model/DiagnosticMsg';
@@ -8,6 +8,7 @@ import {ScopeNode} from '../Model/ScopeNode';
     selector: 'app-retro-display',
     templateUrl: './retro-display.component.html',
     styleUrls: ['./retro-display.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RetroDisplayComponent {

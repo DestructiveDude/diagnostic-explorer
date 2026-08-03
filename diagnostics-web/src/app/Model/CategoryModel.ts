@@ -3,7 +3,7 @@ import {customMerge} from '../util/Merge';
 import {EventSinkModel} from './EventSinkModel';
 import {SubCat} from './SubCat';
 import {RealtimeModel} from './RealtimeModel';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {Level} from './Level';
 import {strEqCI} from '../util/util';
 

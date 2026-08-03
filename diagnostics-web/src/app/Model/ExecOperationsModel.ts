@@ -18,7 +18,8 @@ export class ExecOperationsModel {
     executeDate: Null<Date> = null;
 
     constructor(readonly realtimeModel: RealtimeModel,
-                readonly subCat: SubCat) {
+                readonly subCat: SubCat,
+                private readonly clipboard: Clipboard) {
 
         const opSet: OperationSet | undefined = this.realtimeModel.operationSets.find(os => strEqCI(os.id, this.subCat.operationSet));
 
@@ -78,7 +79,7 @@ export class ExecOperationsModel {
     }
 
     copyToClipboard() {
-        new Clipboard(document).copy(this.results);
+        this.clipboard.copy(this.results);
 
         this.realtimeModel.messages.add({ severity: 'success', detail: 'Result copied to clipboard', life: 2000 });
     }

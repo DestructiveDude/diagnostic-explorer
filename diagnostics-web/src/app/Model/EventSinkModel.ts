@@ -1,5 +1,5 @@
 ﻿import {SystemEvent} from './DiagResponse';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import {CategoryModel} from './CategoryModel';
 import {EventModel} from './EventModel';
 import {FilterCriteria} from './FilterCriteria';

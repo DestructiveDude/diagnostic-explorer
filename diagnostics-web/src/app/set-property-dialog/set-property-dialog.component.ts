@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {DynamicDialogRef, DynamicDialogConfig} from 'primeng/dynamicdialog';
 import {PromptData, PromptResult} from '../util/PromptResult';
 
@@ -6,6 +6,7 @@ import {PromptData, PromptResult} from '../util/PromptResult';
     selector: 'app-set-property-dialog',
     templateUrl: './set-property-dialog.component.html',
     styleUrls: ['./set-property-dialog.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class SetPropertyDialogComponent {

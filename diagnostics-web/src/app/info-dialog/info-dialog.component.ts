@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {DynamicDialogRef, DynamicDialogConfig} from 'primeng/dynamicdialog';
 import {InfoDialogData} from '../Model/InfoDialogData';
 
@@ -6,6 +6,7 @@ import {InfoDialogData} from '../Model/InfoDialogData';
     selector: 'app-info-dialog',
     templateUrl: './info-dialog.component.html',
     styleUrls: ['./info-dialog.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class InfoDialogComponent {
