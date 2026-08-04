@@ -15,6 +15,7 @@
   "overrides": {
     "@hono/node-server": "2.0.12",
     "@modelcontextprotocol/sdk": "1.30.0",
+    "postcss": "$postcss",
     "qs": "6.15.3"
   },
   "dependencies": {

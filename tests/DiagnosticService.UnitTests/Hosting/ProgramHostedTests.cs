@@ -28,21 +28,9 @@ public sealed class ProgramHostedTests
             }
         );
 
-        Exception? exception = null;
-        try
-        {
-            _ = factory.Server.BaseAddress;
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
-        }
+        Action act = () => _ = factory.Server.BaseAddress;
 
-        exception
-            .Should()
-            .BeOfType<InvalidOperationException>()
-            .Which.Message.Should()
-            .Contain("no non-empty ApiKeys are configured");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*no non-empty ApiKeys are configured*");
     }
 
     [Theory]
@@ -159,21 +147,9 @@ public sealed class ProgramHostedTests
             }
         );
 
-        Exception? exception = null;
-        try
-        {
-            _ = factory.Server.BaseAddress;
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
-        }
+        Action act = () => _ = factory.Server.BaseAddress;
 
-        exception
-            .Should()
-            .BeOfType<InvalidOperationException>()
-            .Which.Message.Should()
-            .Contain("AllowedCorsOrigins is empty");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*AllowedCorsOrigins is empty*");
     }
 
     /// <summary>
@@ -196,21 +172,9 @@ public sealed class ProgramHostedTests
             }
         );
 
-        Exception? exception = null;
-        try
-        {
-            _ = factory.Server.BaseAddress;
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
-        }
+        Action act = () => _ = factory.Server.BaseAddress;
 
-        exception
-            .Should()
-            .BeOfType<InvalidOperationException>()
-            .Which.Message.Should()
-            .Contain("Diagnostics SPA directory not found");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Diagnostics SPA directory not found*");
     }
 
     private static HttpRequestMessage CreateHubOriginRequest(string origin)

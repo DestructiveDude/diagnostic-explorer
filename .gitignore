@@ -75,5 +75,6 @@ nupkg/
 
 # AI Agent directories and knowledge graphs
 .agents/
+.semgrep/
 .understand-anything/
 graphify-out/

@@ -360,25 +360,17 @@ internal class PropertyGetter
     protected static string FormatTimeSpan(TimeSpan span)
     {
         string sign = span < TimeSpan.Zero ? "-" : "";
-        string format = "{0}{2:D2}:{3:D2}:{4:D2}";
+        string value = $"{Math.Abs(span.Hours):D2}:{Math.Abs(span.Minutes):D2}:{Math.Abs(span.Seconds):D2}";
         if (span.Days != 0)
         {
-            format = "{0}{1}.{2:D2}:{3:D2}:{4:D2}";
+            value = $"{Math.Abs(span.Days)}.{value}";
         }
 
         if (Math.Abs(span.TotalSeconds) < 1)
         {
-            format += ".{5:D2}";
+            value += $".{Math.Abs(span.Milliseconds):D2}";
         }
 
-        return string.Format(
-            format,
-            sign,
-            Math.Abs(span.Days),
-            Math.Abs(span.Hours),
-            Math.Abs(span.Minutes),
-            Math.Abs(span.Seconds),
-            Math.Abs(span.Milliseconds)
-        );
+        return sign + value;
     }
 }

@@ -25,6 +25,16 @@ public class PropertyGetterTests
         return bag.Categories.SelectMany(c => c.Properties).Select(p => p.Name);
     }
 
+    /// <summary>TimeSpan formatting preserves every component selected by its display branch.</summary>
+    [Theory]
+    [InlineData(3_723_000, "01:02:03")]
+    [InlineData(93_784_000, "1.02:03:04")]
+    [InlineData(-50, "-00:00:00.50")]
+    public void TimeSpanValue_IsRenderedWithoutDroppingComponents(long milliseconds, string expected)
+    {
+        PropertyGetterProbe.Format(TimeSpan.FromMilliseconds(milliseconds)).Should().Be(expected);
+    }
+
     /// <summary>
     ///     RateGetter read the RateCounter via the raw getter, outside the guarded GetValue path, so a
     ///     throwing rate property aborted the entire walk. It now degrades to an error-string property. (M18)
@@ -257,6 +267,11 @@ public class PropertyGetterTests
 
         [ExtendedProperty]
         public ExtendedChainNode? Next { get; }
+    }
+
+    private sealed class PropertyGetterProbe : PropertyGetter
+    {
+        public static string Format(TimeSpan value) => FormatTimeSpan(value);
     }
 
     // ---------------------------------------------------------------------
