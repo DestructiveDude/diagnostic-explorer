@@ -4,21 +4,29 @@
 }
 
 /* Designed empty state (DE-D-005): fills the results region instead of
-   rendering as one black table row. Sans, centred, two-level text. */
+   rendering as one black table row. Sans, centred, two-level text. The td
+   itself must stay display:table-cell or colspan stops stretching it across
+   the table's columns, so the flex centring lives on an inner wrapper —
+   same gap-based pattern as the other new empty states. */
 :host ::ng-deep .empty-msg {
   background: transparent;
   color: var(--label);
   font-family: var(--font-sans);
-  text-align: center;
   padding: 48px 16px;
+}
+:host ::ng-deep .empty-msg .empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
 }
 :host ::ng-deep .empty-msg .empty-title {
   color: var(--head);
   font-size: 14px;
-  margin-top: 6px;
 }
 :host ::ng-deep .empty-msg .empty-hint {
   font-size: 12px;
   opacity: 0.7;
-  margin-top: 2px;
 }
