@@ -163,9 +163,10 @@ public class MongoRetroLoggerTests
 
         // Validation passing means the first MoveNextAsync proceeds past ValidateFilterPattern
         // to FindAsync: with no server answering that raises a driver exception, with one
-        // answering it may succeed — but it must never be an ArgumentException. A null subject
-        // fails NotBeOfType, so assert the intended condition directly. (DE-001)
-        exception.Should().Match<Exception?>(e => e == null || e.GetType() != typeof(ArgumentException));
+        // answering it may succeed — but it must never be an ArgumentException (subclasses
+        // included). A null subject fails NotBeOfType, so assert the intended condition
+        // directly; expression trees allow a plain type test but not `is not` patterns. (DE-001)
+        exception.Should().Match<Exception?>(e => !(e is ArgumentException));
     }
 
     /// <summary>
@@ -184,6 +185,6 @@ public class MongoRetroLoggerTests
             .GetAsyncEnumerator(TestContext.Current.CancellationToken);
         var exception = await Record.ExceptionAsync(async () => await enumerator.MoveNextAsync());
 
-        exception.Should().Match<Exception?>(e => e == null || e.GetType() != typeof(ArgumentException));
+        exception.Should().Match<Exception?>(e => !(e is ArgumentException));
     }
 }
