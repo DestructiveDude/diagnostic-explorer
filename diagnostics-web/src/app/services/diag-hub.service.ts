@@ -1,6 +1,5 @@
 import {Inject, Injectable} from '@angular/core';
-import {HubConnection} from '@microsoft/signalr';
-import * as signalR from '@microsoft/signalr';
+import {HubConnection, HubConnectionBuilder} from '@microsoft/signalr';
 import {ReplaySubject} from 'rxjs';
 import {OperationResponse, SetPropertyRequest} from '../Model/SetPropertyRequest';
 import {plainToInstance} from 'class-transformer';
@@ -43,10 +42,11 @@ export class DiagHubService {
                     if (window.location.protocol === 'https:') {
                         cookieString += '; Secure';
                     }
+                    // eslint-disable-next-line sonarjs/cookies -- deliberate H1 design: 60s, SameSite=Strict, Secure on https; cleared below.
                     document.cookie = cookieString;
                 }
 
-                const connection = new signalR.HubConnectionBuilder()
+                const connection = new HubConnectionBuilder()
                     .withUrl(this.baseUrl, {
                         withCredentials: true,
                         accessTokenFactory: () => this.apiKey
@@ -59,6 +59,7 @@ export class DiagHubService {
 
                 // Clear the short-lived auth cookie once successfully connected.
                 if (this.apiKey) {
+                    // eslint-disable-next-line sonarjs/cookies -- expiry write for the H1 cookie above.
                     document.cookie = 'Diag-Hub-Auth=; path=/; max-age=0; SameSite=Strict';
                 }
 
@@ -115,7 +116,7 @@ export class DiagHubService {
         await this.connection.invoke('CancelRetroSearch', searchId);
     }
 
-    private async handleConnectionClosed(err: Error | undefined) {
+    private async handleConnectionClosed(_err: Error | undefined) {
         this.connection = undefined;
         await this.connect();
     }

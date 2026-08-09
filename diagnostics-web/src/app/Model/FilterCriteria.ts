@@ -111,7 +111,7 @@ function isSafeRegex(pattern: string): boolean {
     if (!pattern) return true;
 
     // Check for nested/repeated quantifiers that are a major source of ReDoS
-    if (/(\+|\*)\s*(\+|\*)/.test(pattern)) return false;
+    if (/[+*]\s*[+*]/.test(pattern)) return false;
 
     // Check for nested quantifiers in parentheses: e.g. (.*)* or (a+)+
     let openCount = 0;
