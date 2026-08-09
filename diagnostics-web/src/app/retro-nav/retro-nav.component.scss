@@ -1,16 +1,8 @@
+/* Primary button + progress bar come from the IndigoAura preset (app.module.ts) —
+   no per-component overrides needed. */
 :host {
   display: block;
   height: 100%;
-
-  /* Search button — salmon/orange, dark text */
-  --p-button-primary-background: #fd8c73;
-  --p-button-primary-hover-background: #ffa590;
-  --p-button-primary-active-background: #e07060;
-  --p-button-primary-border-color: #fd8c73;
-  --p-button-primary-hover-border-color: #ffa590;
-  --p-button-primary-active-border-color: #e07060;
-  --p-button-primary-color: #0d1117;
-  --p-progressbar-value-background: #ffffff;
 }
 
 .field {
@@ -26,16 +18,16 @@
   color: var(--label);
 }
 
-/* ─── Black inputs — pInputText fields (Machine, Process, User, Message) ─── */
+/* ─── Inset input wells — pInputText fields (Machine, Process, User, Message) ─── */
 :host ::ng-deep .p-inputtext {
-  background: #000000 !important;
+  background: var(--topbar) !important;
   color: #ffffff !important;
   border-color: var(--border) !important;
 }
 
-/* ─── Black p-select dropdowns (Max Records, Min Level, Time, Window) ────── */
+/* ─── Inset p-select dropdowns (Max Records, Min Level, Time, Window) ────── */
 :host ::ng-deep .p-select {
-  background: #000000 !important;
+  background: var(--topbar) !important;
   border-color: var(--border) !important;
 }
 :host ::ng-deep .p-select-label {
@@ -45,9 +37,9 @@
   color: var(--label) !important;
 }
 
-/* ─── Black datepicker input ──────────────────────────────────────────────── */
+/* ─── Inset datepicker input ──────────────────────────────────────────────── */
 :host ::ng-deep p-datepicker .p-datepicker-input {
-  background: #000000 !important;
+  background: var(--topbar) !important;
   color: #ffffff !important;
   border-color: var(--border) !important;
 }

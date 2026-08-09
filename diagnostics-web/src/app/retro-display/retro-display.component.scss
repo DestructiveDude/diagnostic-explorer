@@ -3,11 +3,22 @@
   height: 100%;
 }
 
+/* Designed empty state (DE-D-005): fills the results region instead of
+   rendering as one black table row. Sans, centred, two-level text. */
 :host ::ng-deep .empty-msg {
-  background: #000000;
-  color: var(--head);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-style: italic;
+  background: transparent;
+  color: var(--label);
+  font-family: var(--font-sans);
   text-align: center;
-  padding: 16px;
+  padding: 48px 16px;
+}
+:host ::ng-deep .empty-msg .empty-title {
+  color: var(--head);
+  font-size: 14px;
+  margin-top: 6px;
+}
+:host ::ng-deep .empty-msg .empty-hint {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 2px;
 }

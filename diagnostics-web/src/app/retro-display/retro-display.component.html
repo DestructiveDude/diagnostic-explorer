@@ -61,7 +61,11 @@
 
             <ng-template #emptymessage>
               <tr>
-                <td colspan="6" class="empty-msg">No events</td>
+                <td colspan="6" class="empty-msg">
+                  <i class="pi pi-search opacity-50" aria-hidden="true"></i>
+                  <div class="empty-title">No events</div>
+                  <div class="empty-hint">Run a search, or widen the filters above.</div>
+                </td>
               </tr>
             </ng-template>
 
@@ -76,7 +80,11 @@
       @if (model.traceScopeVisible && model.selectedEvent) {
         <app-event-detail [event]="selectedAsEventModel" (closed)="model.hideTraceScope()" />
       } @else {
-        <div class="h-full flex items-center justify-center text-[color:var(--label)] italic text-sm">No event selected</div>
+        <div class="h-full flex flex-col items-center justify-center gap-1 text-[color:var(--label)] px-4 text-center">
+          <i class="pi pi-arrow-up opacity-50" aria-hidden="true"></i>
+          <span class="text-sm">No event selected</span>
+          <span class="text-xs opacity-70">Select an event above to inspect it here.</span>
+        </div>
       }
     </ng-template>
 

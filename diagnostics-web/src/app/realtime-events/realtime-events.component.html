@@ -1,6 +1,10 @@
 <div class="overflow-y-auto border border-[color:var(--border)] rounded realtime-events">
   @if (!sink?.filteredEvents?.length) {
-    <div class="p-4 text-center text-[color:var(--label)]">No events</div>
+    <div class="h-full flex flex-col items-center justify-center gap-1 text-[color:var(--label)] px-4 text-center">
+      <i class="pi pi-inbox opacity-50" aria-hidden="true"></i>
+      <span class="text-sm">No events</span>
+      <span class="text-xs opacity-70">Events will appear here as they arrive.</span>
+    </div>
   } @else {
     <table class="sev-table">
       <thead class="sticky top-0 z-10">

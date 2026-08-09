@@ -2,8 +2,8 @@
   border-bottom-color: var(--border) !important;
 }
 :host ::ng-deep .p-datatable-tbody > tr > td:nth-child(1) {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
-  color: #86efac !important;
+  font-family: var(--font-mono);
+  color: var(--value) !important;
   font-size: 14px !important;
 }
 
@@ -28,22 +28,22 @@
   background: rgba(255, 255, 255, 0.07) !important;
 }
 
-/* Selected process — salmon tint + salmon left marker so the active row is
+/* Selected process — accent tint + accent left marker so the active row is
    unmistakable against the rest of the list. */
 :host ::ng-deep .p-datatable-tbody > tr.active {
-  background: rgba(253, 140, 115, 0.16) !important;
-  box-shadow: inset 3px 0 0 0 #fd8c73;
+  background: rgba(129, 140, 248, 0.16) !important;
+  box-shadow: inset 3px 0 0 0 var(--active);
 }
 :host ::ng-deep .p-datatable-tbody > tr.active:hover {
-  background: rgba(253, 140, 115, 0.22) !important;
+  background: rgba(129, 140, 248, 0.22) !important;
 }
 
-/* Process-table header — mockup .th: bold head text on a surface bar.
+/* Process-table header — bold head text on the raised surface step.
    Kill PrimeNG's default (light) header borders; keep only a dark bottom divider. */
 :host ::ng-deep .p-datatable,
 :host ::ng-deep .p-datatable-table { border: 0 !important; background: transparent !important; }
 :host ::ng-deep .p-datatable-thead > tr > th {
-  background: #000000 !important;
+  background: var(--surface) !important;
   color: var(--head) !important;
   border: 0 !important;
   border-bottom: 1px solid var(--border) !important;
@@ -51,7 +51,7 @@
   padding: 4px 8px;
 }
 
-/* Online-only checkbox — orange (#fd8c73) to match the active tab underline */
+/* Online-only checkbox — white fill so the checked state reads on the dark rail */
 :host ::ng-deep .p-checkbox.p-checkbox-checked .p-checkbox-box {
   background: #ffffff !important;
   border-color: #ffffff !important;
@@ -60,11 +60,11 @@
   border-color: var(--border) !important;
 }
 
-/* Filter input — black box, white text */
+/* Filter input — inset well, white text */
 :host ::ng-deep .p-iconfield .p-inputtext,
 :host ::ng-deep .p-iconfield input {
   color: #ffffff !important;
-  background: #000000 !important;
+  background: var(--topbar) !important;
 }
 
 /* Filter fills its container; the tools block's horizontal padding (p-2 = 8px)

@@ -30,15 +30,16 @@ import {providePrimeNG} from 'primeng/config';
 import Aura from '@primeng/themes/aura';
 import {definePreset} from '@primeng/themes';
 
-// Rebrand Aura's default (teal/emerald) primary to the app's salmon accent (#fd8c73)
-// so PrimeNG highlight states — select selected-option, datepicker selected date —
-// match the rest of the UI instead of showing teal.
-const SalmonAura = definePreset(Aura, {
+// Rebrand Aura's default (teal/emerald) primary to the app's indigo interaction
+// accent (--accent/--active in styles.scss) so PrimeNG highlight states — select
+// selected-option, datepicker selected date, primary buttons — match the rest of
+// the UI. Themed through the preset's design tokens, not per-component CSS.
+const IndigoAura = definePreset(Aura, {
     semantic: {
         primary: {
-            50: '#fff4f1', 100: '#ffe4dc', 200: '#ffc9b9', 300: '#ffa893',
-            400: '#fd9379', 500: '#fd8c73', 600: '#e07060', 700: '#bd5a4d',
-            800: '#9a4940', 900: '#7e3e37', 950: '#451d19'
+            50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+            400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+            800: '#3730a3', 900: '#312e81', 950: '#1e1b4b'
         }
     }
 });
@@ -108,7 +109,7 @@ import {MessageService} from 'primeng/api';
         DialogService,
         MessageService,
         provideHttpClient(withXhr(), withInterceptorsFromDi()),
-        providePrimeNG({ theme: { preset: SalmonAura, options: { darkModeSelector: '.app-dark' } } })
+        providePrimeNG({ theme: { preset: IndigoAura, options: { darkModeSelector: '.app-dark' } } })
     ] })
 export class AppModule {
 }

@@ -16,13 +16,19 @@
         @if (model.traceScopeVisible && model.selectedEvent) {
           <app-event-detail [event]="model.selectedEvent" (closed)="model.hideTraceScope()" />
         } @else {
-          <div class="h-full flex items-center justify-center text-[color:var(--label)] italic text-sm">No event selected</div>
+          <div class="h-full flex flex-col items-center justify-center gap-1 text-[color:var(--label)] px-4 text-center">
+            <i class="pi pi-arrow-up opacity-50" aria-hidden="true"></i>
+            <span class="text-sm">No event selected</span>
+            <span class="text-xs opacity-70">Select an event above to inspect it here.</span>
+          </div>
         }
       </ng-template>
     </p-splitter>
   } @else {
-    <div class="h-full flex items-center justify-center text-[color:var(--label)] italic px-4 text-center">
-      {{ model.activeProcess ? 'Waiting for diagnostics…' : 'Select a process from the list to view diagnostics.' }}
+    <div class="h-full flex flex-col items-center justify-center gap-2 text-[color:var(--label)] px-4 text-center">
+      <i class="pi text-xl opacity-50" [class.pi-hourglass]="model.activeProcess" [class.pi-arrow-left]="!model.activeProcess" aria-hidden="true"></i>
+      <span class="text-[color:var(--head)]">{{ model.activeProcess ? 'Waiting for diagnostics…' : 'No process selected' }}</span>
+      <span class="text-sm opacity-80">{{ model.activeProcess ? 'Categories will appear here as the process reports them.' : 'Select a process from the list to view its live diagnostics.' }}</span>
     </div>
   }
 </div>
