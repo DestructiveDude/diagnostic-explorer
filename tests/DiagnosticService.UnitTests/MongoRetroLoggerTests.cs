@@ -15,9 +15,10 @@ namespace DiagnosticService.UnitTests;
 /// </summary>
 public class MongoRetroLoggerTests
 {
-    // A syntactically valid connection string with a short server-selection timeout: no server
-    // is listening, so any code path that accidentally reaches the driver fails fast instead of
-    // hanging for the default 30s selection timeout.
+    // A syntactically valid connection string with a short server-selection timeout, so any
+    // code path that accidentally reaches the driver fails fast instead of hanging for the
+    // default 30s selection timeout. A server may or may not answer (this host has one on
+    // 127.0.0.1:27017); the assertions below must hold in both cases.
     private const string DummyConnectionString = "mongodb://127.0.0.1:27017/?serverSelectionTimeoutMS=500";
 
     private static MongoRetroLogger CreateLogger()
@@ -142,8 +143,8 @@ public class MongoRetroLoggerTests
     // Log Analytics copy must reject — lookahead, backreferences — are legitimate here and must
     // NOT be over-rejected. Validation passing means the first MoveNextAsync proceeds past
     // ValidateFilterPattern to FindAsync; with no server listening that fails with a driver
-    // exception (or succeeds if a local Mongo happens to be up) — anything except an
-    // ArgumentException proves the pattern was not rejected. (DE-8)
+    // exception, with one answering it may succeed — anything except an ArgumentException
+    // proves the pattern was not rejected. (DE-8)
     [Theory]
     [InlineData("srv\\d+")] // ordinary regex
     [InlineData("a(?=b)")] // lookahead — PCRE supports it
@@ -160,7 +161,11 @@ public class MongoRetroLoggerTests
             .GetAsyncEnumerator(TestContext.Current.CancellationToken);
         var exception = await Record.ExceptionAsync(async () => await enumerator.MoveNextAsync());
 
-        exception.Should().NotBeOfType<ArgumentException>();
+        // Validation passing means the first MoveNextAsync proceeds past ValidateFilterPattern
+        // to FindAsync: with no server answering that raises a driver exception, with one
+        // answering it may succeed — but it must never be an ArgumentException. A null subject
+        // fails NotBeOfType, so assert the intended condition directly. (DE-001)
+        exception.Should().Match<Exception?>(e => e == null || e.GetType() != typeof(ArgumentException));
     }
 
     /// <summary>
@@ -179,6 +184,6 @@ public class MongoRetroLoggerTests
             .GetAsyncEnumerator(TestContext.Current.CancellationToken);
         var exception = await Record.ExceptionAsync(async () => await enumerator.MoveNextAsync());
 
-        exception.Should().NotBeOfType<ArgumentException>();
+        exception.Should().Match<Exception?>(e => e == null || e.GetType() != typeof(ArgumentException));
     }
 }

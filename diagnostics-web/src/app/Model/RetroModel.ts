@@ -33,7 +33,7 @@ export class RetroModel {
                 if (this.currentSearchId === searchId)
                     this.onSearchComplete(false, false);
             });
-            connection.on("ProcessSearchError", (searchId: number, error: string, detail: string) => {
+            connection.on("ProcessSearchError", (searchId: number, error: string, _detail: string) => {
                 console.log(error);
                 if (this.currentSearchId === searchId) {
                     // Reset the active-search state, otherwise currentSearchId stays set and the UI is
@@ -105,7 +105,7 @@ export class RetroModel {
         this.maxRecords = 5000;
         this.minLevel = 0;
         this.date = today();
-        this.time = 7;//new Date().getHours();
+        this.time = 7;
         this.hours = 12;
         this.machine = '';
         this.process = '';
@@ -230,9 +230,6 @@ export class RetroModel {
 
             this.initResultsMessage();
             this.titleMessage = `Searching... ${this.results.length} records`;
-
-            // if (this.percentComplete === 100)
-            //   this.onSearchComplete(false, false);
         } catch (err) {
             console.log(err);
         }

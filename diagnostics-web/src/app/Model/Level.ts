@@ -1,16 +1,16 @@
-﻿export class Level {
-    public static VERBOSE = 10_000;
-    public static TRACE = 20_000;
-    public static DEBUG = 30_000;
-    public static INFO = 40_000;
-    public static NOTICE = 50_000;
-    public static WARN = 60_000;
-    public static ERROR = 70_000;
-    public static SEVERE = 80_000;
-    public static CRITICAL = 90_000;
-    public static ALERT = 100_000;
-    public static FATAL = 110_000;
-    public static EMERGENCY = 120_000;
+export class Level {
+    public static readonly VERBOSE = 10_000;
+    public static readonly TRACE = 20_000;
+    public static readonly DEBUG = 30_000;
+    public static readonly INFO = 40_000;
+    public static readonly NOTICE = 50_000;
+    public static readonly WARN = 60_000;
+    public static readonly ERROR = 70_000;
+    public static readonly SEVERE = 80_000;
+    public static readonly CRITICAL = 90_000;
+    public static readonly ALERT = 100_000;
+    public static readonly FATAL = 110_000;
+    public static readonly EMERGENCY = 120_000;
 
     public static LevelToString(value: number): string {
         if (value >= this.EMERGENCY) return 'Emergency';

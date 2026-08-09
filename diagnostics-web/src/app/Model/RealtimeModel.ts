@@ -80,7 +80,7 @@ export class RealtimeModel {
             });
         });
 
-        this.hubService.connectionStarted.subscribe(connection => {
+        this.hubService.connectionStarted.subscribe(_connection => {
             this.subscribeToActiveProcess();
         });
     }
@@ -95,7 +95,7 @@ export class RealtimeModel {
 
     async start(): Promise<void> {
         this.severityCheckSubscription = timer(0, 1_000)
-            .subscribe(folder => this.checkEventSeverityLevels());
+            .subscribe(_folder => this.checkEventSeverityLevels());
 
     }
 
@@ -224,12 +224,10 @@ export class RealtimeModel {
     }
 
     public displayProcesses(processes: DiagProcess[]): void {
-        //console.log('displayProcesses', processes);
         this.mergeProcesses(processes, true);
     }
 
     public updateProcess(process: DiagProcess): void {
-        //console.log('updateProcess', process);
         this.mergeProcesses([process], false);
     }
 
@@ -353,8 +351,6 @@ export class RealtimeModel {
 
 
     private setEvents(id: string, evts: SystemEvent[]): void {
-        //console.log(`setEvents ${id}: ${events.length}`);
-
         if (this.activeProcess?.id === id) {
             this.categories.forEach(c => c.eventSinks = []);
             this.streamEvents(id, evts);
@@ -397,7 +393,7 @@ export class RealtimeModel {
             cat.checkEventSeverityLevels();
     }
 
-    handleOnlineClick($evt: any) {
+    handleOnlineClick(_$evt: any) {
         // The checkbox two-way-binds onlineOnly and triggers the filter; no extra work here.
     }
 }

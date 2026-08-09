@@ -1,4 +1,4 @@
-﻿export function customMerge<T, S, K>(
+export function customMerge<T, S, K>(
     source: S[],
     target: T[],
     sourceKey: (s: S) => K,
@@ -43,7 +43,7 @@ export function simpleMerge<T, K>(
     update?: (s: T, t: T) => void): T[] {
 
     if (!update)
-        update = (s, t) => {
+        update = (_s, _t) => {
         };
 
     return customMerge<T, T, K>(source, target, keyGen, keyGen, s => s, update);

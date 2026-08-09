@@ -1,9 +1,9 @@
-﻿import {SystemEvent} from './DiagResponse';
-import _ from 'lodash';
+import {SystemEvent} from './DiagResponse';
 import {CategoryModel} from './CategoryModel';
 import {EventModel} from './EventModel';
 import {FilterCriteria} from './FilterCriteria';
 import {Watch} from '../util/Watch';
+// eslint-disable-next-line sonarjs/no-wildcard-import -- deliberate CJS interop; see comment below.
 import * as pluralizeModule from 'pluralize';
 
 // pluralize is a CommonJS module whose export *is* the function. A default
@@ -35,8 +35,6 @@ export class EventSinkModel {
     }
 
     public addEvents(evts: SystemEvent[]): void {
-
-        // this.latestReceived = evt;
 
         const evtModels = evts.map(evt => new EventModel(evt));
 

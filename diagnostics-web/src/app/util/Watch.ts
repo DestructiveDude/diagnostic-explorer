@@ -1,11 +1,11 @@
-﻿import {SimpleChange, SimpleChanges} from '@angular/core';
+import {SimpleChange, SimpleChanges} from '@angular/core';
 import _ from 'lodash';
 
 export function Watch(
     method: ((arg: any, changes: SimpleChanges) => void),
     comparison: (x: any, y: any) => boolean = _.eq): PropertyDecorator & MethodDecorator {
 
-    return (target: any, key: string | symbol, propDesc?: PropertyDescriptor) => {
+    return (_target: any, key: string | symbol, propDesc?: PropertyDescriptor) => {
         let privateKey = "_" + key.toString();
         let isNotFirstChangePrivateKey = "_" + key.toString() + 'IsNotFirstChange';
 

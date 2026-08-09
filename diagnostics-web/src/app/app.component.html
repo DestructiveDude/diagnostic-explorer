@@ -18,7 +18,7 @@
     <button class="gh-tab" [class.active]="appModel.tabIndex === 1" (click)="appModel.viewRetro()">Retro</button>
   </nav>
 
-  <p-splitter [panelSizes]="[22, 78]" [minSizes]="[0, 0]" [gutterSize]="6" styleClass="h-full w-full border-0"
+  <p-splitter [panelSizes]="[22, 78]" [minSizes]="[0, 0]" [gutterSize]="6" styleClass="main-split h-full w-full border-0"
               stateKey="diag-main-split" stateStorage="local">
     <ng-template #panel>
       <div class="h-full overflow-hidden">

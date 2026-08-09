@@ -96,6 +96,39 @@ input.p-inputtext:focus,
    from squashing when the sidebar gutter is dragged in). */
 .p-splitter-horizontal > .p-splitterpanel:first-child { min-width: 250px; max-width: 500px; }
 
+/* The content panel must shrink below its content width: splitter panels are flex
+   items with the default min-width:auto, so a wide results table otherwise
+   inflates the whole document and the page scrolls horizontally (DE-003). With
+   min-width:0 the table scrolls inside its own overflow container instead. */
+.p-splitter-horizontal > .p-splitterpanel:not(:first-child) { min-width: 0; }
+
+/* Below the md breakpoint a 250px rail leaves no usable content width, so the
+   main splitter stacks: filter sidebar above, results below, document scrolls
+   vertically (DE-003). PrimeNG sets panel flex-basis inline, hence !important.
+   Scoped to .main-split — the nested splitters are vertical and unaffected. */
+@media (max-width: 767.98px) {
+  .main-split.p-splitter-horizontal { flex-direction: column; overflow-y: auto; }
+  .main-split > .p-splitterpanel {
+    flex-basis: auto !important;
+    /* PrimeNG panels are flex 1 1 — in the stacked column the definite-height
+       container would shrink the sidebar to whatever the results panel's
+       min-height leaves over, clipping the form. shrink:0 keeps each panel at
+       its content height and lets the splitter scroll vertically instead. */
+    flex-shrink: 0;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+  /* The results panel holds a nested vertical splitter whose height:100% chain
+     resolves to auto once the panel is content-sized — give it a real height. */
+  .main-split > .p-splitterpanel:last-child { min-height: 70vh; }
+  /* The gutter becomes a full-width horizontal divider between the stacked panels.
+     min-height:0 overrides the flex item's content floor (the 30px drag handle),
+     and the handle itself flips to the wide-and-thin orientation. */
+  .main-split > .p-splitter-gutter { width: 100%; flex: 0 0 6px; min-height: 0; }
+  .main-split > .p-splitter-gutter > .p-splitter-gutter-handle { width: 30px !important; height: 3px !important; }
+}
+
 /* Nested splitters must shrink below their content. A splitter (and each panel)
    is a grid/flex item with the default min-height:auto, so it refuses to shrink
    past its intrinsic content height. When a tall panel — e.g. a full retro

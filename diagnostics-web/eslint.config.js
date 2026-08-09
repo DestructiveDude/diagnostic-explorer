@@ -1,5 +1,6 @@
 import tseslint from 'typescript-eslint'
 import sonarjs from 'eslint-plugin-sonarjs'
+import globals from 'globals'
 
 // Minimal flat config: TypeScript parser + the SonarJS recommended set only.
 // We deliberately do NOT pull js/tseslint "recommended" rules here — this repo has
@@ -10,7 +11,12 @@ export default [
   { ignores: ['dist', 'coverage', '.angular', 'node_modules', '**/*.spec.ts'] },
   {
     files: ['src/**/*.ts'],
-    languageOptions: { parser: tseslint.parser },
+    languageOptions: {
+      parser: tseslint.parser,
+      // Browser app: without these, sonarjs/no-reference-error flagged every DOM
+      // global (MouseEvent, console, KeyboardEvent, ...) as an undeclared variable.
+      globals: globals.browser,
+    },
     plugins: { sonarjs },
     rules: {
       ...Object.fromEntries(
@@ -21,6 +27,12 @@ export default [
       'sonarjs/arrow-function-convention': 'off',
       'sonarjs/declarations-in-global-scope': 'off',
       'sonarjs/cyclomatic-complexity': 'off',
+      // Codebase idiom: references are cleared with `= undefined` and fields are
+      // typed `| undefined`; the rule's suggested `null` would change semantics.
+      'sonarjs/no-undefined-assignment': 'off',
+      // The fork's public API is PascalCase throughout (C#-flavoured — Watch,
+      // LevelToString); the camelCase regex would force interface churn.
+      'sonarjs/function-name': 'off',
     },
   },
 ]
