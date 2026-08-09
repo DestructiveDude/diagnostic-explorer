@@ -47,9 +47,9 @@
 .scope-toggle:hover { color: var(--head); opacity: 1; }
 .scope-toggle.active { color: var(--accent); opacity: 1; }
 
-/* ─── Filter text input — black box, white text ───────────────────────── */
+/* ─── Filter text input — inset well, white text ────────────────────────── */
 :host ::ng-deep .filter-text {
-  background: #000000 !important;
+  background: var(--topbar) !important;
   color: #ffffff !important;
   border-color: var(--border) !important;
 }

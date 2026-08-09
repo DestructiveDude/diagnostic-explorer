@@ -5,11 +5,11 @@
 :host ::ng-deep .evt-tabs .p-tabpanels { flex:1 1 auto; min-height:0; padding:0; overflow:hidden; background: var(--bg) !important; }
 :host ::ng-deep .evt-tabs .p-tabpanel { height:100%; }
 
-// Tab header strip — black
-:host ::ng-deep .evt-tabs .p-tablist { background: #000000 !important; border-color: var(--border) !important; }
+// Tab header strip — darkest slate step; active bar in the interaction accent
+:host ::ng-deep .evt-tabs .p-tablist { background: var(--topbar) !important; border-color: var(--border) !important; }
 :host ::ng-deep .evt-tabs .p-tab { color: var(--label) !important; }
 :host ::ng-deep .evt-tabs .p-tab.p-tab-active { color: var(--head) !important; }
-:host ::ng-deep .evt-tabs .p-tablist-active-bar { background: #fd8c73 !important; }
+:host ::ng-deep .evt-tabs .p-tablist-active-bar { background: var(--active) !important; }
 
 /* Layout and text styles live in styles.scss under the app-event-detail selector
    to avoid Angular encapsulation issues with p-tabpanel content projection. */

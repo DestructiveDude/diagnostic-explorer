@@ -14,30 +14,43 @@
 @import 'primeicons/primeicons.css';
 
 /* ─── Palette tokens ──────────────────────────────────────────────────────── */
+/* One hue, several lightness steps: --topbar (deepest — header, tab strip,
+   input wells) < --bg (canvas) < --surface (raised bar). Chrome and content
+   share the slate hue so the screen reads as a single surface; --border
+   carries the boundaries (including the sidebar/canvas split). */
 :root,
 .app-dark {
-  --bg:        #0d1117;  /* GitHub grey — rail / canvas / empty pane (contrast vs black) */
-  --topbar:    #000000;  /* header + box body (black)                                    */
+  --bg:        #0d1117;  /* GitHub grey — rail / canvas / empty pane           */
+  --topbar:    #010409;  /* GitHub canvas-inset — darkest slate step           */
   --surface:   #161b22;  /* GitHub subtle/box surface  */
   --border:    #30363d;  /* GitHub fine divider line   */
   --head:      #e6edf3;  /* GitHub primary text        */
   --label:     #7d8590;  /* GitHub muted text          */
-  --accent:    #6366f1;
-  --active:    #818cf8;
+  --accent:    #6366f1;  /* interaction accent — focus rings, selected state   */
+  --active:    #818cf8;  /* accent, one step lighter — active markers on dark  */
   --value:     #86efac;
   --value-set: #818cf8;
-  --online:    #86efac;
-  --resize:    #6e7681;  /* neutral grey grips (no more teal) */
+  --resize:    #6e7681;  /* neutral grey grips */
 
-  /* severity bands: bg tint / left slice / bold text */
+  /* severity bands: bg tint / left slice / bold text — the ONLY red in the UI */
   --sev-error-bg:#2a1416;  --sev-error-slice:#ff5252;  --sev-error-text:#ff6b6b;
   --sev-warn-bg:#2a2110;   --sev-warn-slice:#ffa31a;   --sev-warn-text:#ffc24d;
   --sev-notice-bg:#1d1430; --sev-notice-slice:#b15cff; --sev-notice-text:#d8a2ff;
   --sev-info-bg:#0f2418;   --sev-info-slice:#2ee06a;   --sev-info-text:#5cf08a;
 
-  /* fonts */
-  --p-font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  --font-sans:     'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* fonts — two coherent stacks: sans for chrome and prose, mono for data.
+     Each stack falls back within its own genre, so a machine without Plex
+     keeps the intended genre instead of silently swapping mono<->proportional.
+     (PrimeNG v22 components inherit the page font; there is no --p-font-family
+     token in the Aura design-token layer.) */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* radius scale — three steps assigned by element size.
+     50% survives only for true circles (severity dots, header avatar). */
+  --radius-sm:   3px;     /* grips, chips, inline tags */
+  --radius-md:   6px;     /* panels, fieldsets, cards  */
+  --radius-pill: 9999px;  /* pills                     */
 
   /* category severity dots */
   --dot-quiet:#475569; --dot-ok:#34d399; --dot-warn:#fbbf24; --dot-err:#f87171;
@@ -49,7 +62,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--label);
-  font-family: 'IBM Plex Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* ─── Indigo focus ring ───────────────────────────────────────────────────── */
@@ -77,7 +90,7 @@ input.p-inputtext:focus,
   transition: color .12s, border-color .12s;
 }
 .gh-tab:hover { color: var(--head); border-bottom-color: var(--border); }
-.gh-tab.active { color: var(--head); font-weight: 600; border-bottom-color: #fd8c73; }
+.gh-tab.active { color: var(--head); font-weight: 600; border-bottom-color: var(--active); }
 
 /* Left rail never shrinks below the toggle's natural width (keeps Realtime/Retro
    from squashing when the sidebar gutter is dragged in). */
@@ -96,21 +109,23 @@ input.p-inputtext:focus,
 .p-splitter,
 .p-splitterpanel { background: transparent !important; }
 
-/* ─── Teal resize grips on splitter gutters ───────────────────────────────── */
+/* ─── Neutral resize grips on splitter gutters ──────────────────────────────
+   Drag affordances are neutral grey (--resize); accent/red stay reserved for
+   interaction state and errors respectively. */
 .p-splitter-gutter { background: var(--border) !important; }
 .p-splitter-gutter-handle {
-  background: #fd8c73 !important;
-  border-radius: 2px;
-  box-shadow: 0 0 7px #fd8c73;
+  background: var(--resize) !important;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 7px var(--resize);
   opacity: .85;
   transition: opacity .12s;
 }
 .p-splitter-gutter:hover .p-splitter-gutter-handle { opacity: 1; }
-/* Thicker than the 1px default — mockup grip is a chunky teal bar. */
+/* Thicker than the 1px default — the grip is a chunky bar. */
 .p-splitter-horizontal > .p-splitter-gutter > .p-splitter-gutter-handle { width: 3px !important; height: 30px !important; }
 .p-splitter-vertical > .p-splitter-gutter > .p-splitter-gutter-handle { height: 3px !important; width: 30px !important; }
 
-/* ─── Teal resize grips on DataTable column edges ─────────────────────────────
+/* ─── Neutral resize grips on DataTable column edges ────────────────────────
    Drawn directly on the header cell edge (mockup `.th span::after` technique) so
    they show regardless of whether PrimeNG's .p-column-resizer span renders; the
    actual resize handle sits underneath, so pointer-events:none keeps drag working. */
@@ -122,17 +137,17 @@ input.p-inputtext:focus,
   width: 2px;
   background: var(--resize);
   box-shadow: 0 0 6px var(--resize);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   opacity: 0.8;
   pointer-events: none;
   transition: opacity 0.12s;
 }
 .p-datatable-thead > tr > th:hover::after { opacity: 1; }
 
-/* ─── Column drag resize indicator — orange line while dragging ───────────── */
+/* ─── Column drag resize indicator — neutral line while dragging ─────────── */
 .p-datatable-column-resize-indicator {
-  background: #fd8c73 !important;
-  box-shadow: 0 0 6px #fd8c73;
+  background: var(--resize) !important;
+  box-shadow: 0 0 6px var(--resize);
   width: 2px !important;
 }
 
@@ -188,11 +203,11 @@ input.p-inputtext:focus,
 
 .tooltips {
   color: #AAA !important;
-  background: black;
+  background: var(--topbar);
 }
 
 .alert-pill {
-  border-radius: 0.25rem;
+  border-radius: var(--radius-pill);
 }
 
 .title-online {
@@ -222,7 +237,7 @@ fieldset {
 /* ─── Panel + fieldset chrome — ported from mockup-a-pal2-v5 (.panel / .h / .fs) ── */
 .realtime-category .p-panel {
   border: 1px solid var(--border) !important;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg);
 }
@@ -247,7 +262,7 @@ fieldset {
 }
 .realtime-category .p-fieldset {
   border: 1px solid var(--border) !important;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin: 0 0 7px 0;
   background: transparent !important;
 }
@@ -267,7 +282,7 @@ fieldset {
    retro p-table (styleClass="sev-table ..."). The PrimeNG p-datatable markup
    needs extra-specific selectors — see the second mixin block below.
    ─────────────────────────────────────────────────────────────────────────── */
-.sev-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sev-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: var(--font-mono); /* data table — mono stack */ }
 .sev-table th { text-align: left; background: var(--surface); color: var(--head); padding: 3px 8px; position: sticky; top: 0; }
 .sev-table td { padding: 3px 8px; color: #cbd5e1; }
 .sev-table td:first-child,
@@ -330,7 +345,7 @@ app-event-detail .meta {
 }
 app-event-detail .meta-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
 app-event-detail .dk { color:var(--label); text-transform:uppercase; font-size:10px; letter-spacing:.05em; }
-app-event-detail .dv { color:var(--head); font-size:13px; }
+app-event-detail .dv { color:var(--head); font-size:13px; font-family:var(--font-mono); /* dates/levels/hosts are data */ }
 app-event-detail .dv.lvl { color:var(--active); font-weight:600; }
 app-event-detail .bd {
   flex:1 1 auto; min-height:0; margin:0; overflow:auto;
@@ -359,7 +374,9 @@ app-event-detail .bd {
 
 /* ─── IBM Plex Sans on Process + Message columns ──────────────────────────
    Retro p-table: col 5 = Process, col 6 = Message.
-   Realtime native table: col 4 = Message. */
+   Realtime native table: col 4 = Message.
+   These selectors target the cells directly, so they beat the mono inherited
+   from .sev-table without !important — no fighting PrimeNG's font layer. */
 .sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(5),
-.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(6) { font-family: var(--font-sans) !important; }
+.sev-table.p-datatable .p-datatable-tbody > tr > td:nth-child(6) { font-family: var(--font-sans); }
 .sev-table tbody tr td:nth-child(4) { font-family: var(--font-sans); }
