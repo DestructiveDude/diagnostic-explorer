@@ -24,7 +24,7 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -60,6 +60,8 @@ jobs:
           --no-build
           --logger "trx;LogFilePrefix=test-results"
           --results-directory ./TestResults
+          --blame-hang-timeout 30s
+          --blame-hang-dump-type none
 
       - uses: actions/upload-artifact@v7
         if: always()

@@ -34,7 +34,7 @@ jobs:
   build-and-push:
     name: Publish Image (GHCR)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
