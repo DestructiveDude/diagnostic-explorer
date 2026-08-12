@@ -6,7 +6,10 @@
     <StartupObject>WidgetSample.Program</StartupObject>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <!-- This legacy WinForms demonstration intentionally retains dormant examples, event-handler
+         shapes and net48 disposal patterns that are not part of the shipped libraries. Keep these
+         advisory exceptions here rather than weakening analyzers solution-wide. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);S125;S1144;S1199;S2325;S2696;S2930;S3168;S3881;S4487;S6562;S6670</WarningsNotAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
