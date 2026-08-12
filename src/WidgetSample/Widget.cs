@@ -30,12 +30,17 @@ public class Widget : IDisposable, INotifyPropertyChanged
     private static readonly string[] _names = new[] { "Widget X", "Widget Y", "Widget Z", "Widget W" };
 
     private readonly SynchronizationContext _syncContext;
+    private readonly TimeProvider _timeProvider;
     private DateTime _dateCreated;
     private string _name;
     private Point _size;
 
     public Widget(int id)
+        : this(id, TimeProvider.System) { }
+
+    internal Widget(int id, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         Id = id;
         _syncContext = SynchronizationContext.Current;
 
@@ -88,7 +93,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public void Randomise()
     {
         Name = _names[ThreadSafeRandom.Next(0, _names.Length)];
-        DateCreated = DateTime.Now.AddMinutes(ThreadSafeRandom.Next(0, 10000));
+        DateCreated = _timeProvider.GetLocalNow().DateTime.AddMinutes(ThreadSafeRandom.Next(0, 10000));
         Size = new Point(ThreadSafeRandom.Next(), ThreadSafeRandom.Next());
     }
 
@@ -96,7 +101,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public void Clear()
     {
         Name = null;
-        DateCreated = DateTime.Now;
+        DateCreated = _timeProvider.GetLocalNow().DateTime;
     }
 
     #region IDisposable Members

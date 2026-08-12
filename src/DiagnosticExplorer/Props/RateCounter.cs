@@ -39,9 +39,10 @@ public class RateCounter
     private static readonly Timer _timer = CreateTimer();
     private static readonly List<WeakReference> _counters = [];
     private readonly int[] _counts;
+    private readonly TimeProvider _timeProvider;
     private readonly TimeSpan[] _times;
     private int _index;
-    private DateTime _lastCheck = DateTime.UtcNow;
+    private DateTime _lastCheck;
 
     private double _rate;
     private ulong _total;
@@ -54,6 +55,9 @@ public class RateCounter
     }
 
     public RateCounter(int secondsAverage)
+        : this(secondsAverage, TimeProvider.System) { }
+
+    public RateCounter(int secondsAverage, TimeProvider timeProvider)
     {
         // Must be > 0: zero gives zero-length buffers, so `_index % _counts.Length` throws
         // DivideByZeroException inside Run's swallowed try/catch and the counter silently never
@@ -67,6 +71,8 @@ public class RateCounter
             );
         }
 
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _lastCheck = UtcNow;
         _counts = new int[secondsAverage];
         _times = new TimeSpan[secondsAverage];
 
@@ -112,16 +118,18 @@ public class RateCounter
         // This method is called from Run() which already holds the _counters lock.
         lock (_counts)
         {
-            _times[_index % _counts.Length] = DateTime.UtcNow - _lastCheck;
+            _times[_index % _counts.Length] = UtcNow - _lastCheck;
             CalcRate();
             _index++;
             _counts[_index % _counts.Length] = 0;
             _times[_index % _counts.Length] = TimeSpan.Zero;
-            _lastCheck = DateTime.UtcNow;
+            _lastCheck = UtcNow;
 
             InvokeSampleCollected();
         }
     }
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     private void InvokeSampleCollected()
     {

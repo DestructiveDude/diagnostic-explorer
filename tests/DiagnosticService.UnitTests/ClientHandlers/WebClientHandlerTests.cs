@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reflection;
 using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
@@ -98,7 +99,10 @@ public sealed class WebClientHandlerTests
         WebClientHandler handler = new("connection-1", client);
 
         handler.StartStreamingEvents("process-1", repo);
+        CancellationTokenSource replacedStream = GetStreamCancellation(handler, "process-1");
         handler.StartStreamingEvents("process-1", repo);
+
+        replacedStream.IsCancellationRequested.Should().BeTrue();
 
         SystemEvent systemEvent = new()
         {
@@ -113,20 +117,21 @@ public sealed class WebClientHandlerTests
         // Each stream start pushes its initial snapshot.
         client.SetEventsCallCount.Should().Be(2);
 
-        // Poll with a timeout: the replaced stream was cancelled before the event was
-        // logged, so no second delivery can arrive. A zombie stream would have flushed
-        // its copy within a couple of its 25ms buffer windows.
-        DateTime deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(250);
-        while (DateTime.UtcNow < deadline)
-        {
-            client.StreamedBatchCount.Should().Be(1);
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-        }
+        client.StreamedBatchCount.Should().Be(1);
 
         client.LastStreamedBatch.Should().ContainSingle(e => e.Message == "hello");
 
         handler.StopStreamingEvents("process-1");
         handler.Stop();
+    }
+
+    private static CancellationTokenSource GetStreamCancellation(WebClientHandler handler, string id)
+    {
+        object streams = typeof(WebClientHandler)
+            .GetField("_eventStreams", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(handler)!;
+        object state = streams.GetType().GetProperty("Item")!.GetValue(streams, [id])!;
+        return (CancellationTokenSource)state.GetType().GetProperty("Cancel")!.GetValue(state)!;
     }
 
     private sealed class RecordingWebHubClient : IWebHubClient

@@ -1,6 +1,7 @@
 using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Props;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;
 
@@ -11,6 +12,19 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class RateCounterTests
 {
+    [Fact]
+    public void Increment_UsesInjectedTimeProviderForElapsedRate()
+    {
+        FakeTimeProvider timeProvider = new(new DateTimeOffset(2026, 8, 12, 9, 30, 0, TimeSpan.Zero));
+        var counter = new RateCounter(5, timeProvider);
+        counter.Register(2);
+        timeProvider.Advance(TimeSpan.FromSeconds(2));
+
+        IncrementMethod.Invoke(counter, null);
+
+        counter.Rate.Should().Be(1);
+    }
+
     /// <summary>
     ///     GetRates reads backwards from the current index, newest first, wrapping around
     ///     the ring buffer. Parameterized to cover a simple read and the request-clamped-to-
@@ -145,6 +159,11 @@ public class RateCounterTests
 
     private static readonly MethodInfo CalcRateMethod = typeof(RateCounter).GetMethod(
         "CalcRate",
+        BindingFlags.NonPublic | BindingFlags.Instance
+    )!;
+
+    private static readonly MethodInfo IncrementMethod = typeof(RateCounter).GetMethod(
+        "Increment",
         BindingFlags.NonPublic | BindingFlags.Instance
     )!;
 }

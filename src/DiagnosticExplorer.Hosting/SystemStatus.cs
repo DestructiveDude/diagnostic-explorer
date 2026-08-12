@@ -32,8 +32,19 @@ namespace DiagnosticExplorer.Hosting;
 [Serializable]
 internal class SystemStatus
 {
+    private readonly TimeProvider _timeProvider;
+
     public SystemStatus()
+        : this(TimeProvider.System) { }
+
+    [SuppressMessage(
+        "Serialization",
+        "S5766:Deserialization methods should be provided for optional fields",
+        Justification = "This is a dependency-injection constructor; SystemStatus is never deserialized."
+    )]
+    internal SystemStatus(TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         DiagnosticManager.Register(this, "Environment", "System");
 
         using (var p = Process.GetCurrentProcess())
@@ -44,7 +55,7 @@ internal class SystemStatus
         User = $"{Environment.UserDomainName}\\{Environment.UserName}";
         HostMachine = Environment.MachineName;
         ProcessorCount = Environment.ProcessorCount;
-        DiagnosticRequests = new RateCounter(5);
+        DiagnosticRequests = new RateCounter(5, timeProvider);
     }
 
     public static SystemStatus Instance { get; set; } = new();
@@ -107,12 +118,12 @@ internal class SystemStatus
         get
         {
             using var p = Process.GetCurrentProcess();
-            return DateTime.UtcNow - p.StartTime.ToUniversalTime();
+            return _timeProvider.GetUtcNow().UtcDateTime - p.StartTime.ToUniversalTime();
         }
     }
 
     [Property(FormatString = "{0:d MMM yyyy HH:mm:ss}")]
-    public DateTime SystemTime => DateTime.Now;
+    public DateTime SystemTime => _timeProvider.GetLocalNow().DateTime;
 
     public static void Register()
     {

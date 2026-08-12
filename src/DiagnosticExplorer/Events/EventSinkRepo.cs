@@ -14,10 +14,19 @@ public sealed class EventSinkRepo : IDisposable
     // Keyed by the (name, category) tuple, not a "{name}.{category}" string: the latter collided
     // distinct sinks, e.g. ("a.b","c") and ("a","b.c") both mapped to "a.b.c".
     private readonly ConcurrentDictionary<(string Name, string Category), EventSink> _sinks = new();
+    private readonly TimeProvider _timeProvider;
 
     private bool _disposed;
 
     public static EventSinkRepo Default { get; } = new();
+
+    public EventSinkRepo()
+        : this(TimeProvider.System) { }
+
+    public EventSinkRepo(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    }
 
     public void Dispose()
     {
@@ -50,7 +59,7 @@ public sealed class EventSinkRepo : IDisposable
 
     public EventSink GetSink(string name, string category)
     {
-        return _sinks.GetOrAdd((name, category), key => new EventSink(this, key.Name, key.Category));
+        return _sinks.GetOrAdd((name, category), key => new EventSink(this, key.Name, key.Category, _timeProvider));
     }
 
     public void LogEvent(SystemEvent evt)

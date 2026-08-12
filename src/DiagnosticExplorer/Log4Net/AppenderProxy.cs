@@ -36,6 +36,7 @@ public abstract class AppenderProxyBase
     // read by StatusMessage / the [Property] getters on the walk thread; an unsynchronized
     // nullable DateTime read can tear. (M17a)
     private readonly object _stateLock = new();
+    private readonly TimeProvider _timeProvider;
     private DateTime? _errorTime;
     private bool _isHalfOpen;
     private bool _isInError;
@@ -46,8 +47,12 @@ public abstract class AppenderProxyBase
     protected TimeSpan _timeout;
 
     protected AppenderProxyBase(TimeSpan timeout)
+        : this(timeout, TimeProvider.System) { }
+
+    protected AppenderProxyBase(TimeSpan timeout, TimeProvider timeProvider)
     {
         _timeout = timeout;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public bool IsInError
@@ -172,7 +177,7 @@ public abstract class AppenderProxyBase
             return null;
         }
 
-        var elapsed = SystemDateTime.UtcNow() - time.Value;
+        var elapsed = UtcNow - time.Value;
         if (elapsed > _timeout)
         {
             return null;
@@ -246,7 +251,7 @@ public abstract class AppenderProxyBase
                 else
                 {
                     // Probe failed: go back to error state with a new timeout
-                    _errorTime = SystemDateTime.UtcNow();
+                    _errorTime = UtcNow;
                     _isInError = true;
                 }
             }
@@ -255,11 +260,11 @@ public abstract class AppenderProxyBase
                 // Normal append path (not a probe)
                 if (!result.Success)
                 {
-                    _lastError = SystemDateTime.UtcNow();
+                    _lastError = UtcNow;
                     _lastErrorMessage = result.Message;
                     if (_timeout > TimeSpan.Zero)
                     {
-                        _errorTime = SystemDateTime.UtcNow();
+                        _errorTime = UtcNow;
                         _isInError = true;
                     }
                 }
@@ -267,7 +272,7 @@ public abstract class AppenderProxyBase
 
             if (result.Success)
             {
-                _lastMessageSent = SystemDateTime.UtcNow();
+                _lastMessageSent = UtcNow;
             }
         }
 
@@ -303,8 +308,10 @@ public abstract class AppenderProxyBase
             return false;
         }
 
-        return SystemDateTime.UtcNow() - _errorTime.Value >= _timeout;
+        return UtcNow - _errorTime.Value >= _timeout;
     }
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 }
 
 [DiagnosticClass(AttributedPropertiesOnly = true)]

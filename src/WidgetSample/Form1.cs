@@ -44,12 +44,17 @@ public partial class Form1 : Form, INotifyPropertyChanged
     private readonly CancellationTokenSource _scopeCts = new CancellationTokenSource();
     private readonly Task _scopeTask;
     private readonly Timer _scopeTimer;
+    private readonly TimeProvider _timeProvider;
     private readonly BindingList<Widget> _widgets;
 
     private string _infoText;
 
     public Form1()
+        : this(TimeProvider.System) { }
+
+    internal Form1(TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         InitializeComponent();
 
         string log4net = Path.GetFullPath("log4net.config");
@@ -694,13 +699,13 @@ public partial class Form1 : Form, INotifyPropertyChanged
             // using (var scope = new TraceScope("SYNC BLAH 1"))
             {
                 var message =
-                    $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
+                    $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
                 TraceScope.Trace(message);
             }
             // using (var scope = new AsyncTraceScope("ASYNC BLAH 1"))
             {
                 var message =
-                    $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
+                    $"###$%###$%###$%###$%###$%###$%###$%###$%###$%###$% SCOPE TASK {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} ###$%###$%###$%###$%###$%###$%###$%###$%###$%###$%";
                 TraceScope.Trace(message);
             }
 
@@ -731,7 +736,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 using (new TraceScope("SYNC BLAH 2"))
                 {
                     var message =
-                        $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TIMER {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$% ";
+                        $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TIMER {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$% ";
                     TraceScope.Trace(message);
                 }
             });
@@ -740,7 +745,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 using (new TraceScope("ASYNC BLAH 2"))
                 {
                     var message =
-                        $"<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% SCOPE TIMER {InvokeRequired} {DateTime.Now:d MMM yyyy HH:mm:ss} <EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% ";
+                        $"<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% SCOPE TIMER {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} <EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% ";
                     TraceScope.Trace(message);
                 }
             });
@@ -785,7 +790,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                         Message = $"Event #{i}",
                         Level = IntToLevel(ThreadSafeRandom.Next(1, 12) * 10000),
                         LoggerName = _formLog.Logger.Name,
-                        TimeStampUtc = DateTime.UtcNow,
+                        TimeStampUtc = _timeProvider.GetUtcNow().UtcDateTime,
                     };
 
                     _formLog.Logger.Log(new LoggingEvent(data));
