@@ -2,7 +2,7 @@
 # Build context must be the repo root (see Docker/compose-*.yaml).
 
 # Stage 1 — build the Angular SPA.
-# Angular 21 requires an active Node LTS; pin to 22-alpine for repeatability.
+# Angular 22 requires an active Node LTS; pin to 22-alpine for repeatability.
 FROM node:22-alpine AS spa-build
 WORKDIR /spa
 # .npmrc carries legacy-peer-deps=true, needed for npm ci to resolve the graph.
