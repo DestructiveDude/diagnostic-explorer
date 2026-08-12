@@ -34,17 +34,19 @@ public interface ITraceItem
 internal class TraceItem<TScope> : ITraceItem
 {
     private string _message;
+    private readonly TimeProvider _timeProvider;
 
-    public TraceItem(string message)
+    public TraceItem(string message, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         Message = message;
-        Created = DateTime.UtcNow;
     }
 
-    public TraceItem(TScope traceScope)
+    public TraceItem(TScope traceScope, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         TraceScope = traceScope;
-        Created = DateTime.UtcNow;
+        Created = UtcNow;
     }
 
     public DateTime Created { get; private set; }
@@ -57,7 +59,9 @@ internal class TraceItem<TScope> : ITraceItem
         set
         {
             _message = value;
-            Created = DateTime.UtcNow;
+            Created = UtcNow;
         }
     }
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 }

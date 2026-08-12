@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using DiagnosticExplorer.Events;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;
 
@@ -12,6 +13,33 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class EventSinkTests
 {
+    [Fact]
+    public void SystemEvent_UsesInjectedTimeProvider()
+    {
+        DateTimeOffset now = new(2026, 8, 12, 9, 30, 0, TimeSpan.Zero);
+        FakeTimeProvider timeProvider = new(now);
+
+        var systemEvent = new SystemEvent(timeProvider);
+
+        systemEvent.Date.Should().Be(now.UtcDateTime);
+    }
+
+    /// <summary>
+    ///     Event timestamps come from the repo's injected clock so callers and tests do not
+    ///     depend on process wall time.
+    /// </summary>
+    [Fact]
+    public void LogEvent_UsesInjectedTimeProvider()
+    {
+        DateTimeOffset now = new(2026, 8, 12, 9, 30, 0, TimeSpan.Zero);
+        FakeTimeProvider timeProvider = new(now);
+        var repo = new EventSinkRepo(timeProvider);
+
+        repo.GetSink("svc", "cat").Info("event");
+
+        repo.GetEvents().Should().ContainSingle().Which.Date.Should().Be(now.UtcDateTime);
+    }
+
     /// <summary>
     ///     GetSink is get-or-create keyed on name+category: the same pair returns the same sink
     ///     (so events accumulate in one place), and a different category yields a distinct sink.

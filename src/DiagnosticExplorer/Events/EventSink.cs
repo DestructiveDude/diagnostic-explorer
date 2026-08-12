@@ -40,14 +40,16 @@ public class EventSink
     public const int MaxMessages = 1000;
     private const int MaxLength = 102400;
     private readonly EventSinkRepo _repo;
+    private readonly TimeProvider _timeProvider;
 
     private long _idCount;
 
     private bool _invalid;
 
-    internal EventSink(EventSinkRepo repo, string name, string category)
+    internal EventSink(EventSinkRepo repo, string name, string category, TimeProvider timeProvider)
     {
         _repo = repo;
+        _timeProvider = timeProvider;
         Name = name;
         Category = category;
     }
@@ -92,7 +94,7 @@ public class EventSink
             SystemEvent evt = new()
             {
                 Id = Interlocked.Increment(ref _idCount),
-                Date = DateTime.UtcNow,
+                Date = _timeProvider.GetUtcNow().UtcDateTime,
                 Level = level,
                 SinkName = Name,
                 SinkCategory = Category,

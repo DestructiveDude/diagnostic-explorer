@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using DiagnosticExplorer.Trace;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;
 
@@ -14,6 +15,20 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class TraceScopeTests
 {
+    /// <summary>
+    ///     Scope age is elapsed time from its injected provider, independent of machine wall time.
+    /// </summary>
+    [Fact]
+    public void Age_UsesInjectedTimeProvider()
+    {
+        FakeTimeProvider timeProvider = new(new DateTimeOffset(2026, 8, 12, 9, 30, 0, TimeSpan.Zero));
+        using var scope = new TraceScope(timeProvider, "Timed", _ => { });
+
+        timeProvider.Advance(TimeSpan.FromSeconds(3));
+
+        scope.Age.Should().Be(TimeSpan.FromSeconds(3));
+    }
+
     /// <summary>
     ///     Disposal owns the timer lifecycle lock, so a late timer request is ignored rather than
     ///     creating an orphaned timer after the scope has closed.

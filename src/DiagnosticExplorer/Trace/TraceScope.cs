@@ -42,14 +42,15 @@ public sealed class TraceScope : IDisposable
 {
     private static readonly AsyncLocal<ScopeStack> _scopeStack = new();
 
-    private readonly DateTime _created = DateTime.UtcNow;
+    private readonly DateTime _created;
+    private readonly TimeProvider _timeProvider;
     private DateTime? _disposed;
     private readonly List<ATraceItem> _traceItems = [];
     private readonly ReaderWriterLockSlim _traceItemsLock = new();
     private readonly object _autoTraceTimerLock = new();
     private bool _forceTrace;
     private bool _isRoot;
-    private Timer _autoTraceTimer;
+    private ITimer _autoTraceTimer;
 
     /// <summary>
     /// Sorted dictionary of time in milliseconds vs the trace method
@@ -60,27 +61,24 @@ public sealed class TraceScope : IDisposable
     #region Constructors
 
     public TraceScope([CallerMemberName] string name = null)
-    {
-        Setup(name, null, false);
-    }
+        : this(TimeProvider.System, name, null, false) { }
 
     public TraceScope(Action<string> traceMethod, [CallerMemberName] string name = null)
-    {
-        Setup(name, traceMethod, false);
-    }
+        : this(TimeProvider.System, name, traceMethod, false) { }
 
     public TraceScope(string name, Action<string> traceMethod)
-    {
-        Setup(name, traceMethod, false);
-    }
+        : this(TimeProvider.System, name, traceMethod, false) { }
 
     public TraceScope(string name, Action<string> traceMethod, bool forceTrace)
-    {
-        Setup(name, traceMethod, forceTrace);
-    }
+        : this(TimeProvider.System, name, traceMethod, forceTrace) { }
 
     public TraceScope(Action<string> traceMethod, bool forceTrace, [CallerMemberName] string name = null)
+        : this(TimeProvider.System, name, traceMethod, forceTrace) { }
+
+    public TraceScope(TimeProvider timeProvider, string name, Action<string> traceMethod, bool forceTrace = false)
     {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _created = UtcNow;
         Setup(name, traceMethod, forceTrace);
     }
 
@@ -97,7 +95,7 @@ public sealed class TraceScope : IDisposable
         _isRoot = scopeStack.Current == null;
 
         TraceScope current = scopeStack.Current;
-        current?.AddTraceItem(new ATraceItem(this));
+        current?.AddTraceItem(new ATraceItem(this, current._timeProvider));
         _scopeStack.Value = scopeStack.Push(this);
     }
 
@@ -135,11 +133,16 @@ public sealed class TraceScope : IDisposable
 
             if (_autoTraceTimer == null)
             {
-                _autoTraceTimer = new Timer(AutoTraceAfterTimeout, null, (int)time.TotalMilliseconds, Timeout.Infinite);
+                _autoTraceTimer = _timeProvider.CreateTimer(
+                    AutoTraceAfterTimeout,
+                    null,
+                    time,
+                    Timeout.InfiniteTimeSpan
+                );
             }
             else
             {
-                _autoTraceTimer.Change((int)time.TotalMilliseconds, Timeout.Infinite);
+                _autoTraceTimer.Change(time, Timeout.InfiniteTimeSpan);
             }
         }
     }
@@ -159,7 +162,7 @@ public sealed class TraceScope : IDisposable
     {
         try
         {
-            AddTraceItem(new ATraceItem("FORCE TRACE AFTER TIMEOUT"));
+            AddTraceItem(new ATraceItem("FORCE TRACE AFTER TIMEOUT", _timeProvider));
             TraceMessage();
         }
         catch (ObjectDisposedException)
@@ -185,7 +188,9 @@ public sealed class TraceScope : IDisposable
         _traceMethods[timeMillis] = traceMethod;
     }
 
-    public TimeSpan Age => DateTime.UtcNow.Subtract(_created);
+    public TimeSpan Age => UtcNow.Subtract(_created);
+
+    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     public override string ToString()
     {
@@ -268,7 +273,7 @@ public sealed class TraceScope : IDisposable
         // that TraceMessage swallowed, so auto-trace silently produced no output. Fall back to
         // elapsed-so-far for an in-progress child.
         DateTime? disposed = item.TraceScope._disposed;
-        TimeSpan duration = (disposed ?? DateTime.UtcNow) - item.TraceScope._created;
+        TimeSpan duration = (disposed ?? item.TraceScope.UtcNow) - item.TraceScope._created;
         return duration >= thresh;
     }
 
@@ -374,7 +379,7 @@ public sealed class TraceScope : IDisposable
         {
             lock (_autoTraceTimerLock)
             {
-                _disposed = DateTime.UtcNow;
+                _disposed = UtcNow;
                 _autoTraceTimer?.Dispose();
                 _autoTraceTimer = null;
             }
@@ -461,7 +466,7 @@ public sealed class TraceScope : IDisposable
             return null;
         }
 
-        ATraceItem item = new ATraceItem(message);
+        ATraceItem item = new ATraceItem(message, current._timeProvider);
         current.AddTraceItem(item);
         return item;
     }

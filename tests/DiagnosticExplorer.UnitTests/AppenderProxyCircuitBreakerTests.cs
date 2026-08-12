@@ -1,40 +1,23 @@
 using AwesomeAssertions;
 using DiagnosticExplorer.Log4Net;
-using DiagnosticExplorer.Log4Net.Util;
+using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;
-
-/// <summary>
-///     Tests that swap the static <see cref="SystemDateTime" /> clock must not run in
-///     parallel with any other test collection.
-/// </summary>
-[CollectionDefinition("SystemDateTime", DisableParallelization = true)]
-public class SystemDateTimeCollection;
 
 /// <summary>
 ///     The closed/open/half-open circuit breaker in <see cref="AppenderProxyBase.DoAppend" />
 ///     is the failure-isolation layer that keeps a broken log target from being hammered by
 ///     the host app. These tests pin the state transitions deterministically via the
-///     <see cref="SystemDateTime" /> clock seam — no sleeps. (DE-11)
+///     injected clock — no sleeps or shared mutable state. (DE-11, DEX-05)
 /// </summary>
-[Collection("SystemDateTime")]
-public sealed class AppenderProxyCircuitBreakerTests : IDisposable
+public sealed class AppenderProxyCircuitBreakerTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(5);
 
-    private readonly Func<DateTime> _originalClock = SystemDateTime.UtcNow;
-    private readonly TestProxy _proxy = new(Timeout);
-    private DateTime _now = new(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc);
+    private readonly FakeTimeProvider _timeProvider = new(new DateTimeOffset(2026, 7, 31, 12, 0, 0, TimeSpan.Zero));
+    private readonly TestProxy _proxy;
 
-    public AppenderProxyCircuitBreakerTests()
-    {
-        SystemDateTime.UtcNow = () => _now;
-    }
-
-    public void Dispose()
-    {
-        SystemDateTime.UtcNow = _originalClock;
-    }
+    public AppenderProxyCircuitBreakerTests() => _proxy = new TestProxy(Timeout, _timeProvider);
 
     /// <summary>
     ///     A failed append opens the breaker; while open, calls are rejected without the
@@ -71,7 +54,7 @@ public sealed class AppenderProxyCircuitBreakerTests : IDisposable
         _proxy.TryAppend(() => new AppendResult(false, "target is down")).Should().BeFalse();
 
         // Still inside the quarantine window: rejected without probing.
-        _now = _now.AddMinutes(1);
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
         var probeCalls = 0;
         AppendResult Probe()
         {
@@ -83,7 +66,7 @@ public sealed class AppenderProxyCircuitBreakerTests : IDisposable
         probeCalls.Should().Be(0);
 
         // Past the cooldown: this call is the probe and runs the action.
-        _now = _now.Add(Timeout);
+        _timeProvider.Advance(Timeout);
         _proxy.TryAppend(Probe).Should().BeTrue();
         probeCalls.Should().Be(1);
         _proxy.IsInError.Should().BeFalse();
@@ -103,7 +86,7 @@ public sealed class AppenderProxyCircuitBreakerTests : IDisposable
     public void DoAppend_WhileHalfOpenProbeInFlight_RejectsReentrantAppend()
     {
         _proxy.TryAppend(() => new AppendResult(false, "target is down")).Should().BeFalse();
-        _now = _now.Add(Timeout + TimeSpan.FromSeconds(1));
+        _timeProvider.Advance(Timeout + TimeSpan.FromSeconds(1));
 
         bool? reentrantResult = null;
         var reentrantCalls = 0;
@@ -130,8 +113,8 @@ public sealed class AppenderProxyCircuitBreakerTests : IDisposable
     /// </summary>
     private sealed class TestProxy : AppenderProxyBase
     {
-        public TestProxy(TimeSpan timeout)
-            : base(timeout) { }
+        public TestProxy(TimeSpan timeout, TimeProvider timeProvider)
+            : base(timeout, timeProvider) { }
 
         public bool TryAppend(Func<AppendResult> action) => DoAppend(action);
     }

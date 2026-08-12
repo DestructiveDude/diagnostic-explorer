@@ -16,7 +16,7 @@ internal static class TestLoggingEvents
                 LoggerName = "test",
                 Level = Level.Info,
                 Message = message,
-                TimeStampUtc = DateTime.UtcNow,
+                TimeStampUtc = new DateTime(2026, 8, 12, 9, 30, 0, DateTimeKind.Utc),
             }
         );
 }

@@ -36,8 +36,11 @@ namespace DiagnosticExplorer.Events;
 public class SystemEvent
 {
     public SystemEvent()
+        : this(TimeProvider.System) { }
+
+    public SystemEvent(TimeProvider timeProvider)
     {
-        Date = DateTime.UtcNow;
+        Date = (timeProvider ?? throw new ArgumentNullException(nameof(timeProvider))).GetUtcNow().UtcDateTime;
     }
 
     [ProtoMember(1)]
