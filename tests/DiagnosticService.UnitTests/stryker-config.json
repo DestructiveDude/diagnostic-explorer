@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "Diagnostic.Service.csproj",
+    "reporters": ["progress", "html", "json"],
+    "report-file-name": "mutation-report",
+    "mutation-level": "Standard",
+    "coverage-analysis": "off",
+    "test-runner": "mtp",
+    "concurrency": 4,
+    "thresholds": {
+      "high": 80,
+      "low": 70,
+      "break": 0
+    },
+    "mutate": ["**/*.cs"]
+  }
+}

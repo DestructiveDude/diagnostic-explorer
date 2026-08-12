@@ -34,7 +34,7 @@
     "**/Dockerfile",
     ".dockerignore",
     "scripts/**",
-    "stryker-config.json",
+    "**/stryker-config.json",
     "nuget.config",
     "Directory.Build.props",
     "DiagnosticExplorer.slnx"
