@@ -6,9 +6,8 @@ using Microsoft.Extensions.Time.Testing;
 namespace DiagnosticExplorer.UnitTests;
 
 /// <summary>
-///     RateCounter's instance side drives a global timer and UtcNow, but its static
-///     GetRates is the pure ring-buffer read behind per-second rate history. These
-///     tests pin that extraction without touching the time-dependent machinery.
+///     RateCounter samples through its injected TimeProvider, while its static GetRates
+///     is the pure ring-buffer read behind per-second rate history.
 /// </summary>
 public class RateCounterTests
 {
@@ -19,8 +18,6 @@ public class RateCounterTests
         var counter = new RateCounter(5, timeProvider);
         counter.Register(2);
         timeProvider.Advance(TimeSpan.FromSeconds(2));
-
-        IncrementMethod.Invoke(counter, null);
 
         counter.Rate.Should().Be(1);
     }
@@ -159,11 +156,6 @@ public class RateCounterTests
 
     private static readonly MethodInfo CalcRateMethod = typeof(RateCounter).GetMethod(
         "CalcRate",
-        BindingFlags.NonPublic | BindingFlags.Instance
-    )!;
-
-    private static readonly MethodInfo IncrementMethod = typeof(RateCounter).GetMethod(
-        "Increment",
         BindingFlags.NonPublic | BindingFlags.Instance
     )!;
 }

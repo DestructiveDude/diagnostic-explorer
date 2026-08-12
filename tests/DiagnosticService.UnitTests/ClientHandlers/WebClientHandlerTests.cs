@@ -99,10 +99,11 @@ public sealed class WebClientHandlerTests
         WebClientHandler handler = new("connection-1", client);
 
         handler.StartStreamingEvents("process-1", repo);
-        CancellationTokenSource replacedStream = GetStreamCancellation(handler, "process-1");
+        (Task replacedTask, CancellationTokenSource replacedStream) = GetStreamState(handler, "process-1");
         handler.StartStreamingEvents("process-1", repo);
 
         replacedStream.IsCancellationRequested.Should().BeTrue();
+        await replacedTask.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
 
         SystemEvent systemEvent = new()
         {
@@ -125,13 +126,16 @@ public sealed class WebClientHandlerTests
         handler.Stop();
     }
 
-    private static CancellationTokenSource GetStreamCancellation(WebClientHandler handler, string id)
+    private static (Task Task, CancellationTokenSource Cancel) GetStreamState(WebClientHandler handler, string id)
     {
         object streams = typeof(WebClientHandler)
             .GetField("_eventStreams", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(handler)!;
         object state = streams.GetType().GetProperty("Item")!.GetValue(streams, [id])!;
-        return (CancellationTokenSource)state.GetType().GetProperty("Cancel")!.GetValue(state)!;
+        return (
+            (Task)state.GetType().GetProperty("Task")!.GetValue(state)!,
+            (CancellationTokenSource)state.GetType().GetProperty("Cancel")!.GetValue(state)!
+        );
     }
 
     private sealed class RecordingWebHubClient : IWebHubClient

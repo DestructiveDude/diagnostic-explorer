@@ -1,3 +1,4 @@
+# Report-only mutation lane: 80/70 classify the score; break 0 keeps the score informational.
 name: mutation
 
 on:
