@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using AwesomeAssertions;
 using Diagnostic.Service;
@@ -18,6 +19,11 @@ public sealed class ProgramHostedTests
     private const string TestSpaProxy = "http://localhost:4201";
 
     [Fact]
+    [SuppressMessage(
+        "ReSharper",
+        "AccessToDisposedClosure",
+        Justification = "The assertion invokes the closure synchronously before the factory is disposed."
+    )]
     public void ApiKeyModeWithoutKeys_FailsAtStartup()
     {
         using var factory = CreateFactory(
@@ -137,6 +143,11 @@ public sealed class ProgramHostedTests
     ///     startup — otherwise the service would boot key auth alongside credentialed any-origin CORS.
     /// </summary>
     [Fact]
+    [SuppressMessage(
+        "ReSharper",
+        "AccessToDisposedClosure",
+        Justification = "The assertion invokes the closure synchronously before the factory is disposed."
+    )]
     public void ApiKeyModeWithoutCorsOrigins_FailsAtStartup()
     {
         using var factory = CreateFactory(
@@ -159,6 +170,11 @@ public sealed class ProgramHostedTests
     ///     fixture here sets UseSpaProxy=true, which skips the guard.
     /// </summary>
     [Fact]
+    [SuppressMessage(
+        "ReSharper",
+        "AccessToDisposedClosure",
+        Justification = "The assertion invokes the closure synchronously before the factory is disposed."
+    )]
     public void SpaProxyDisabledWithMissingSpaDirectory_FailsAtStartup()
     {
         using var factory = CreateFactory(
