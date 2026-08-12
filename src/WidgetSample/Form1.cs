@@ -55,6 +55,8 @@ public partial class Form1 : Form, INotifyPropertyChanged
     internal Form1(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        WidgetEvents = new RateCounter(5, timeProvider);
+        GadgetEvents = new RateCounter(5, timeProvider);
         InitializeComponent();
 
         string log4net = Path.GetFullPath("log4net.config");
@@ -159,10 +161,10 @@ public partial class Form1 : Form, INotifyPropertyChanged
     public int Counter2 { get; set; }
 
     [RateProperty(Category = "Widgets", ExposeRate = false, ExposeTotal = true)]
-    public RateCounter WidgetEvents { get; } = new RateCounter(5);
+    public RateCounter WidgetEvents { get; }
 
     [RateProperty(Category = "Gadgets", ExposeTotal = true, Description = "The rate of gadget events received")]
-    public RateCounter GadgetEvents { get; } = new RateCounter(5);
+    public RateCounter GadgetEvents { get; }
 
     [CollectionProperty(CollectionMode.List, Category = "All Gadgets")]
     public IList<Gadget> Gadgets
@@ -449,13 +451,13 @@ public partial class Form1 : Form, INotifyPropertyChanged
         }
     }
 
-    private static Task RunScopedTraceExampleAsync(ILog log, string message)
+    private Task RunScopedTraceExampleAsync(ILog log, string message)
     {
         return Task.Run(async () =>
         {
             try
             {
-                using var scope = new TraceScope(log.Info);
+                using var scope = new TraceScope(_timeProvider, nameof(RunScopedTraceExampleAsync), log.Info);
                 TraceScope.Trace(message);
                 await TraceScopeExample.TestTraceScope1();
             }
@@ -491,7 +493,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
     private void bAddWidget_Click(object sender, EventArgs e)
     {
-        var widget = new Widget(WidgetIdCount++);
+        var widget = new Widget(WidgetIdCount++, _timeProvider);
         _widgets.Add(widget);
         _widgetLog.InfoFormat("Added widget {0}", widget.Id);
         _formLog.Info("Form1 added a widget");
@@ -599,7 +601,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
     private async void btnTraceScope_Click(object sender, EventArgs e)
     {
-        using (new TraceScope(_formLog.Info))
+        using (new TraceScope(_timeProvider, nameof(btnTraceScope_Click), _formLog.Info))
         {
             TraceScope.Trace($"In Trace Scope Button Click 1 InvokeRequired: {InvokeRequired}");
 
@@ -634,7 +636,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
     private async void btnTestTraceScope2_Click(object sender, EventArgs e)
     {
-        using var scope = new TraceScope("UI_ACTION_RoutingModel_SendAll", _formLog.Info, true);
+        using var scope = new TraceScope(_timeProvider, "UI_ACTION_RoutingModel_SendAll", _formLog.Info, true);
 
         TraceScope.Trace($"In Trace Scope Button Click 2 InvokeRequired: {InvokeRequired}");
         // await TraceScopeExample.TestTraceScope1();
@@ -653,7 +655,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 try
                 {
                     List<string> ids = [Task.CurrentId?.ToString() ?? "X"];
-                    using var scope2 = new TraceScope("Doing the parallel bit");
+                    using var scope2 = new TraceScope(_timeProvider, "Doing the parallel bit", null);
                     Report($"Parallel...{x}...A");
                     ids.Add(Task.CurrentId?.ToString() ?? "X");
                     await Task.Delay(100);
@@ -733,7 +735,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
         {
             Invoke(() =>
             {
-                using (new TraceScope("SYNC BLAH 2"))
+                using (new TraceScope(_timeProvider, "SYNC BLAH 2", null))
                 {
                     var message =
                         $"�$%�$%�$%�$%�$%�$%�$%�$%�$%�$% SCOPE TIMER {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} �$%�$%�$%�$%�$%�$%�$%�$%�$%�$% ";
@@ -742,7 +744,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
             });
             Invoke(() =>
             {
-                using (new TraceScope("ASYNC BLAH 2"))
+                using (new TraceScope(_timeProvider, "ASYNC BLAH 2", null))
                 {
                     var message =
                         $"<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% SCOPE TIMER {InvokeRequired} {_timeProvider.GetLocalNow():d MMM yyyy HH:mm:ss} <EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$%<EFBFBD>$% ";

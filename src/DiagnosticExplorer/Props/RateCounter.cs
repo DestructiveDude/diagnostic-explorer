@@ -25,19 +25,16 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 
 namespace DiagnosticExplorer.Props;
 
 public class RateCounter
 {
-    // The static timer is intended to run for the entire process lifetime to drive rate calculation.
-    private static readonly Timer _timer = CreateTimer();
-    private static readonly List<WeakReference> _counters = [];
+    private static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(1);
     private readonly int[] _counts;
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan[] _times;
@@ -46,13 +43,6 @@ public class RateCounter
 
     private double _rate;
     private ulong _total;
-
-    private static Timer CreateTimer()
-    {
-        Timer timer = new(1000);
-        timer.Elapsed += Run;
-        return timer;
-    }
 
     public RateCounter(int secondsAverage)
         : this(secondsAverage, TimeProvider.System) { }
@@ -75,15 +65,7 @@ public class RateCounter
         _lastCheck = UtcNow;
         _counts = new int[secondsAverage];
         _times = new TimeSpan[secondsAverage];
-
-        lock (_counters)
-        {
-            _counters.Add(new WeakReference(this));
-            if (_counters.Count == 1)
-            {
-                _timer.Start();
-            }
-        }
+        new CounterTimerState(this).Start(timeProvider);
     }
 
     // Read under the same lock the writers (CalcRate/Register) hold: Rate (double) and Total
@@ -114,8 +96,6 @@ public class RateCounter
 
     private void Increment()
     {
-        // Lock order: always acquire _counters lock before _counts lock.
-        // This method is called from Run() which already holds the _counters lock.
         lock (_counts)
         {
             _times[_index % _counts.Length] = UtcNow - _lastCheck;
@@ -212,35 +192,44 @@ public class RateCounter
         return results;
     }
 
-    private static void Run(object? state, ElapsedEventArgs e)
+    private sealed class CounterTimerState
     {
-        try
+        private readonly WeakReference<RateCounter> _counter;
+        private ITimer? _timer;
+
+        public CounterTimerState(RateCounter counter)
         {
-            // Lock order: always acquire _counters lock before _counts lock.
-            lock (_counters)
+            _counter = new WeakReference<RateCounter>(counter);
+        }
+
+        public void Start(TimeProvider timeProvider)
+        {
+            _timer = timeProvider.CreateTimer(
+                static state => ((CounterTimerState)state!).Tick(),
+                this,
+                SampleInterval,
+                SampleInterval
+            );
+        }
+
+        private void Tick()
+        {
+            if (_counter.TryGetTarget(out RateCounter? counter))
             {
-                for (var i = _counters.Count - 1; i >= 0; i--)
+                try
                 {
-                    var r = _counters[i];
-                    if (r.Target is not RateCounter counter)
-                    {
-                        _counters.RemoveAt(i);
-                    }
-                    else
-                    {
-                        counter.Increment();
-                    }
+                    counter.Increment();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
                 }
 
-                if (_counters.Count == 0)
-                {
-                    _timer.Stop();
-                }
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine(ex);
+
+            _timer?.Dispose();
+            _timer = null;
         }
     }
 }

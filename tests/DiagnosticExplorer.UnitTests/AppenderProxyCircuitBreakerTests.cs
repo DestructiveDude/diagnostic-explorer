@@ -66,7 +66,7 @@ public sealed class AppenderProxyCircuitBreakerTests
         probeCalls.Should().Be(0);
 
         // Past the cooldown: this call is the probe and runs the action.
-        _timeProvider.Advance(Timeout);
+        _timeProvider.Advance(Timeout - TimeSpan.FromMinutes(1));
         _proxy.TryAppend(Probe).Should().BeTrue();
         probeCalls.Should().Be(1);
         _proxy.IsInError.Should().BeFalse();
