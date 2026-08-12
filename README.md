@@ -1,5 +1,8 @@
 # DiagnosticExplorer
 
+> Start here: the repository ships a multi-targeted diagnostics library, its
+> hosting integration, a standalone SignalR service, and the Angular dashboard.
+
 DiagnosticExplorer is a .NET diagnostic instrumentation toolkit and an
 accompanying web-based viewer service. Application code emits property
 bags, operations, and events via the `DiagnosticExplorer` library;
@@ -15,19 +18,19 @@ TOMI engine and its surrounding services.
 ## Repository layout
 
 ```
-src/DiagnosticExplorer/      netstandard2.0 core library
+src/DiagnosticExplorer/      net10.0 / net48 core library
                              - PropertyBag, TraceScope, OperationSet,
                                protobuf transport types, log4net forwarding
 src/DiagnosticExplorer.Hosting/
-                             net8.0 / net6.0 / net48 hosting integration
+                             net10.0 / net48 hosting integration
                              - AddDiagnosticExplorer DI extension,
                                DiagnosticHostingService, RegistrationHandler
-src/DiagnosticService/       Standalone web service (Docker payload)
+src/DiagnosticService/       net10.0 standalone web service (Docker payload)
                              - ASP.NET Core + SignalR hubs + SPA host
-diagnostics-web/             Angular 21 SPA (the dashboard UI)
+diagnostics-web/             Angular 22 SPA (the dashboard UI)
 Docker/                      Dockerfile and compose YAMLs for the service
-src/WidgetSample/            WinForms demo of the library
-src/ConsoleApp/              Smaller CLI demo
+src/WidgetSample/            net10.0-windows / net48 WinForms demo
+src/ConsoleApp/              net10.0 CLI demo
 ```
 
 ## Using the library
@@ -35,7 +38,7 @@ src/ConsoleApp/              Smaller CLI demo
 Add the package reference:
 
 ```xml
-<PackageReference Include="DiagnosticExplorer.Hosting" Version="3.2.1" />
+<PackageReference Include="DiagnosticExplorer.Hosting" Version="3.2.2" />
 ```
 
 Wire into a `Host.CreateDefaultBuilder` pipeline:
@@ -129,17 +132,27 @@ different store.
 
 ```bash
 dotnet tool restore
+dotnet restore DiagnosticExplorer.slnx --force --no-cache
 dotnet csharpier check .
-dotnet build DiagnosticExplorer.slnx --configuration Release
+dotnet build DiagnosticExplorer.slnx --configuration Release --no-restore
 dotnet test DiagnosticExplorer.slnx --configuration Release --no-build
 dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore
+jb inspectcode DiagnosticExplorer.slnx --no-build
 
-# Angular dashboard (Node 20.19+ / 22 for Angular 21):
+# Angular dashboard (Node 22.22.3, matching CI):
 cd diagnostics-web
 npm ci
 npm test -- --runInBand
+npm run lint
 npm run build
 ```
+
+`DiagnosticExplorer.slnx` is the cross-platform build surface. The WinForms
+sample remains outside it because its intentional `net10.0-windows` / `net48`
+targets require Windows; validate it separately with
+`dotnet build src/WidgetSample/WidgetSample.csproj --configuration Release`.
+The `net48` library and hosting targets are compatibility contracts for existing
+consumers and remain supported alongside the current `net10.0` targets.
 
 `diagnostics-web/.npmrc` pins `legacy-peer-deps=true`, so `npm ci` resolves the
 dependency graph without an explicit flag (the Angular build tooling's peer
@@ -198,7 +211,7 @@ Vulnerability check:
 dotnet list DiagnosticExplorer.slnx package --vulnerable --include-transitive
 ```
 
-(Should report no vulnerable packages as of `3.2.1`.)
+(Should report no vulnerable packages as of `3.2.2`.)
 
 ## Contributing
 
@@ -211,7 +224,7 @@ dotnet csharpier format .
 
 ## Container image
 
-Published to `ghcr.io/cell001nz/diagnostic-explorer` by the GitHub
+Published to `ghcr.io/fixportal/diagnostic-explorer` by the GitHub
 Actions workflow at `.github/workflows/publish-docker-image.yml`.
 
 Triggers:
@@ -227,11 +240,11 @@ package's settings page on GitHub.
 
 ## Releases
 
-Current release: **3.2.1** — a patch over `3.2.0` (CodeQL triage + a dogfood
-pass: the Retro `Date`-index fix, operation-exception unwrap, and UI nits;
-defaults unchanged). `3.2.0` remains the headline feature release.
+Current release: **3.2.2**. The libraries preserve the intentional `net48`
+compatibility targets while the current application and test scaffold use
+`.NET 10`.
 
-Versions are tagged `v{semver}` (e.g. `v3.2.1`); pushing the tag
+Versions are tagged `v{semver}` (e.g. `v3.2.2`); pushing the tag
 triggers a container-image publish to GHCR.
 
 ## License
