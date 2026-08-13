@@ -30,11 +30,11 @@ public class Gadget : IDisposable, INotifyPropertyChanged
     private static readonly string[] _names = new[] { "Gadget X", "Gadget Y", "Gadget Z", "Gadget W" };
 
     private static readonly string[] _purposes = new[] { "Technical", "Muckabout", "Stuff" };
-    private readonly SynchronizationContext _syncContext;
+    private readonly SynchronizationContext? _syncContext;
 
-    private string _name;
+    private string? _name;
 
-    private string _purpose;
+    private string? _purpose;
 
     public Gadget(int id)
     {
@@ -49,7 +49,7 @@ public class Gadget : IDisposable, INotifyPropertyChanged
     public int Id { get; }
 
     [Property(AllowSet = true)]
-    public string Name
+    public string? Name
     {
         get => _name;
         set
@@ -60,7 +60,7 @@ public class Gadget : IDisposable, INotifyPropertyChanged
     }
 
     [Property(AllowSet = true)]
-    public string Purpose
+    public string? Purpose
     {
         get => _purpose;
         set
@@ -70,7 +70,7 @@ public class Gadget : IDisposable, INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     [DiagnosticMethod]
     public void Randomise()

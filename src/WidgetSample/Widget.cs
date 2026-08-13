@@ -29,10 +29,10 @@ public class Widget : IDisposable, INotifyPropertyChanged
 {
     private static readonly string[] _names = new[] { "Widget X", "Widget Y", "Widget Z", "Widget W" };
 
-    private readonly SynchronizationContext _syncContext;
+    private readonly SynchronizationContext? _syncContext;
     private readonly TimeProvider _timeProvider;
     private DateTime _dateCreated;
-    private string _name;
+    private string? _name;
     private Point _size;
 
     public Widget(int id)
@@ -57,7 +57,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
     public string IgnoredProperty => "This value will not be exposed in diagnostics";
 
     [Property(AllowSet = true)]
-    public string Name
+    public string? Name
     {
         get => _name;
         set
@@ -115,7 +115,7 @@ public class Widget : IDisposable, INotifyPropertyChanged
 
     #region INotifyPropertyChanged Members
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     #endregion
 
