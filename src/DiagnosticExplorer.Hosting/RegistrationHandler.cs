@@ -20,27 +20,27 @@ public class RegistrationHandler
 
     private readonly string _url;
     private readonly Registration _registration;
-    private readonly string _apiKey;
+    private readonly string? _apiKey;
 
     // _connLock guards the _connection/_hubAdapter pair. They are mutated from three racing
     // contexts — the registration loop (OpenHub/CloseConnection), the SignalR Closed event
     // (HandleClosed) and Stop — so each teardown captures-and-nulls the pair atomically to
     // guarantee a given connection/adapter is disposed exactly once.
     private readonly object _connLock = new();
-    private HubServerAdapter _hubAdapter;
-    private HubConnection _connection;
+    private HubServerAdapter? _hubAdapter;
+    private HubConnection? _connection;
 
-    private CancellationTokenSource _stopToken;
-    private Task _registrationLoop;
-    private Task _loggingTask;
+    private CancellationTokenSource? _stopToken;
+    private Task? _registrationLoop;
+    private Task? _loggingTask;
     private readonly Subject<DiagnosticMsg> _ownedLogSubject = new();
-    private ISubject<DiagnosticMsg> _logSubject;
-    private IDisposable _logSubscription;
-    private Channel<IList<DiagnosticMsg>> _logChannel;
+    private ISubject<DiagnosticMsg>? _logSubject;
+    private IDisposable? _logSubscription;
+    private Channel<IList<DiagnosticMsg>>? _logChannel;
 
-    private Action<HttpConnectionOptions> _configureHttp;
+    private Action<HttpConnectionOptions>? _configureHttp;
 
-    public RegistrationHandler(string url, Registration registration, string apiKey = null)
+    public RegistrationHandler(string url, Registration registration, string? apiKey = null)
     {
         _url = url;
         _registration = registration;
@@ -60,14 +60,14 @@ public class RegistrationHandler
 
     private static bool IsSecureUrl(string url)
     {
-        return Uri.TryCreate(url, UriKind.Absolute, out Uri uri)
+        return Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
             && (
                 string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(uri.Scheme, "wss", StringComparison.OrdinalIgnoreCase)
             );
     }
 
-    public void Start(Action<HttpConnectionOptions> configureHttp = null)
+    public void Start(Action<HttpConnectionOptions>? configureHttp = null)
     {
         _configureHttp = configureHttp;
         _stopToken = new CancellationTokenSource();
@@ -80,7 +80,9 @@ public class RegistrationHandler
             }
         );
 
-        _logSubscription = _logSubject
+        ISubject<DiagnosticMsg> logSubject =
+            _logSubject ?? throw new InvalidOperationException("Registration handler has already stopped.");
+        _logSubscription = logSubject
             .Buffer(TimeSpan.FromSeconds(2), 50)
             .Where(evts => evts.Count != 0)
             .Subscribe(evts => _logChannel?.Writer.TryWrite(evts));
@@ -93,6 +95,9 @@ public class RegistrationHandler
 
     private async Task RunLoggingProcess(CancellationToken cancel)
     {
+        Channel<IList<DiagnosticMsg>> logChannel =
+            _logChannel ?? throw new InvalidOperationException("Registration handler has not started.");
+
         // Loop until the channel writer is completed (Stop() completes it before cancelling the
         // stop token so queued messages are not dropped). ReadAsync(None) throws ChannelClosedException
         // when the writer is complete and no items remain — that is the natural exit signal.
@@ -103,7 +108,7 @@ public class RegistrationHandler
             IList<DiagnosticMsg> messages;
             try
             {
-                messages = await _logChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
+                messages = await logChannel.Reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch (ChannelClosedException)
             {
@@ -129,7 +134,7 @@ public class RegistrationHandler
 
                 // Snapshot: _hubAdapter can be nulled by HandleClosed/CloseConnection between
                 // the wait above and the send below.
-                HubServerAdapter adapter = _hubAdapter;
+                HubServerAdapter? adapter = _hubAdapter;
                 if (adapter == null)
                 {
                     continue;
@@ -170,11 +175,22 @@ public class RegistrationHandler
 
                 cancelToken.ThrowIfCancellationRequested();
 
-                await OpenHub();
+                await OpenHub(cancelToken);
 
                 cancelToken.ThrowIfCancellationRequested();
 
-                RegistrationResponse response = await _hubAdapter.Register(_registration, cancelToken);
+                HubServerAdapter? adapter;
+                lock (_connLock)
+                {
+                    adapter = _hubAdapter;
+                }
+
+                if (adapter == null)
+                {
+                    continue;
+                }
+
+                RegistrationResponse response = await adapter.Register(_registration, cancelToken);
 
                 delay =
                     response.RenewTimeSeconds <= 0
@@ -207,7 +223,7 @@ public class RegistrationHandler
         return DisposeConnection(TakeConnection());
     }
 
-    private async Task OpenHub()
+    private async Task OpenHub(CancellationToken cancelToken)
     {
         lock (_connLock)
         {
@@ -233,7 +249,7 @@ public class RegistrationHandler
                     // "Authorization: Bearer <key>" on negotiate and "access_token" on the WS upgrade.
                     if (!string.IsNullOrEmpty(_apiKey))
                     {
-                        options.AccessTokenProvider = () => Task.FromResult(_apiKey);
+                        options.AccessTokenProvider = () => Task.FromResult<string?>(_apiKey);
                     }
                 }
             )
@@ -244,7 +260,7 @@ public class RegistrationHandler
         try
         {
             Debug.WriteLine("Diagnostic RegistrationHandler starting connection");
-            await connection.StartAsync(_stopToken.Token);
+            await connection.StartAsync(cancelToken);
 
             Debug.WriteLine("Diagnostic RegistrationHandler connection started");
             HubServerAdapter adapter = new HubServerAdapter(connection);
@@ -263,7 +279,7 @@ public class RegistrationHandler
         }
     }
 
-    private async Task HandleClosed(Exception ex)
+    private async Task HandleClosed(Exception? ex)
     {
         Debug.WriteLine($"RegistrationHandler.HandleClosed {ex?.Message}");
         await DisposeConnection(TakeConnection());
@@ -272,19 +288,19 @@ public class RegistrationHandler
     // Atomically detach the current connection/adapter pair. Whichever of CloseConnection /
     // HandleClosed / Stop wins the lock gets the live instances; the losers get nulls and no-op,
     // so a given connection+adapter is torn down exactly once.
-    private (HubConnection Connection, HubServerAdapter Adapter) TakeConnection()
+    private (HubConnection? Connection, HubServerAdapter? Adapter) TakeConnection()
     {
         lock (_connLock)
         {
-            HubConnection connection = _connection;
-            HubServerAdapter adapter = _hubAdapter;
+            HubConnection? connection = _connection;
+            HubServerAdapter? adapter = _hubAdapter;
             _connection = null;
             _hubAdapter = null;
             return (connection, adapter);
         }
     }
 
-    private async Task DisposeConnection((HubConnection Connection, HubServerAdapter Adapter) taken)
+    private async Task DisposeConnection((HubConnection? Connection, HubServerAdapter? Adapter) taken)
     {
         try
         {
@@ -321,19 +337,19 @@ public class RegistrationHandler
     {
         try
         {
-            Task loopTask = _registrationLoop;
-            Task logTask = _loggingTask;
+            Task? loopTask = _registrationLoop;
+            Task? logTask = _loggingTask;
 
             // Complete the subject and channel writer BEFORE cancelling the stop token so
             // RunLoggingProcess can drain buffered messages. Cancelling first caused ReadAllAsync
             // to exit early and drop queued log items.
-            ISubject<DiagnosticMsg> logSubject = _logSubject;
+            ISubject<DiagnosticMsg>? logSubject = _logSubject;
             _logSubject = null;
             logSubject?.OnCompleted();
 
             _logChannel?.Writer.TryComplete();
 
-            CancellationTokenSource stopToken = _stopToken;
+            CancellationTokenSource? stopToken = _stopToken;
             _stopToken = null;
 #if NET48
             stopToken?.Cancel();
@@ -397,7 +413,7 @@ public class RegistrationHandler
     private async Task Deregister(CancellationToken cancel = default)
     {
         // Snapshot under the lock: HandleClosed could null _hubAdapter concurrently.
-        HubServerAdapter adapter;
+        HubServerAdapter? adapter;
         lock (_connLock)
         {
             adapter = _hubAdapter;
@@ -423,7 +439,7 @@ public class RegistrationHandler
     {
         // Snapshot: Stop() completes and nulls _logSubject; a log event arriving during/after
         // shutdown must be a no-op, not an NRE. (M27)
-        ISubject<DiagnosticMsg> subject = _logSubject;
+        ISubject<DiagnosticMsg>? subject = _logSubject;
         subject?.OnNext(evt);
     }
 }

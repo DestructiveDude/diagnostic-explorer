@@ -25,14 +25,14 @@ public class DiagnosticHostingService
 
     // Accessed via Interlocked/Volatile; only ever published after StartHosting succeeds so a
     // failed init can't leave a non-null, half-initialized instance behind.
-    private static DiagnosticHostingService _instance;
+    private static DiagnosticHostingService? _instance;
 
-    private readonly Action<HttpConnectionOptions> _configureHttp;
+    private readonly Action<HttpConnectionOptions>? _configureHttp;
     private readonly DiagnosticOptions _options;
 
-    private RegistrationHandler[] _registrationHandlers;
+    private RegistrationHandler[]? _registrationHandlers;
 
-    private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions> configureHttp = null)
+    private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions>? configureHttp = null)
     {
         _options = options;
         _configureHttp = configureHttp;
@@ -113,12 +113,12 @@ public class DiagnosticHostingService
     private static string ResolveProcessName()
     {
         var entryAssemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
-        if (!string.IsNullOrEmpty(entryAssemblyName))
+        if (entryAssemblyName != null && entryAssemblyName.Length != 0)
         {
             return entryAssemblyName;
         }
 
-        return Process.GetCurrentProcess().ProcessName.Replace(".vshost", "");
+        return Process.GetCurrentProcess().ProcessName?.Replace(".vshost", "") ?? "unknown";
     }
 
     public async Task StopHosting()
@@ -142,7 +142,7 @@ public class DiagnosticHostingService
         }
     }
 
-    public static void Start(string url, Action<HttpConnectionOptions> configureHttp = null)
+    public static void Start(string? url, Action<HttpConnectionOptions>? configureHttp = null)
     {
         DiagnosticOptions options = new() { Uri = url };
         TryStart(new DiagnosticHostingService(options, configureHttp));
@@ -173,7 +173,7 @@ public class DiagnosticHostingService
 
     public DiagnosticHostingService(
         IOptions<DiagnosticOptions> options,
-        Action<HttpConnectionOptions> configureHttp = null
+        Action<HttpConnectionOptions>? configureHttp = null
     )
         : this(options.Value, configureHttp)
     {

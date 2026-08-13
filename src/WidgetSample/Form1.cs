@@ -47,7 +47,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
     private readonly TimeProvider _timeProvider;
     private readonly BindingList<Widget> _widgets;
 
-    private string _infoText;
+    private string _infoText = string.Empty;
 
     public Form1()
         : this(TimeProvider.System) { }
@@ -104,7 +104,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
     }
 
     [ExtendedProperty]
-    public Widget NullWidget => null;
+    public Widget? NullWidget => null;
 
     [CollectionProperty(CollectionMode.List, Category = "Numbers")]
     public List<int> UpdateList { get; }
@@ -146,7 +146,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
                 }
                 else
                 {
-                    PropertyChanged(this, new PropertyChangedEventArgs("InfoText"));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("InfoText"));
                 }
             }
         }
@@ -210,12 +210,12 @@ public partial class Form1 : Form, INotifyPropertyChanged
 
     private static void StartDiagnostics()
     {
-        string diagnosticExplorerUri = ConfigurationManager.AppSettings.Get("DiagnosticExplorerUri");
+        string? diagnosticExplorerUri = ConfigurationManager.AppSettings.Get("DiagnosticExplorerUri");
         Debug.WriteLine($"Starting diagnostics with DiagnosticExplorerUri='{diagnosticExplorerUri ?? "(null)"}'");
         DiagnosticHostingService.Start(diagnosticExplorerUri);
     }
 
-    private void StopDiagnostics(object sender, EventArgs e)
+    private void StopDiagnostics(object? sender, EventArgs e)
     {
         Debug.WriteLine("Calling StopDiagnostics");
 
@@ -239,9 +239,9 @@ public partial class Form1 : Form, INotifyPropertyChanged
         base.OnFormClosed(e);
     }
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
-    private void MungeNumbersList(object o)
+    private void MungeNumbersList(object? o)
     {
         try
         {
@@ -265,7 +265,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
         }
     }
 
-    private void IncrementCount(object o)
+    private void IncrementCount(object? o)
     {
         SetMePlease++;
         Counter2++;
@@ -396,7 +396,7 @@ public partial class Form1 : Form, INotifyPropertyChanged
         return string.Join(" ", Enumerable.Range(1, ThreadSafeRandom.Next(1, 50)).Select(_ => RandomWord()).ToArray());
     }
 
-    private void SendEvents(object o)
+    private void SendEvents(object? o)
     {
         // Runs on a System.Threading.Timer thread. Reading control state (chk*.Checked)
         // off the UI thread is illegal, so marshal the read across. Guard against the
@@ -468,14 +468,14 @@ public partial class Form1 : Form, INotifyPropertyChanged
         });
     }
 
-    private void HandleGadgetRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
+    private void HandleGadgetRemoved(object? sender, DataGridViewRowsRemovedEventArgs e)
     {
         _gadgetLog.Info("A gadget was removed");
         _formLog.Info("Form1 removed a gadget");
         GadgetEvents.Register(1);
     }
 
-    private void HandleWidgetRemoved(object sender, DataGridViewRowsRemovedEventArgs e)
+    private void HandleWidgetRemoved(object? sender, DataGridViewRowsRemovedEventArgs e)
     {
         _widgetLog.Info("A widget was removed");
         _formLog.Info("Form1 removed a widget");

@@ -13,12 +13,12 @@ public static class DiagnosticHostingExtensions
     public static IServiceCollection AddDiagnosticExplorer(
         this IServiceCollection services,
         IConfiguration config,
-        Action<HttpConnectionOptions> configureHttp = null
+        Action<HttpConnectionOptions>? configureHttp = null
     )
     {
         services.Configure<DiagnosticOptions>(config.GetSection("DiagnosticExplorer"));
         services.AddHostedService(sp => new DiagnosticHostingService(
-            sp.GetService<IOptions<DiagnosticOptions>>(),
+            sp.GetRequiredService<IOptions<DiagnosticOptions>>(),
             configureHttp
         ));
         return services;
