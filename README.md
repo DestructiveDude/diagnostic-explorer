@@ -136,8 +136,8 @@ dotnet restore DiagnosticExplorer.slnx --force --no-cache
 dotnet csharpier check .
 dotnet build DiagnosticExplorer.slnx --configuration Release --no-restore
 dotnet test DiagnosticExplorer.slnx --configuration Release --no-build
-dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore
-jb inspectcode DiagnosticExplorer.slnx --no-build
+dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore --exclude src/WidgetSample
+jb inspectcode DiagnosticExplorer.slnx --no-build --output=.claude/scratch/inspectcode.xml
 
 # Angular dashboard (Node 22.22.3, matching CI):
 cd diagnostics-web
@@ -151,6 +151,9 @@ npm run build
 excludes it from cross-platform build configurations because its intentional
 `net10.0-windows` / `net48` targets require Windows; validate it separately with
 `dotnet build src/WidgetSample/WidgetSample.csproj --configuration Release`.
+The Roslyn formatter check also excludes that project: `dotnet format` cannot
+construct its multi-target workspace even though both targets build. CSharpier
+still checks the sample; remove this exception when `dotnet format` can load it.
 The `net48` library and hosting targets are compatibility contracts for existing
 consumers and remain supported alongside the current `net10.0` targets.
 
