@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   stryker-web:
+    name: Stryker Mutation (Web)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -33,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22.22.3
+          node-version: 24
           cache: npm
           cache-dependency-path: diagnostics-web/package-lock.json
 
