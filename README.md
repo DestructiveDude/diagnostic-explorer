@@ -135,7 +135,7 @@ dotnet tool restore
 dotnet restore DiagnosticExplorer.slnx --force --no-cache
 dotnet csharpier check .
 dotnet build DiagnosticExplorer.slnx --configuration Release --no-restore
-dotnet test DiagnosticExplorer.slnx --configuration Release --no-build
+dotnet test --solution DiagnosticExplorer.slnx --configuration Release --no-build
 dotnet format DiagnosticExplorer.slnx --verify-no-changes --no-restore --exclude src/WidgetSample
 jb inspectcode DiagnosticExplorer.slnx --no-build --output=.claude/scratch/inspectcode.xml
 
@@ -176,7 +176,7 @@ entry in `DiagnosticExplorer.csproj`; the generated attribute ships in the
 assembly but only names the test project, so it exposes nothing else.
 
 ```bash
-dotnet test DiagnosticExplorer.slnx --configuration Release
+dotnet test --solution DiagnosticExplorer.slnx --configuration Release
 ```
 
 Both test projects target `net10.0` and run cross-platform. In Visual Studio,
