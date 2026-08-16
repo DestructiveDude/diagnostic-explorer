@@ -30,7 +30,7 @@ updates:
       xunit:
         patterns: ["xunit", "xunit.*", "xunit.v3", "xunit.v3.*"]
       testing:
-        patterns: ["NSubstitute", "NSubstitute.*", "AwesomeAssertions", "AwesomeAssertions.*", "Microsoft.NET.Test.Sdk", "coverlet.*"]
+        patterns: ["NSubstitute", "NSubstitute.*", "AwesomeAssertions", "AwesomeAssertions.*", "Microsoft.NET.Test.Sdk"]
       nodatime:
         patterns: ["NodaTime", "NodaTime.*"]
       serilog:
