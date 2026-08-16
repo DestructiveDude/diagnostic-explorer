@@ -56,13 +56,12 @@ jobs:
 
       - name: Test
         run: >
-          dotnet test DiagnosticExplorer.slnx
+          dotnet test --solution DiagnosticExplorer.slnx
           --configuration Release
           --no-build
-          --logger "trx;LogFilePrefix=test-results"
+          --report-xunit-trx
           --results-directory ./TestResults
-          --blame-hang-timeout 30s
-          --blame-hang-dump-type none
+          --timeout 5m
 
       - uses: actions/upload-artifact@v7
         if: always()
