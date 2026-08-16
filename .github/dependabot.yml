@@ -50,6 +50,16 @@ updates:
       prefix: chore
       include: scope
     groups:
+      vite-toolchain:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "@vitest/*"
+        update-types:
+          - major
+          - minor
+          - patch
       npm-minor-and-patch:
         update-types: [minor, patch]
     ignore:
