@@ -18,7 +18,21 @@
     "  Dependency PRs are excluded from AI code review outright: CodeRabbit refuses bot authors, and",
     "  Gitar's bot review is deliberately off. Reviewing every bump would exhaust both budgets, so CI",
     "  plus Dependabot's own advisory data is what actually gates them.",
-    "- 'low' holds documentation only; no deployed artefact is built from it."
+    "- 'low' holds documentation only; no deployed artefact is built from it.",
+    "",
+    "'.github/workflows/**' LEFT the high list on 2026-08-19 and is asserted in",
+    "review-policy-guard.yml instead, on the same reasoning that removed .gitignore on",
+    "2026-08-02: the hook tiers by path glob, so it cannot tell a permissions one-liner from",
+    "a rewrite of the deploy job, and bills a metered CodeRabbit review either way. Measured",
+    "over 100 HIGH PRs in the preceding 30 days: config-only diffs were 27 of them and",
+    "produced FOUR actionable comments between them, against 174 from code-bearing diffs,",
+    "while 45 of the 100 got no CodeRabbit verdict at all - throttled out at 73 reviews per",
+    "7 days against a 30/7d threshold. The glob was not buying review of workflow changes;",
+    "it was crowding out review of code.",
+    "",
+    "Do NOT re-add it without first removing the corresponding assertions from the guard.",
+    "Deleting the guard itself needs no reviewer: \"Review policy intact\" is a REQUIRED",
+    "status check, so removing the workflow means the check never reports and no PR merges."
   ],
 
   "version": 1,
@@ -26,7 +40,6 @@
   "high": [
     ".claude/review-policy.json",
     ".coderabbit.yaml",
-    ".github/workflows/**",
     ".github/dependabot.yml",
     "infra/**",
     "**/*.bicep",
