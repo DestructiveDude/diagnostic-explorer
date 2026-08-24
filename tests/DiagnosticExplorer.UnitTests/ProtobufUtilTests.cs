@@ -73,7 +73,7 @@ public class ProtobufUtilTests
         Exception? ex = Record.Exception(() => ProtobufUtil.Decompress<StringHolder>(payload));
 
         ex.Should().NotBeNull("the payload inflates past the 64 MB decompressed-size cap");
-        ExceptionChain(ex!)
+        ExceptionChain(ex)
             .Should()
             .Contain(
                 e => e is InvalidDataException,
@@ -273,7 +273,7 @@ public class ProtobufUtilTests
         ProtoMemberAttribute? attr = type.GetProperty(propertyName)!.GetCustomAttribute<ProtoMemberAttribute>();
 
         attr.Should().NotBeNull($"{type.Name}.{propertyName} must carry an explicit ProtoMember");
-        attr!.Tag.Should().Be(tag);
+        attr.Tag.Should().Be(tag);
     }
 
     /// <summary>

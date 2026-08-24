@@ -90,7 +90,7 @@ public class PropertyGetterTests
 
         Property? cycle = bag.GetProperty("<cycle>", "Item 0");
         cycle.Should().NotBeNull();
-        cycle!.Name.Should().Be("<cycle>");
+        cycle.Name.Should().Be("<cycle>");
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public class PropertyGetterTests
 
         Property? cycle = bag.GetProperty("<cycle>", "Self");
         cycle.Should().NotBeNull();
-        cycle!.Name.Should().Be("<cycle>");
+        cycle.Name.Should().Be("<cycle>");
     }
 
     /// <summary>

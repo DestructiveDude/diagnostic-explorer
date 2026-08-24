@@ -100,7 +100,7 @@ public class RetroManager : IHostedService
         // invoked, so the drain loop would exit early and drop queued messages. Instead, let
         // the loop run until the channel writer completes (signalled in StopAsync), with the
         // 5-second Task.WhenAny in StopAsync as the hard-cap.
-        _loggingTask = Task.Run(() => RunLoop(CancellationToken.None));
+        _loggingTask = Task.Run(() => RunLoop(CancellationToken.None), CancellationToken.None);
         return Task.CompletedTask;
     }
 
@@ -120,7 +120,7 @@ public class RetroManager : IHostedService
 
         if (_loggingTask != null)
         {
-            await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5)));
+            await Task.WhenAny(_loggingTask, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
         }
     }
 
