@@ -253,7 +253,7 @@ public sealed class AsyncProcessor : IDisposable
         _loggingEvents.CompleteAdding();
 
         //Wait 5 seconds for the events to flush
-        var taskEnded = _loggingTask.Wait(TimeSpan.FromSeconds(5));
+        var taskEnded = _loggingTask.Wait((int)TimeSpan.FromSeconds(5).TotalMilliseconds, CancellationToken.None);
 
         //If the task hasn't ended, cancel the task and record the error
         if (!taskEnded)
@@ -264,7 +264,7 @@ public sealed class AsyncProcessor : IDisposable
             // base.OnClose() closes the downstream appenders — otherwise the worker can be mid
             // PerformAppend into an appender being closed underneath it. Bounded so a genuinely
             // wedged downstream still can't hang shutdown indefinitely. (B5)
-            _loggingTask.Wait(TimeSpan.FromSeconds(1));
+            _loggingTask.Wait((int)TimeSpan.FromSeconds(1).TotalMilliseconds, CancellationToken.None);
 
             ForwardInternalError("The buffer was not able to be flushed before timeout occurred.", null);
         }

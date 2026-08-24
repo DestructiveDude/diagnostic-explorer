@@ -87,8 +87,8 @@ public class RegistrationHandler
             .Where(evts => evts.Count != 0)
             .Subscribe(evts => _logChannel?.Writer.TryWrite(evts));
 
-        _registrationLoop = Task.Run(() => RunRegistrationProcess(_stopToken.Token));
-        _loggingTask = Task.Run(() => RunLoggingProcess(_stopToken.Token));
+        _registrationLoop = Task.Run(() => RunRegistrationProcess(_stopToken.Token), _stopToken.Token);
+        _loggingTask = Task.Run(() => RunLoggingProcess(_stopToken.Token), _stopToken.Token);
 
         Debug.WriteLine($"Diagnostics RegistrationHandler for {_url} started");
     }

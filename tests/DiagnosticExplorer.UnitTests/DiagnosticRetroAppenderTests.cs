@@ -21,7 +21,7 @@ public sealed class DiagnosticRetroAppenderTests
             appender.AppendEvent(TestLoggingEvents.NewEvent("message"));
 
             captured.Should().NotBeNull();
-            captured!.Date.Should().Be(now.UtcDateTime);
+            captured.Date.Should().Be(now.UtcDateTime);
         }
         finally
         {

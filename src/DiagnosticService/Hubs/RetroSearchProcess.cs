@@ -61,8 +61,8 @@ public sealed class RetroSearchProcess : IDisposable
             }
         );
 
-        Task.Run(() => ExecuteQuery(channel, _cancelToken.Token));
-        Task.Run(() => SendResults(channel, _cancelToken.Token));
+        Task.Run(() => ExecuteQuery(channel, _cancelToken.Token), _cancelToken.Token);
+        Task.Run(() => SendResults(channel, _cancelToken.Token), _cancelToken.Token);
     }
 
     private async Task SendResults(Channel<RetroSearchResult> channel, CancellationToken cancel)
