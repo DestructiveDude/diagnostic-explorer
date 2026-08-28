@@ -179,6 +179,12 @@ assembly but only names the test project, so it exposes nothing else.
 dotnet test --solution DiagnosticExplorer.slnx --configuration Release
 ```
 
+Run the opt-in property-snapshot wire qualification separately; it reports the median of three full 10,000-item snapshot/compress/decompress iterations without enforcing a machine-specific timing threshold:
+
+```powershell
+dotnet run --project tests/DiagnosticExplorer.UnitTests/DiagnosticExplorer.UnitTests.csproj --configuration Release -- --explicit only --filter-method DiagnosticExplorer.UnitTests.PropertyGetterTests.PropertySnapshotWireQualificationProcessesCollectionLimit --show-live-output on --output Detailed
+```
+
 Both test projects target `net10.0` and run cross-platform. In Visual Studio,
 open `DiagnosticExplorer.slnx`, build the solution, then use **Test Explorer >
 Run All** to run both suites.
