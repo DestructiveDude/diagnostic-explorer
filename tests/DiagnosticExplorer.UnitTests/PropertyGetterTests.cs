@@ -2,6 +2,7 @@ using System.Collections;
 using AwesomeAssertions;
 using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Props;
+using DiagnosticExplorer.Util;
 
 // Properties in the nested fixtures are consumed through reflection by DiagnosticManager.
 // ReSharper disable UnusedMember.Local
@@ -15,6 +16,10 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class PropertyGetterTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public PropertyGetterTests(ITestOutputHelper output) => _output = output;
+
     private static IEnumerable<string?> AllValues(PropertyBag bag)
     {
         return bag.Categories.SelectMany(c => c.Properties).Select(p => p.Value);
@@ -377,6 +382,41 @@ public class PropertyGetterTests
         bag.GetProperty("Value", "item-9999").Should().NotBeNull();
         bag.GetProperty("Value", "item-10000").Should().BeNull();
         bag.GetProperty("...", "...")!.Value.Should().Be("Truncated at 10000 items");
+    }
+
+    [Fact(Explicit = true)]
+    [Trait("Category", "Performance")]
+    public void PropertySnapshotWireQualificationProcessesCollectionLimit()
+    {
+        const int itemCount = 10_000;
+        var source = new TruncatedCategoriesCollection();
+        var warmup = DiagnosticManager.ObjectToPropertyBag(source, "svc", null);
+        var payload = ProtobufUtil.Compress(warmup, 0);
+        var restored = ProtobufUtil.Decompress<PropertyBag>(payload);
+
+        var elapsed = new List<TimeSpan>();
+        for (var iteration = 0; iteration < 3; iteration++)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var snapshot = DiagnosticManager.ObjectToPropertyBag(source, "svc", null);
+            payload = ProtobufUtil.Compress(snapshot, 0);
+            restored = ProtobufUtil.Decompress<PropertyBag>(payload);
+            stopwatch.Stop();
+            elapsed.Add(stopwatch.Elapsed);
+        }
+
+        var median = elapsed.Order().ElementAt(elapsed.Count / 2);
+        _output.WriteLine(
+            $"items={itemCount}; measuredIterations={elapsed.Count}; medianMs={median.TotalMilliseconds:F1}; "
+                + $"itemsPerSecond={itemCount / median.TotalSeconds:F1}; compressedBytes={payload.Length}; "
+                + $"runsMs=[{string.Join(", ", elapsed.Select(run => run.TotalMilliseconds.ToString("F1")))}]"
+        );
+
+        payload.Should().StartWith(1, "the wire workload exercises the compressed framing path");
+        restored.Categories.Where(category => category.Name != "...").Should().HaveCount(itemCount);
+        restored.GetProperty("Value", "item-9999").Should().NotBeNull();
+        restored.GetProperty("Value", "item-10000").Should().BeNull();
+        restored.GetProperty("...", "...")!.Value.Should().Be("Truncated at 10000 items");
     }
 
     /// <summary>
