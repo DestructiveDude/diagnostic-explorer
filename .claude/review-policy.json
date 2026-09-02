@@ -52,7 +52,9 @@
     "**/stryker-config.json",
     "nuget.config",
     "Directory.Build.props",
-    "DiagnosticExplorer.slnx"
+    "DiagnosticExplorer.slnx",
+    ".github/workflows/ci.yml",
+    ".github/scripts/assert_gate_coverage.py"
   ],
 
   "low": [

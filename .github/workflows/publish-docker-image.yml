@@ -50,6 +50,34 @@ jobs:
         with:
           shellcheck: true
 
+      # A ref gate on refs/tags/v* proves the ref's SHAPE, never that the commit was
+      # reviewed. `git push origin v1.2.3` puts the tag on whatever commit you name,
+      # including one that never opened a PR, and this job would then build and publish
+      # it to GHCR. Rulesets target branches; a branch ruleset does not constrain tags,
+      # and this repository has no tag-target ruleset. Assert reachability instead: it
+      # fails closed and is visible in the diff. Public repo, so the fetch needs no
+      # token even though checkout ran with persist-credentials: false.
+      # TAG PUSHES ONLY. This workflow also runs on pull_request and on push to main.
+      # On a pull_request GITHUB_SHA is the refs/pull/N/merge commit, which is by
+      # construction NOT an ancestor of main, so an ungated assertion would fail every
+      # PR in this repository. On a main push the check is redundant.
+      - name: Assert the tagged commit is reachable from main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          # Full fetch of main, not --depth: the tag may name an older main commit, and a
+          # shallow fetch leaves merge-base no shared history to walk.
+          git fetch --no-tags origin main
+          # PEEL the ref first. For an ANNOTATED or signed tag, GITHUB_SHA is the tag
+          # OBJECT's sha, not a commit, and merge-base then fails with a confusing
+          # message rather than the intended one. `^{commit}` peels a tag object and is
+          # the identity for a plain commit sha, so this is correct either way.
+          tagged_commit="$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          if ! git merge-base --is-ancestor "$tagged_commit" FETCH_HEAD; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' names a commit that is not reachable from main. Only reviewed, merged commits may be released."
+            exit 1
+          fi
+
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
