@@ -23,10 +23,9 @@
 #endregion
 
 using System.Collections.Generic;
-using DiagnosticExplorer.Events;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class DiagnosticResponse

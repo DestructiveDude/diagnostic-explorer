@@ -1,6 +1,6 @@
 using System;
 
-namespace DiagnosticExplorer.Log4Net.Util;
+namespace DiagnosticExplorer.Log4Net;
 
 /// <summary>
 ///     Retains the legacy public clock accessors for binary compatibility.

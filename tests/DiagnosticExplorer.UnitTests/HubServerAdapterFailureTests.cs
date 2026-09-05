@@ -1,7 +1,6 @@
 using System.Net;
 using AwesomeAssertions;
-using DiagnosticExplorer.Hosting;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.SignalR.Protocol;
@@ -24,8 +23,8 @@ namespace DiagnosticExplorer.UnitTests;
 public class HubServerAdapterFailureTests
 {
     private static readonly Type AdapterType =
-        typeof(RegistrationHandler).Assembly.GetType("DiagnosticExplorer.Hosting.HubServerAdapter")
-        ?? throw new InvalidOperationException("DiagnosticExplorer.Hosting.HubServerAdapter not found");
+        typeof(RegistrationHandler).Assembly.GetType("DiagnosticExplorer.HubServerAdapter")
+        ?? throw new InvalidOperationException("DiagnosticExplorer.HubServerAdapter not found");
 
     /// <summary>
     ///     A failed RpcResult from the hub must throw InvalidOperationException carrying the

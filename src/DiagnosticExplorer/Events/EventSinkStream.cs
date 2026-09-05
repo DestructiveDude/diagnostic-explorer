@@ -6,7 +6,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading.Channels;
 
-namespace DiagnosticExplorer.Events;
+namespace DiagnosticExplorer;
 
 public sealed class EventSinkStream : IDisposable
 {

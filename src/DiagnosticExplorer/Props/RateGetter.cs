@@ -24,9 +24,8 @@
 
 using System;
 using System.Reflection;
-using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 internal class RateGetter : PropertyGetter
 {

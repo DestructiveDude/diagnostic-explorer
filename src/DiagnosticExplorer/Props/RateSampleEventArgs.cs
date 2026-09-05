@@ -24,7 +24,7 @@
 
 using System;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 public class RateSampleEventArgs : EventArgs
 {

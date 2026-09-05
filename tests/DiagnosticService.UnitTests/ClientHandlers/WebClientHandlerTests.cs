@@ -5,8 +5,7 @@ using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using Xunit;
 
 namespace DiagnosticService.UnitTests.ClientHandlers;

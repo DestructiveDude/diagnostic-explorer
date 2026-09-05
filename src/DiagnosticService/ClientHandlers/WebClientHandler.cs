@@ -2,8 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 
 namespace Diagnostic.Service.ClientHandlers;
 

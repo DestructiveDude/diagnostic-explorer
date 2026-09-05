@@ -24,7 +24,7 @@
 
 using System;
 
-namespace DiagnosticExplorer.Events;
+namespace DiagnosticExplorer;
 
 public delegate void SystemEventHandler(object sender, SystemEventArgs args);
 

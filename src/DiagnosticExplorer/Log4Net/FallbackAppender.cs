@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using log4net.Core;
 using log4net.Util;
 

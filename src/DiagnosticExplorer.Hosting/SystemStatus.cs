@@ -25,9 +25,8 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using DiagnosticExplorer.Props;
 
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 [Serializable]
 internal class SystemStatus

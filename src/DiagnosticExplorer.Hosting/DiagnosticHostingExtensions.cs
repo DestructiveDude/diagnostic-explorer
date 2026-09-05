@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 public static class DiagnosticHostingExtensions
 {

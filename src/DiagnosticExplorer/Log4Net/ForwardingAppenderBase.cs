@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using log4net.Appender;
 using log4net.Util;
 

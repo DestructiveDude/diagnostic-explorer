@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Trace;
+namespace DiagnosticExplorer;
 
 internal sealed class ScopeStack
 {

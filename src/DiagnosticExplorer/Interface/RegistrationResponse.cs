@@ -26,7 +26,7 @@ using System;
 using System.Text.Json.Serialization;
 using DiagnosticExplorer.Util;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 public class RegistrationResponse
 {

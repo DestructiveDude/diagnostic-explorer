@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 
 namespace Diagnostic.Service.Hubs;
 

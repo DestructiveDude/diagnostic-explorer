@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 public class OperationResponse
 {

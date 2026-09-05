@@ -10,7 +10,7 @@ public class Property
 
     public string? Path { get; set; }
 
-    public static List<Property> Map(string path, List<DiagnosticExplorer.Interface.Property> properties)
+    public static List<Property> Map(string path, List<DiagnosticExplorer.Property> properties)
     {
         List<Property> result = [];
         foreach (var property in properties)

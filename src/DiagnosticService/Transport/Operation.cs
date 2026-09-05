@@ -1,4 +1,4 @@
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 
 namespace Diagnostic.Service.Transport;
 

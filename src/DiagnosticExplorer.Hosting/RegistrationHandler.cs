@@ -6,13 +6,12 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
 using log4net;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 public class RegistrationHandler
 {

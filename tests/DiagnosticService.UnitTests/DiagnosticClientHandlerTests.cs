@@ -1,8 +1,7 @@
 using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Hubs;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
 using Xunit;

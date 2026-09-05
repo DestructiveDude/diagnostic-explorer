@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class Category

@@ -1,6 +1,6 @@
 using System;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 [AttributeUsage(AttributeTargets.Method)]
 public class DiagnosticMethodAttribute : Attribute { }

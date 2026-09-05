@@ -1,7 +1,7 @@
 using ArchUnitNET.Domain;
 using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
-using DiagnosticExplorer.Hosting;
+using DiagnosticExplorer;
 using FixPortal.CodeStyle.ArchRules;
 
 namespace DiagnosticExplorer.UnitTests;

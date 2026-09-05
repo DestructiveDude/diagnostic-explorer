@@ -24,7 +24,7 @@
 
 using System;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 [AttributeUsage(AttributeTargets.Class)]
 public class DiagnosticClassAttribute : Attribute

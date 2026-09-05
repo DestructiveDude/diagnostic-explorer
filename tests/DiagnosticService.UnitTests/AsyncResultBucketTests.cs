@@ -1,6 +1,6 @@
 using AwesomeAssertions;
 using Diagnostic.Service.Hubs;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using Xunit;
 
 namespace DiagnosticService.UnitTests;

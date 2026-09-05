@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using DiagnosticExplorer.Trace;
+using DiagnosticExplorer;
 
 namespace DiagnosticExplorer.UnitTests;
 

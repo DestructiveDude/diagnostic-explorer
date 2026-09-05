@@ -25,9 +25,8 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using DiagnosticExplorer.Interface;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 internal class DateGetter : PropertyGetter
 {

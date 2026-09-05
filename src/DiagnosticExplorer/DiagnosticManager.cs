@@ -7,9 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
-using DiagnosticExplorer.Props;
 using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer;

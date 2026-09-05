@@ -4,7 +4,7 @@ using log4net.Appender;
 using log4net.Core;
 using log4net.Util;
 
-namespace DiagnosticExplorer.Log4Net.Util;
+namespace DiagnosticExplorer.Log4Net;
 
 public class MultiErrorHandler : IErrorHandler
 {

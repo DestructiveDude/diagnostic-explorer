@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
-using DiagnosticExplorer.Hosting;
+using DiagnosticExplorer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 

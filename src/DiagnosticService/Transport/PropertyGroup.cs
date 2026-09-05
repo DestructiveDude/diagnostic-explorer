@@ -6,7 +6,7 @@ public class PropertyGroup
 
     public Property[] Properties { get; set; } = Array.Empty<Property>();
 
-    public static List<PropertyGroup> Map(string path, List<DiagnosticExplorer.Interface.Category> propertyGroups)
+    public static List<PropertyGroup> Map(string path, List<DiagnosticExplorer.Category> propertyGroups)
     {
         List<PropertyGroup> result = [];
         foreach (var group in propertyGroups)
