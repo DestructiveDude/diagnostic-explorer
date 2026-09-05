@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using DiagnosticExplorer.Trace;
+using DiagnosticExplorer;
 using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;

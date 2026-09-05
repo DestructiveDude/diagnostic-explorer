@@ -1,7 +1,6 @@
 using System.Collections;
 using AwesomeAssertions;
-using DiagnosticExplorer.Interface;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using DiagnosticExplorer.Util;
 
 // Properties in the nested fixtures are consumed through reflection by DiagnosticManager.

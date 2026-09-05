@@ -3,13 +3,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
 using log4net;
 using Microsoft.AspNetCore.SignalR.Client;
 
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
 {

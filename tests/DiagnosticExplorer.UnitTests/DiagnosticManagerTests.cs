@@ -1,7 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 
 namespace DiagnosticExplorer.UnitTests;
 

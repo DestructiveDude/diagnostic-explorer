@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using DiagnosticExplorer.Hosting;
+using DiagnosticExplorer;
 
 namespace DiagnosticExplorer.UnitTests;
 

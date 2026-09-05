@@ -5,7 +5,6 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Log4Net;
 using log4net;
 using Microsoft.AspNetCore.Http.Connections.Client;
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 #endif
 
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 public class DiagnosticHostingService
 #if NET5_0_OR_GREATER

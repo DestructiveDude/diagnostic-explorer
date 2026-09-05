@@ -3,7 +3,6 @@ using AwesomeAssertions;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
-using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;

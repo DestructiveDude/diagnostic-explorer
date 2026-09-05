@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using AwesomeAssertions;
 using DiagnosticExplorer.Log4Net;
-using DiagnosticExplorer.Log4Net.Util;
 using log4net.Core;
 
 namespace DiagnosticExplorer.UnitTests;

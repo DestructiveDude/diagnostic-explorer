@@ -6,9 +6,6 @@ using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
-using DiagnosticExplorer.Props;
 
 namespace Diagnostic.Service.Hubs;
 

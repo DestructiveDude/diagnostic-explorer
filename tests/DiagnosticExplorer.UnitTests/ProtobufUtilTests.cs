@@ -1,8 +1,7 @@
 using System.IO.Compression;
 using System.Reflection;
 using AwesomeAssertions;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using DiagnosticExplorer.Util;
 using ProtoBuf;
 

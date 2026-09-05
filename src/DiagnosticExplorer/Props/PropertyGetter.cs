@@ -30,10 +30,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using DiagnosticExplorer.Interface;
 using DiagnosticExplorer.Util;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 internal class PropertyGetter
 {

@@ -3,7 +3,7 @@ using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using Diagnostic.Service.Transport;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using NSubstitute;
 using Xunit;
 

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Diagnostic.Service.Transport;
-using DiagnosticExplorer.Interface;
+using DiagnosticExplorer;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Diagnostic.Service.Hubs;

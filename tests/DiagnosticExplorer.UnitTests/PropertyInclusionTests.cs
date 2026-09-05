@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using AwesomeAssertions;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Interface;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 
 // Properties in the nested fixtures are consumed through reflection by DiagnosticManager.
 // ReSharper disable UnusedMember.Local

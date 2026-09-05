@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Hosting;
+namespace DiagnosticExplorer;
 
 public class DiagnosticOptions
 {

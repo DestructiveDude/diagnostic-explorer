@@ -1,6 +1,5 @@
 using System;
-using DiagnosticExplorer.Log4Net.Util;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using log4net.Appender;
 using log4net.Core;
 

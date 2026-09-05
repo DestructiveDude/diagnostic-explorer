@@ -1,4 +1,4 @@
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using log4net;
 
 namespace Diagnostic.Service.Common;

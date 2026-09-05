@@ -33,9 +33,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using log4net;
-using ATraceItem = DiagnosticExplorer.Trace.TraceItem<DiagnosticExplorer.Trace.TraceScope>;
+using ATraceItem = DiagnosticExplorer.TraceItem<DiagnosticExplorer.TraceScope>;
 
-namespace DiagnosticExplorer.Trace;
+namespace DiagnosticExplorer;
 
 /// <summary>Enabled trace to a single source through method calls</summary>
 public sealed class TraceScope : IDisposable

@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using DiagnosticExplorer.Hosting;
+using DiagnosticExplorer;
 
 namespace ConsoleApp;
 

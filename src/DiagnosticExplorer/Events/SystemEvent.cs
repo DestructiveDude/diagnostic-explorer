@@ -26,7 +26,7 @@ using System;
 using System.Runtime.Serialization;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Events;
+namespace DiagnosticExplorer;
 
 /// <summary>
 ///     Describes something that happened.

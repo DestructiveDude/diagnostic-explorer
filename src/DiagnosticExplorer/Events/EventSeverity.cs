@@ -24,7 +24,7 @@
 
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Events;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public enum EventSeverity

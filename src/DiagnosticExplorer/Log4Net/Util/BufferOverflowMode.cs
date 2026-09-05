@@ -1,4 +1,4 @@
-namespace DiagnosticExplorer.Log4Net.Util;
+namespace DiagnosticExplorer.Log4Net;
 
 public enum BufferOverflowMode
 {

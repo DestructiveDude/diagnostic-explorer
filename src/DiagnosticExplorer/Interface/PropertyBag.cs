@@ -25,7 +25,7 @@
 using System.Collections.Generic;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class PropertyBag

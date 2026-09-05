@@ -4,7 +4,7 @@ using System.Reflection;
 using DiagnosticExplorer.Util;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class Operation

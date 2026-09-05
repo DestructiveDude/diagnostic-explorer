@@ -24,9 +24,8 @@
 
 using System;
 using System.Threading.Tasks;
-using DiagnosticExplorer.Events;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 public interface IDiagnosticHubClient
 {

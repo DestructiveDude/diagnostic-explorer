@@ -1,6 +1,6 @@
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class OperationParameter

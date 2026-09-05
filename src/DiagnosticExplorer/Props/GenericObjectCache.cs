@@ -4,7 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 internal static class GenericObjectCache
 {

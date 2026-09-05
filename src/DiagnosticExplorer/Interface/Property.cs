@@ -28,7 +28,7 @@ using System.Linq;
 using System.Reflection;
 using ProtoBuf;
 
-namespace DiagnosticExplorer.Interface;
+namespace DiagnosticExplorer;
 
 [ProtoContract(UseProtoMembersOnly = true)]
 public class Property

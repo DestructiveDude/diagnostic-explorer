@@ -1,6 +1,6 @@
 using System.Reflection;
 using AwesomeAssertions;
-using DiagnosticExplorer.Props;
+using DiagnosticExplorer;
 using Microsoft.Extensions.Time.Testing;
 
 namespace DiagnosticExplorer.UnitTests;

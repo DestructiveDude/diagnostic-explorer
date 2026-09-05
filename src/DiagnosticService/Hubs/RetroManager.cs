@@ -6,8 +6,6 @@ using System.Threading.Channels;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
-using DiagnosticExplorer.Events;
-using DiagnosticExplorer.Props;
 using log4net;
 using Microsoft.Extensions.Options;
 

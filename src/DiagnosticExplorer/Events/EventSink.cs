@@ -28,7 +28,7 @@ using System.Diagnostics;
 using System.Threading;
 using log4net.Core;
 
-namespace DiagnosticExplorer.Events;
+namespace DiagnosticExplorer;
 
 // Events are bounded by the inline MaxMessages trim in AddSingleEvent. The former static
 // `sinks` WeakReferenceHash + 20s purge timer were dead code — nothing ever registered a sink

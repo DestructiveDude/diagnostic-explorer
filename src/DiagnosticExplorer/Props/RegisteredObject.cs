@@ -26,7 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DiagnosticExplorer.Props;
+namespace DiagnosticExplorer;
 
 public class RegisteredObject
 {

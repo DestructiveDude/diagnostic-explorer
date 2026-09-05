@@ -24,7 +24,7 @@
 
 using System;
 
-namespace DiagnosticExplorer.Trace;
+namespace DiagnosticExplorer;
 
 public interface ITraceItem
 {
