@@ -1,0 +1,153 @@
+using AwesomeAssertions;
+
+// Fixture properties are consumed through reflection by DiagnosticManager.
+// ReSharper disable UnusedMember.Local
+
+namespace DiagnosticExplorer.UnitTests;
+
+/// <summary>
+///     The fluent configuration surface, asserted end to end: configure, render, read the output.
+/// </summary>
+/// <remarks>
+///     Every test here goes through <see cref="DiagnosticManager.ObjectToPropertyBag" /> rather than
+///     inspecting the configuration object. The risk this phase carried was a configuration API that
+///     compiled and was never consulted — a host could configure everything and get silently
+///     nothing — so asserting that the configuration was *stored* would have proved precisely the
+///     wrong thing.
+/// </remarks>
+public sealed class FluentConfigurationTests : IDisposable
+{
+    /// <summary>
+    ///     Configuration is process-wide static state, and so is the getter cache it feeds. Each
+    ///     test restores the default so ordering cannot leak one test's configuration into another.
+    /// </summary>
+    public void Dispose() => DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+
+    private static Property[] Render(object obj) =>
+        DiagnosticManager.ObjectToPropertyBag(obj, "svc", null).Categories.SelectMany(c => c.Properties).ToArray();
+
+    [Fact]
+    public void Configure_RenamingAProperty_ChangesTheRenderedName()
+    {
+        DiagnosticManager.Configure(c =>
+            c.Configure<Widget>(t => t.Property(w => w.Serial).WithLabel("Serial number"))
+        );
+
+        Render(new Widget()).Select(p => p.Name).Should().Contain("Serial number").And.NotContain("Serial");
+    }
+
+    [Fact]
+    public void Configure_SettingADescriptionAndCategory_ReachesTheRenderedProperty()
+    {
+        DiagnosticManager.Configure(c =>
+            c.Configure<Widget>(t => t.Property(w => w.Serial).Description("The unit serial").WithCategory("Identity"))
+        );
+
+        PropertyBag bag = DiagnosticManager.ObjectToPropertyBag(new Widget(), "svc", null);
+
+        Category identity = bag.Categories.FindByName("Identity");
+        identity.Should().NotBeNull();
+        identity.Properties.Single(p => p.Name == "Serial").Description.Should().Be("The unit serial");
+    }
+
+    /// <summary>Excluding a property must actually remove it, not merely record the intent.</summary>
+    [Fact]
+    public void Configure_ExcludingAProperty_RemovesItFromTheOutput()
+    {
+        DiagnosticManager.Configure(c => c.Configure<Widget>(t => t.Exclude(w => w.Serial)));
+
+        Render(new Widget()).Select(p => p.Name).Should().NotContain("Serial");
+    }
+
+    /// <summary>
+    ///     A delegate property has no PropertyInfo behind it, so it reaches the getter pipeline by a
+    ///     different route than an attributed one — the branch that would silently render nothing if
+    ///     the configuration were not consulted for delegate and custom properties too.
+    /// </summary>
+    [Fact]
+    public void Configure_ADelegateProperty_IsRenderedAlongsideTheRealOnes()
+    {
+        DiagnosticManager.Configure(c =>
+            c.Configure<Widget>(t => t.Property("Computed", w => w.Serial.Length).WithLabel("Serial length"))
+        );
+
+        Property computed = Render(new Widget()).Single(p => p.Name == "Serial length");
+
+        computed.Value.Should().Be("4");
+    }
+
+    /// <summary>
+    ///     Getters are built once per type and bake the configuration in, so reconfiguring has to
+    ///     invalidate the cache. Without that, a second configuration applies to types nothing has
+    ///     touched yet and silently not to the rest.
+    /// </summary>
+    [Fact]
+    public void UseConfiguration_AfterATypeHasAlreadyRendered_AppliesToTheNextRender()
+    {
+        Render(new Widget()).Select(p => p.Name).Should().Contain("Serial");
+
+        DiagnosticManager.Configure(c => c.Configure<Widget>(t => t.Property(w => w.Serial).WithLabel("Renamed")));
+
+        Render(new Widget()).Select(p => p.Name).Should().Contain("Renamed").And.NotContain("Serial");
+    }
+
+    /// <summary>
+    ///     ExcludeAll then Include is the opt-in shape: everything off, then a named few back on.
+    ///     It only works if an explicit Include outranks the blanket rule, so both halves are
+    ///     asserted in one test.
+    /// </summary>
+    [Fact]
+    public void Configure_ExcludeAllThenInclude_KeepsOnlyTheNamedProperty()
+    {
+        DiagnosticManager.Configure(c => c.Configure<Widget>(t => t.ExcludeAll().Include(w => w.Serial)));
+
+        Render(new Widget()).Select(p => p.Name).Should().Equal("Serial");
+    }
+
+    /// <summary>
+    ///     A custom property is neither a real property nor a delegate over one; it reaches the
+    ///     pipeline through CustomPropertyGetter, a third route that would silently render nothing
+    ///     if custom properties were not read off the type configuration.
+    /// </summary>
+    /// <remarks>
+    ///     It renders under its own name. The inner projection is inlined only when the custom
+    ///     property is configured expanded, which is a separate path through IInlineCustomObject.
+    /// </remarks>
+    [Fact]
+    public void Configure_ACustomProperty_IsRendered()
+    {
+        DiagnosticManager.Configure(c =>
+            c.Configure<Widget>(t => t.Custom("Summary", o => o.Property("Label", w => w.Serial)))
+        );
+
+        Render(new Widget()).Select(p => p.Name).Should().Contain("Summary");
+    }
+
+    [Fact]
+    public void Configure_WithoutAConfigureAction_Throws()
+    {
+        Action configure = () => DiagnosticManager.Configure(null!);
+
+        configure.Should().Throw<ArgumentNullException>();
+    }
+
+    /// <summary>
+    ///     An unattributed DateTime renders its date by default. Routing dates through the
+    ///     configuration pipeline must not change that: DateGetter defaults ExposeDate to true while
+    ///     DatePropertyAttribute defaults it to false, so handing the getter a default attribute
+    ///     instead of null would switch the date off for every unattributed date property.
+    /// </summary>
+    [Fact]
+    public void UnattributedDateProperty_StillRendersItsDate()
+    {
+        Render(new Widget()).Select(p => p.Name).Should().Contain("Created");
+    }
+
+#pragma warning disable S1144, S2325
+    private sealed class Widget
+    {
+        public string Serial => "AB12";
+        public DateTime Created => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    }
+#pragma warning restore S1144, S2325
+}

@@ -24,6 +24,56 @@ public static class DiagnosticManager
     private static int _operationSetId;
     public static bool Enabled { get; set; } = true;
 
+    public const string EnabledConfigurationKey = "DiagnosticExplorer:Enabled";
+
+    private static DiagnosticConfigurationSnapshot _configuration = DiagnosticConfigurationSnapshot.Empty;
+
+    /// <summary>The configuration currently in force. Replaced wholesale by <see cref="UseConfiguration" />.</summary>
+    public static DiagnosticConfiguration CurrentConfiguration { get; private set; } = new();
+
+    /// <summary>Builds a configuration fluently and applies it.</summary>
+    public static DiagnosticConfiguration Configure(Action<IDiagConfigurator> configure)
+    {
+        if (configure == null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
+        DiagnosticConfiguration configuration = new();
+        configure(configuration);
+        UseConfiguration(configuration);
+        return configuration;
+    }
+
+    /// <summary>
+    ///     Applies a configuration, replacing whatever was in force.
+    /// </summary>
+    /// <remarks>
+    ///     Clearing the getter cache is not optional: getters are built once per type and bake the
+    ///     configuration in, so a reconfiguration that left the cache alone would apply to types
+    ///     nothing had touched yet and silently not to the rest.
+    /// </remarks>
+    public static void UseConfiguration(DiagnosticConfiguration configuration)
+    {
+        if (configuration == null)
+        {
+            throw new ArgumentNullException(nameof(configuration));
+        }
+
+        CurrentConfiguration = configuration;
+        _configuration = configuration.CreateSnapshot();
+        Enabled = configuration.RuntimeOptions.Enabled;
+        LogEventStore.Configure(
+            configuration.RuntimeOptions.LogEventRetention,
+            configuration.RuntimeOptions.Routing.CreateSnapshot()
+        );
+
+        // Upstream also pushes RuntimeOptions.EventRetention into EventSinkRepo here. That needs
+        // the EventSink retention rework, which is still unported, so event-sink retention keeps
+        // its existing behaviour and only the log stream is retuned.
+        _typeHash.Clear();
+    }
+
     /// <summary>
     ///     How many items a drill-down materialises before truncating.
     /// </summary>
@@ -803,14 +853,37 @@ public static class DiagnosticManager
         return options;
     }
 
+    /// <summary>
+    ///     Builds date options, or null when neither an attribute nor the configuration says
+    ///     anything about dates.
+    /// </summary>
+    /// <remarks>
+    ///     Returning null matters. DateGetter defaults ExposeDate to true and overrides it only when
+    ///     handed a non-null attribute, while our DatePropertyAttribute.ExposeDate defaults to false
+    ///     - upstream's carries a constructor setting it true, ours does not. Handing back a default
+    ///     attribute for an unattributed DateTime property would therefore switch the date off for
+    ///     every one of them, silently. Same guard shape as CreateRateOptions.
+    /// </remarks>
     private static DatePropertyAttribute CreateDateOptions(
         DatePropertyAttribute source,
         PropertyConfiguration configuration
     )
     {
+        bool configuresDates =
+            configuration != null
+            && (
+                configuration.ExposeDate.IsSet
+                || configuration.ExposeElapsed.IsSet
+                || configuration.ExposeTimeUntil.IsSet
+            );
+        if (source == null && !configuresDates)
+        {
+            return null;
+        }
+
         DatePropertyAttribute options =
             source == null
-                ? new DatePropertyAttribute()
+                ? new DatePropertyAttribute { ExposeDate = true }
                 : new DatePropertyAttribute
                 {
                     ExposeDate = source.ExposeDate,
@@ -890,46 +963,74 @@ public static class DiagnosticManager
             && toString.DeclaringType != typeof(ValueType);
     }
 
+    /// <summary>
+    ///     Builds the getters for one type, from its attributes and from whatever the configuration
+    ///     in force says about it.
+    /// </summary>
+    /// <remarks>
+    ///     The strategy dispatch that used to live here now sits in <see cref="AddPropertyGetters" />,
+    ///     so an attribute-configured and a fluently-configured property go through one path. This
+    ///     is where the configuration stops being inert.
+    /// </remarks>
     private static List<PropertyGetter> BuildPropertyGetters(Type type, bool isStatic)
     {
         List<PropertyGetter> propertyList = [];
+        DiagnosticConfigurationSnapshot configuration = _configuration;
+        bool applyAttributes = configuration.ApplyAttributes;
+        TypeConfiguration typeConfiguration = isStatic ? null : configuration.GetEffectiveTypeConfiguration(type);
 
-        IEnumerable<PropertyInfo> properties = isStatic ? GetStaticProperties(type) : GetInstanceProperties(type, null);
+        IEnumerable<PropertyInfo> properties = isStatic
+            ? GetStaticProperties(type)
+            : GetInstanceProperties(type, null, typeConfiguration);
         foreach (PropertyInfo info in properties)
         {
-            Type underlying = GetUnderlyingType(info.PropertyType);
+            DiagnosticPropertyAttribute propAttr = applyAttributes
+                ? GetAttribute<DiagnosticPropertyAttribute>(info)
+                : null;
+            PropertyConfiguration propertyConfiguration = typeConfiguration?.Find(info);
+            string defaultFormat = configuration.GetDefaultFormat(info.PropertyType);
+            AddPropertyGetters(
+                propertyList,
+                info,
+                propAttr,
+                propertyConfiguration,
+                isStatic,
+                applyAttributes,
+                defaultFormat
+            );
+        }
 
-            DiagnosticPropertyAttribute propAttr = GetAttribute<DiagnosticPropertyAttribute>(info);
+        if (typeConfiguration != null)
+        {
+            // Properties that exist only in configuration: a delegate over the object, or a fully
+            // custom projection. Neither has a PropertyInfo, so neither is reachable above.
+            foreach (PropertyConfiguration delegateProperty in typeConfiguration.DelegateProperties)
+            {
+                string defaultFormat = configuration.GetDefaultFormat(delegateProperty.ValueType);
+                AddPropertyGetters(propertyList, null, null, delegateProperty, false, false, defaultFormat);
+            }
 
-            if (propAttr is CollectionPropertyAttribute colPropAttr)
+            foreach (CustomPropertyConfiguration customProperty in typeConfiguration.CustomProperties)
             {
-                propertyList.Add(new CollectionGetter(info, colPropAttr, isStatic));
-            }
-            else if (propAttr is ExtendedPropertyAttribute extPropAttr)
-            {
-                propertyList.Add(new ExtendedPropertyGetter(info, extPropAttr, isStatic));
-            }
-            else if (info.PropertyType == typeof(RateCounter))
-            {
-                RatePropertyAttribute rateAttr = propAttr as RatePropertyAttribute;
-                propertyList.Add(new RateGetter(info, rateAttr, isStatic));
-            }
-            else if (underlying == typeof(DateTime) || underlying == typeof(DateTimeOffset))
-            {
-                DatePropertyAttribute dateAttr = propAttr as DatePropertyAttribute;
-                propertyList.Add(new DateGetter(info, dateAttr, isStatic));
-            }
-            else
-            {
-                propertyList.Add(new PropertyGetter(info, isStatic));
+                propertyList.Add(new CustomPropertyGetter(customProperty));
             }
         }
+
         return propertyList;
     }
 
-    private static IEnumerable<PropertyInfo> GetInstanceProperties(Type type, DiagnosticClassAttribute inheritedAttr)
+    private static IEnumerable<PropertyInfo> GetInstanceProperties(
+        Type type,
+        DiagnosticClassAttribute inheritedAttr,
+        TypeConfiguration typeConfiguration
+    )
     {
-        return GetInstanceProperties(type, inheritedAttr, new HashSet<string>(StringComparer.Ordinal));
+        return GetInstanceProperties(
+            type,
+            inheritedAttr,
+            typeConfiguration,
+            new HashSet<string>(StringComparer.Ordinal)
+        );
     }
 
     [SuppressMessage(
@@ -945,6 +1046,7 @@ public static class DiagnosticManager
     private static IEnumerable<PropertyInfo> GetInstanceProperties(
         Type type,
         DiagnosticClassAttribute inheritedAttr,
+        TypeConfiguration typeConfiguration,
         HashSet<string> yieldedNames
     )
     {
@@ -976,7 +1078,7 @@ public static class DiagnosticManager
             {
                 foreach (
                     PropertyInfo propInfo in type.GetProperties(PublicInstancePropertyFlags | BindingFlags.DeclaredOnly)
-                        .Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p))
+                        .Where(p => ShouldIncludeProperty(diagAttr ?? inheritedAttr, p, typeConfiguration))
                 )
                 {
                     if (yieldedNames.Add(propInfo.Name))
@@ -987,7 +1089,12 @@ public static class DiagnosticManager
             }
 
             foreach (
-                PropertyInfo propInfo in GetInstanceProperties(type.BaseType, diagAttr ?? inheritedAttr, yieldedNames)
+                PropertyInfo propInfo in GetInstanceProperties(
+                    type.BaseType,
+                    diagAttr ?? inheritedAttr,
+                    typeConfiguration,
+                    yieldedNames
+                )
             )
             {
                 yield return propInfo;
@@ -1000,14 +1107,25 @@ public static class DiagnosticManager
         DiagnosticClassAttribute diagAttr = GetAttribute<DiagnosticClassAttribute>(type, false);
 
         return type.GetProperties(PublicStaticPropertyFlags)
-            .Where(propInfo => ShouldIncludeProperty(diagAttr, propInfo));
+            .Where(propInfo => ShouldIncludeProperty(diagAttr, propInfo, null));
     }
 
-    private static bool ShouldIncludeProperty(DiagnosticClassAttribute diagAttr, PropertyInfo info)
+    private static bool ShouldIncludeProperty(
+        DiagnosticClassAttribute diagAttr,
+        PropertyInfo info,
+        TypeConfiguration typeConfiguration
+    )
     {
         if (info.PropertyType == typeof(EventSink))
         {
             return false;
+        }
+
+        // An explicit Include or Exclude for this property outranks everything else, including
+        // an attribute, because it is the most specific thing anyone said about it.
+        if (typeConfiguration?.Find(info)?.Included is bool included)
+        {
+            return included;
         }
 
         bool attributedOnly = diagAttr is { AttributedPropertiesOnly: true };
@@ -1022,6 +1140,14 @@ public static class DiagnosticManager
         if (browseAttr is { Browsable: false })
         {
             return false;
+        }
+
+        // IncludeAll / ExcludeAll, which apply to everything this type did not speak about
+        // individually. Placed after the attribute checks so an explicit [Browsable(false)] or
+        // [DiagnosticProperty(Ignore = true)] still wins.
+        if (typeConfiguration?.IncludeAll is bool includeAll)
+        {
+            return includeAll;
         }
 
         if (attributedOnly)
