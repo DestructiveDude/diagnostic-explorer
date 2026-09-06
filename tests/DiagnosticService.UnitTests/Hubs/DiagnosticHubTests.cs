@@ -32,7 +32,11 @@ public sealed class DiagnosticHubTests
 {
     private static DiagnosticHub CreateHub(RealtimeManager realtimeManager)
     {
-        return new DiagnosticHub(realtimeManager, new RetroManager(Options.Create(new DiagServiceSettings())));
+        return new DiagnosticHub(
+            realtimeManager,
+            new RetroManager(Options.Create(new DiagServiceSettings())),
+            Substitute.For<IHubContext<DiagnosticHub, IDiagnosticHubClient>>()
+        );
     }
 
     private static HubCallerContext ContextWithConnectionId(string connectionId)

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Diagnostic.Service.ClientHandlers;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Util;
@@ -10,13 +10,19 @@ namespace Diagnostic.Service.Hubs;
 public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(DiagnosticHub));
+    private readonly IHubContext<DiagnosticHub, IDiagnosticHubClient> _hubContext;
     private readonly RetroManager _retroManager;
     private readonly RealtimeManager _rtManager;
 
-    public DiagnosticHub(RealtimeManager rtManager, RetroManager retroManager)
+    public DiagnosticHub(
+        RealtimeManager rtManager,
+        RetroManager retroManager,
+        IHubContext<DiagnosticHub, IDiagnosticHubClient> hubContext
+    )
     {
         _rtManager = rtManager;
         _retroManager = retroManager;
+        _hubContext = hubContext;
     }
 
     // Not async: the body is synchronous (CS1998). SignalR awaits the returned Task either way.
@@ -86,9 +92,17 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         return Task.CompletedTask;
     }
 
+    // The client proxy comes from IHubContext, NOT from Clients.Caller. For the duration of
+    // OnConnectedAsync SignalR substitutes a NoInvokeSingleClientProxy, so every client result
+    // invoked through it throws "Client results inside OnConnectedAsync Hub methods are not
+    // allowed." - and permanently, because the handler holds the captured reference for the life
+    // of the connection and it never becomes usable. IHubContext resolves the connection by id
+    // instead, and can invoke from the moment the connection exists.
     public override Task OnConnectedAsync()
     {
-        _rtManager.AddDiagnosticClient(new DiagnosticClientHandler(Context, Clients.Caller));
+        _rtManager.AddDiagnosticClient(
+            new DiagnosticClientHandler(Context, _hubContext.Clients.Client(Context.ConnectionId))
+        );
         return base.OnConnectedAsync();
     }
 
