@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net10.0;net48</TargetFrameworks>
+		<Description>NLog target for DiagnosticExplorer.</Description>
+		<Version>3.2.3</Version>
+		<AssemblyVersion>3.2.3.0</AssemblyVersion>
+		<FileVersion>3.2.3.0</FileVersion>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DiagnosticExplorer\DiagnosticExplorer.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="NLog" />
+	</ItemGroup>
+</Project>
