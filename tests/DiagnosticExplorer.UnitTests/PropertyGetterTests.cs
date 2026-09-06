@@ -282,6 +282,20 @@ public class PropertyGetterTests
         public static string Format(TimeSpan value) => FormatTimeSpan(value);
     }
 
+    /// <summary>
+    ///     A getter needs either a PropertyInfo or a configuration to read from. With neither, the
+    ///     value function stays null and the failure used to surface much later as a
+    ///     NullReferenceException from GetValue, on whichever poll first reached the property —
+    ///     far from the construction that caused it.
+    /// </summary>
+    [Fact]
+    public void PropertyGetter_WithNeitherPropertyInfoNorConfiguration_ThrowsAtConstruction()
+    {
+        Action construct = () => _ = new PropertyGetter(null, null, null, isStatic: false);
+
+        construct.Should().Throw<ArgumentException>();
+    }
+
     // ---------------------------------------------------------------------
     // DE-28: CollectionGetter render modes (CollectionGetter.cs:157-215) and
     // PropertyGetter.FormatEnumerable's counted/uncounted wording
