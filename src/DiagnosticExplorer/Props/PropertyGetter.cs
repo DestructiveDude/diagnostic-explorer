@@ -89,6 +89,17 @@ internal class PropertyGetter
     {
         PropInfo = propInfo;
 
+        // One of the two must supply a value function. Without either, GetFunc stays null and the
+        // failure surfaces much later as a NullReferenceException from GetValue, on whichever poll
+        // first reaches this property. Fail at construction instead, where the cause is visible.
+        if (propInfo == null && configuration == null)
+        {
+            throw new ArgumentException(
+                "A property getter needs either a PropertyInfo or a configuration to read its value from.",
+                nameof(propInfo)
+            );
+        }
+
         if (propInfo != null)
         {
             GetFunc = PropertyToFunction(propInfo, isStatic);
@@ -189,8 +200,10 @@ internal class PropertyGetter
         {
             FormatString = defaultFormat.Contains("{0") ? defaultFormat : "{0:" + defaultFormat + "}";
         }
-        else if (FormatString == null && propAttr != null)
+        else if (FormatString == null && propAttr != null && propInfo != null)
         {
+            // propInfo is null for a configured property that has no PropertyInfo behind it, which
+            // this branch previously dereferenced unconditionally.
             FormatString = GetDefaultFormatString(propInfo.PropertyType);
         }
 
@@ -720,26 +733,22 @@ internal class PropertyGetter
 
     protected static string FormatTimeSpan(TimeSpan span)
     {
+        // Built by interpolation rather than a switched format string. Upstream's version selects
+        // between two format strings over one six-argument string.Format call, so the days argument
+        // is silently unused whenever the span is under a day - which is what a supplied-but-ignored
+        // format argument looks like to an analyzer, and one renumbering away from being a real bug.
         string sign = span < TimeSpan.Zero ? "-" : "";
-        string format = "{0}{2:D2}:{3:D2}:{4:D2}";
+        string value = $"{Math.Abs(span.Hours):D2}:{Math.Abs(span.Minutes):D2}:{Math.Abs(span.Seconds):D2}";
         if (span.Days != 0)
         {
-            format = "{0}{1}.{2:D2}:{3:D2}:{4:D2}";
+            value = $"{Math.Abs(span.Days)}.{value}";
         }
 
         if (Math.Abs(span.TotalSeconds) < 1)
         {
-            format += ".{5:D2}";
+            value += $".{Math.Abs(span.Milliseconds):D2}";
         }
 
-        return string.Format(
-            format,
-            sign,
-            Math.Abs(span.Days),
-            Math.Abs(span.Hours),
-            Math.Abs(span.Minutes),
-            Math.Abs(span.Seconds),
-            Math.Abs(span.Milliseconds)
-        );
+        return sign + value;
     }
 }

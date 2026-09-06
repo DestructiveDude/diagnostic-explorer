@@ -580,6 +580,13 @@ public static class DiagnosticManager
             return PropertyStrategy.Rate;
         }
 
+        if (propertyType == null)
+        {
+            // A configured property can have neither a PropertyInfo nor a declared value type.
+            // GetUnderlyingType guards against null by throwing, so fall back rather than fail.
+            return PropertyStrategy.Default;
+        }
+
         Type underlying = GetUnderlyingType(propertyType);
         if (
             attribute is DatePropertyAttribute
@@ -692,7 +699,10 @@ public static class DiagnosticManager
 
             if (outputName != null)
             {
-                outputConfiguration = configuration.Clone();
+                // Set the name on the configuration that already carries this output's overrides.
+                // Upstream re-clones from the original here, which silently discards everything
+                // ApplyCollectionOutputConfiguration just applied - drill-down, hover, truncation -
+                // for every named output.
                 outputConfiguration.Name = new ConfiguredValue<string>(outputName);
             }
 
