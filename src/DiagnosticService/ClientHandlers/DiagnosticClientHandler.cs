@@ -1,4 +1,4 @@
-using System.Reactive.Subjects;
+﻿using System.Reactive.Subjects;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
@@ -10,7 +10,22 @@ namespace Diagnostic.Service.ClientHandlers;
 public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
 {
     /// <summary>The ceiling the deleted AsyncResultBucket applied to every request.</summary>
+    /// <remarks>
+    ///     It bounds the POLL, which is a read and can be reissued freely. Operations get
+    ///     <see cref="DefaultOperationTimeout" /> instead.
+    /// </remarks>
     public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>The ceiling for the two operations a person triggers.</summary>
+    /// <remarks>
+    ///     Deliberately much longer than the poll's. Abandoning the wait does not abandon the work:
+    ///     the agent never receives the caller's token, so a timed-out ExecuteOperation still runs
+    ///     to completion with its result discarded, and a person who retries has then run it twice.
+    ///     A ceiling short enough to trip on an operation merely queued behind a poll would make
+    ///     that the common case rather than the pathological one. It stays finite so that an agent
+    ///     which has stopped answering altogether still resolves.
+    /// </remarks>
+    public static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(2);
 
     private readonly HubCallerContext _callerContext;
     private readonly IDiagnosticHubClient _client;
@@ -18,18 +33,21 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     private readonly Subject<SystemEvent[]> _eventsStreamedSubject = new();
     private readonly ISubject<SystemEvent[]> _eventsSet;
     private readonly ISubject<SystemEvent[]> _eventsStreamed;
+    private readonly TimeSpan _operationTimeout;
     private readonly TimeSpan _requestTimeout;
     private int _disposed;
 
     public DiagnosticClientHandler(
         HubCallerContext callerContext,
         IDiagnosticHubClient client,
-        TimeSpan? requestTimeout = null
+        TimeSpan? requestTimeout = null,
+        TimeSpan? operationTimeout = null
     )
     {
         _client = client;
         _callerContext = callerContext;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
+        _operationTimeout = operationTimeout ?? DefaultOperationTimeout;
         _eventsSet = Subject.Synchronize(_eventsSetSubject);
         _eventsStreamed = Subject.Synchronize(_eventsStreamedSubject);
         ConnectionId = callerContext.ConnectionId;
@@ -43,27 +61,34 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     // gone: SignalR correlates the invocation itself and faults it when the AGENT's connection
     // ends.
     //
-    // What SignalR does NOT supply is the bucket's timeout, and the agent's connection is not the
-    // caller's. Both gaps close by handing SignalR a real token in place of the
-    // CancellationToken.None its typed proxy substitutes when the interface declares none: the
-    // caller's own token, so a browser that gives up releases the pending invocation instead of
-    // leaving it parked on an otherwise healthy agent, linked with a ceiling so that an agent
-    // which never sends a completion at all still resolves.
+    // What SignalR does NOT supply is the bucket's timeout. Without a token the typed proxy
+    // substitutes CancellationToken.None and the invocation waits forever, so an agent that is
+    // connected and healthy but never completes this one call parks the caller permanently. Each
+    // call therefore passes a real token, linked with a ceiling.
     public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return Invoke(_client.GetDiagnostics, cancel);
+        return Invoke(_client.GetDiagnostics, cancel, _requestTimeout);
     }
 
+    // ConnectionAborted here is the AGENT's connection, not the browser's - this handler is built
+    // in DiagnosticHub.OnConnectedAsync from the agent's own context - and SignalR already faults
+    // a client result when the agent goes away. So it adds nothing, and the operation ceiling is
+    // what actually bounds these two.
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return Invoke(token => _client.SetProperty(path, value!, token), _callerContext.ConnectionAborted);
+        return Invoke(
+            token => _client.SetProperty(path, value!, token),
+            _callerContext.ConnectionAborted,
+            _operationTimeout
+        );
     }
 
     public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
     {
         return Invoke(
             token => _client.ExecuteOperation(path, operation, arguments, token),
-            _callerContext.ConnectionAborted
+            _callerContext.ConnectionAborted,
+            _operationTimeout
         );
     }
 
@@ -76,26 +101,34 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     ///         accumulate one registration per request.
     ///     </para>
     ///     <para>
-    ///         A ceiling breach is reported as a TimeoutException rather than cancellation, which
-    ///         is the distinction the AsyncResultBucket drew and the request loop still relies on:
-    ///         it filters OperationCanceledException out of the error it pushes to the browser,
-    ///         because a caller that gave up is not a fault. An agent that stopped answering IS
-    ///         one, and reporting it as cancellation would leave the browser showing a healthy
-    ///         panel of stale figures.
+    ///         The two outcomes are separated because DiagnosticSubscription.RunLoop filters
+    ///         OperationCanceledException out of the error it pushes to the browser - a caller that
+    ///         gave up is not a fault - while an agent that stopped answering IS one and must not
+    ///         leave a healthy-looking panel of stale figures.
+    ///     </para>
+    ///     <para>
+    ///         Neither outcome can be matched on its exception type. Cancelling a client result
+    ///         raises HubException("Invocation canceled by the server."), not
+    ///         OperationCanceledException, whichever token did the cancelling - observed against a
+    ///         real hub, so the token state is the only thing that distinguishes them.
     ///     </para>
     /// </remarks>
-    private async Task<T> Invoke<T>(Func<CancellationToken, Task<T>> invoke, CancellationToken cancel)
+    private async Task<T> Invoke<T>(Func<CancellationToken, Task<T>> invoke, CancellationToken cancel, TimeSpan timeout)
     {
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-        linked.CancelAfter(_requestTimeout);
+        linked.CancelAfter(timeout);
         try
         {
             return await invoke(linked.Token);
         }
-        catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+        catch (Exception) when (cancel.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancel);
+        }
+        catch (Exception) when (linked.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"The agent did not answer within {_requestTimeout.TotalSeconds:F0}s on connection {ConnectionId}."
+                $"The agent did not answer within {timeout.TotalSeconds:F0}s on connection {ConnectionId}."
             );
         }
     }

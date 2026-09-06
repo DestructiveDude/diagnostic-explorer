@@ -85,11 +85,17 @@ public class DiagnosticClientHandlerTests
     ///     Stands in for SignalR's ClientResultsManager: completes only when the invocation's own
     ///     token is cancelled, never on its own.
     /// </summary>
+    /// <remarks>
+    ///     It faults with HubException, not OperationCanceledException, because that is what a real
+    ///     hub does — observed against one — and it is why the handler tells the two outcomes apart
+    ///     by token state rather than by exception type. A stub that cancelled its task instead
+    ///     would let a type-based filter pass here while being dead in production.
+    /// </remarks>
     private static Task<DiagnosticResponse> NeverCompletes(NSubstitute.Core.CallInfo call)
     {
         var token = call.Arg<CancellationToken>();
         TaskCompletionSource<DiagnosticResponse> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        token.Register(() => completion.TrySetCanceled(token));
+        token.Register(() => completion.TrySetException(new HubException("Invocation canceled by the server.")));
         return completion.Task;
     }
 

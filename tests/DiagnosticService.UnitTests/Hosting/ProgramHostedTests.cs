@@ -1,8 +1,12 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Reflection;
 using AwesomeAssertions;
 using Diagnostic.Service;
+using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
+using Diagnostic.Service.Hubs;
+using DiagnosticExplorer;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
@@ -212,6 +216,46 @@ public sealed class ProgramHostedTests
         var configuration = factory.Services.GetRequiredService<IConfiguration>();
 
         configuration["DiagServiceSettings:RetroConnection"].Should().Be(variableValue);
+    }
+
+    /// <summary>
+    ///     A client result must actually reach a connected agent and come back.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This is the test whose absence let the client-results conversion merge broken. Every
+    ///         other test of this path substitutes IDiagnosticHubClient, and a substitute answers
+    ///         whatever it is told to; only a real hub, a real connection and a real invocation can
+    ///         see that the proxy the service captured cannot invoke at all.
+    ///     </para>
+    ///     <para>
+    ///         It fails with "Client results inside OnConnectedAsync Hub methods are not allowed."
+    ///         if the handler is built from Clients.Caller, because SignalR hands out a
+    ///         NoInvokeSingleClientProxy for the duration of OnConnectedAsync and the captured
+    ///         reference never becomes usable. It also exercises the real wire framing, which no
+    ///         other test that CI runs does.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public async Task GetDiagnostics_OverARealConnection_ReturnsTheAgentsResponse()
+    {
+        using var factory = CreateAuthenticatedFactory();
+        await using var agent = CreateConnection(factory, "/diagnostics", TestApiKey);
+
+        DiagnosticResponse expected = new() { PropertyBags = [new PropertyBag("agent-bag")] };
+        agent.On(nameof(IDiagnosticHubClient.GetDiagnostics), () => expected);
+
+        await agent.StartAsync(TestContext.Current.CancellationToken);
+
+        var manager = factory.Services.GetRequiredService<RealtimeManager>();
+        var handler = (DiagnosticClientHandler)
+            typeof(RealtimeManager)
+                .GetMethod("GetClientHandler", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(manager, [agent.ConnectionId])!;
+
+        var response = await handler.GetDiagnostics(TestContext.Current.CancellationToken);
+
+        response.PropertyBags.Should().ContainSingle().Which.Name.Should().Be("agent-bag");
     }
 
     private static DiagnosticServiceFactory CreateAuthenticatedFactory()
