@@ -24,14 +24,12 @@
 
 using System;
 using System.Runtime.Serialization;
-using ProtoBuf;
 
 namespace DiagnosticExplorer;
 
 /// <summary>
 ///     Describes something that happened.
 /// </summary>
-[ProtoContract(UseProtoMembersOnly = true)]
 [DataContract(Namespace = "http://diagnosticexplorer.com/2010")]
 public class SystemEvent
 {
@@ -43,19 +41,15 @@ public class SystemEvent
         Date = (timeProvider ?? throw new ArgumentNullException(nameof(timeProvider))).GetUtcNow().UtcDateTime;
     }
 
-    [ProtoMember(1)]
     [DataMember]
     public long Id { get; set; }
 
-    [ProtoMember(2)]
     [DataMember]
     public DateTime Date { get; set; }
 
-    [ProtoMember(3)]
     [DataMember]
     public string Message { get; set; }
 
-    [ProtoMember(4)]
     [DataMember]
     public string Detail { get; set; }
 
@@ -63,15 +57,12 @@ public class SystemEvent
     // (write-dead) and the web no longer reads it; the tag is left as a gap so the remaining
     // members keep their wire numbers. The EventSeverity enum stays (SystemEventArgs uses it).
 
-    [ProtoMember(6)]
     [DataMember]
     public int Level { get; set; }
 
-    [ProtoMember(7)]
     [DataMember]
     public string SinkName { get; set; }
 
-    [ProtoMember(8)]
     [DataMember]
     public string SinkCategory { get; set; }
 

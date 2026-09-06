@@ -27,11 +27,17 @@ using System.Threading.Tasks;
 
 namespace DiagnosticExplorer;
 
+/// <summary>
+///     Calls the service makes INTO an agent. The request/response members return a value, which
+///     makes them SignalR client results: SignalR owns the correlation, the timeout and the
+///     disconnect handling that this codebase previously hand-rolled with a request id and a
+///     shared AsyncResultBucket.
+/// </summary>
 public interface IDiagnosticHubClient
 {
-    Task GetDiagnostics(string requestId);
-    Task ExecuteOperation(string requestId, string path, string operation, string[] arguments);
-    Task SetProperty(string requestId, string path, string value);
+    Task<DiagnosticResponse> GetDiagnostics();
+    Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments);
+    Task<OperationResponse> SetProperty(string path, string value);
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }
@@ -40,10 +46,10 @@ public interface IDiagnosticHubServer
 {
     Task<RpcResult<RegistrationResponse>> Register(Registration registration);
     Task<RpcResult> Deregister(Registration registration);
-    Task<RpcResult> LogEvents(byte[] eventData);
-    Task GetDiagnosticsReturn(RpcResult<byte[]> response);
-    Task ExecuteOperationReturn(RpcResult<OperationResponse> response);
-    Task SetPropertyReturn(RpcResult<OperationResponse> response);
+
+    // Sent as a typed array rather than a protobuf-compressed blob: MessagePack frames it on the
+    // wire, so the manual serialize-and-gzip step is gone.
+    Task<RpcResult> LogEvents(DiagnosticMsg[] messages);
     Task SetEvents(SystemEvent[] events);
     Task StreamEvents(SystemEvent[] evt);
 }

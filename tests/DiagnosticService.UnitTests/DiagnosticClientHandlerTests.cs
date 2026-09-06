@@ -87,7 +87,7 @@ public class DiagnosticClientHandlerTests
         callerContext.ConnectionAborted.Returns(CancellationToken.None);
 
         var client = Substitute.For<IDiagnosticHubClient>();
-        return new DiagnosticClientHandler(callerContext, client, new AsyncResultBucket());
+        return new DiagnosticClientHandler(callerContext, client);
     }
 
     private static Task[] StartConcurrentPublishes<TState>(int count, TState state, Action<TState, int> publish)

@@ -2,6 +2,8 @@ using System.Collections;
 using AwesomeAssertions;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Util;
+using MessagePack;
+using MessagePack.Resolvers;
 
 // Properties in the nested fixtures are consumed through reflection by DiagnosticManager.
 // ReSharper disable UnusedMember.Local
@@ -406,18 +408,32 @@ public class PropertyGetterTests
     public void PropertySnapshotWireQualificationProcessesCollectionLimit()
     {
         const int itemCount = 10_000;
+        // Serialised exactly as the agent channel does it: MessagePack with the contractless
+        // resolver. The transfer types carry no serialization attributes any more, so this is
+        // the only thing proving they still survive a wire round-trip at scale.
+        MessagePackSerializerOptions wireOptions = MessagePackSerializerOptions
+            .Standard.WithResolver(ContractlessStandardResolver.Instance)
+            .WithSecurity(MessagePackSecurity.UntrustedData);
         var source = new TruncatedCategoriesCollection();
         var warmup = DiagnosticManager.ObjectToPropertyBag(source, "svc", null);
-        var payload = ProtobufUtil.Compress(warmup, 0);
-        var restored = ProtobufUtil.Decompress<PropertyBag>(payload);
+        var payload = MessagePackSerializer.Serialize(warmup, wireOptions, TestContext.Current.CancellationToken);
+        var restored = MessagePackSerializer.Deserialize<PropertyBag>(
+            payload,
+            wireOptions,
+            TestContext.Current.CancellationToken
+        );
 
         var elapsed = new List<TimeSpan>();
         for (var iteration = 0; iteration < 3; iteration++)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var snapshot = DiagnosticManager.ObjectToPropertyBag(source, "svc", null);
-            payload = ProtobufUtil.Compress(snapshot, 0);
-            restored = ProtobufUtil.Decompress<PropertyBag>(payload);
+            payload = MessagePackSerializer.Serialize(snapshot, wireOptions, TestContext.Current.CancellationToken);
+            restored = MessagePackSerializer.Deserialize<PropertyBag>(
+                payload,
+                wireOptions,
+                TestContext.Current.CancellationToken
+            );
             stopwatch.Stop();
             elapsed.Add(stopwatch.Elapsed);
         }
@@ -425,15 +441,15 @@ public class PropertyGetterTests
         var median = elapsed.Order().ElementAt(elapsed.Count / 2);
         _output.WriteLine(
             $"items={itemCount}; measuredIterations={elapsed.Count}; medianMs={median.TotalMilliseconds:F1}; "
-                + $"itemsPerSecond={itemCount / median.TotalSeconds:F1}; compressedBytes={payload.Length}; "
+                + $"itemsPerSecond={itemCount / median.TotalSeconds:F1}; wireBytes={payload.Length}; "
                 + $"runsMs=[{string.Join(", ", elapsed.Select(run => run.TotalMilliseconds.ToString("F1")))}]"
         );
 
-        payload.Should().StartWith(1, "the wire workload exercises the compressed framing path");
+        payload.Should().NotBeEmpty("the wire workload exercises the MessagePack framing path");
         restored.Categories.Where(category => category.Name != "...").Should().HaveCount(itemCount);
         restored.GetProperty("Value", "item-9999").Should().NotBeNull();
         restored.GetProperty("Value", "item-10000").Should().BeNull();
-        restored.GetProperty("...", "...")!.Value.Should().Be("Truncated at 10000 items");
+        restored.GetProperty("...", "...").Value.Should().Be("Truncated at 10000 items");
     }
 
     /// <summary>

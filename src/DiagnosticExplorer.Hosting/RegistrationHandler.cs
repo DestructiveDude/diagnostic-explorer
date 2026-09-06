@@ -119,10 +119,6 @@ public class RegistrationHandler
 
             try
             {
-                Stopwatch watch1 = Stopwatch.StartNew();
-                byte[] data = ProtobufUtil.Compress(messages, 1024);
-                watch1.Stop();
-
                 Stopwatch watch2 = Stopwatch.StartNew();
                 while (_hubAdapter == null)
                 {
@@ -142,13 +138,13 @@ public class RegistrationHandler
                     continue;
                 }
 
-                Debug.WriteLine($"RegistrationHandler sending {data.Length} bytes");
+                Debug.WriteLine($"RegistrationHandler sending {messages.Count} messages");
                 await adapter
-                    .LogEvents(data, cancel.IsCancellationRequested ? CancellationToken.None : cancel)
+                    .LogEvents(messages, cancel.IsCancellationRequested ? CancellationToken.None : cancel)
                     .ConfigureAwait(false);
                 watch2.Stop();
                 Debug.WriteLine(
-                    $"RegistrationHandler sent {data.Length} bytes, zip/send took {watch1.ElapsedMilliseconds}ms/{watch2.ElapsedMilliseconds}ms"
+                    $"RegistrationHandler sent {messages.Count} messages, send took {watch2.ElapsedMilliseconds}ms"
                 );
             }
             catch (Exception ex)

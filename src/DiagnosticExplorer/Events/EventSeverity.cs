@@ -22,19 +22,14 @@
 
 #endregion
 
-using ProtoBuf;
 
 namespace DiagnosticExplorer;
 
-[ProtoContract(UseProtoMembersOnly = true)]
 public enum EventSeverity
 {
-    [ProtoEnum]
     Low = 1,
 
-    [ProtoEnum]
     Medium,
 
-    [ProtoEnum]
     High,
 }

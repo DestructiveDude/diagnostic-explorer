@@ -14,6 +14,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="MessagePack" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="FixPortal.CodeStyle.ArchRules" />
     <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
