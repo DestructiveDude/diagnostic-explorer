@@ -25,6 +25,64 @@ public static class DiagnosticManager
     public static bool Enabled { get; set; } = true;
 
     /// <summary>
+    ///     How many items a drill-down materialises before truncating.
+    /// </summary>
+    /// <remarks>
+    ///     Upstream reads this from its configuration snapshot. That surface arrives with the fluent
+    ///     configuration port; until then this is upstream's own default, so behaviour matches and
+    ///     only the ability to retune it is missing.
+    /// </remarks>
+    internal static int DrillDownMaxItems => 100;
+
+    /// <summary>
+    ///     Whether a value is worth drilling into, or is a leaf best rendered in place. Strings and
+    ///     scalars are leaves; so are UI elements, whose property graphs are enormous and circular.
+    /// </summary>
+    internal static bool IsDrillDownValue(object value)
+    {
+        if (value == null || value is string)
+        {
+            return false;
+        }
+
+        Type type = Nullable.GetUnderlyingType(value.GetType()) ?? value.GetType();
+        if (
+            type.IsPrimitive
+            || type.IsEnum
+            || type == typeof(decimal)
+            || type == typeof(DateTime)
+            || type == typeof(DateTimeOffset)
+            || type == typeof(TimeSpan)
+            || type == typeof(Guid)
+        )
+        {
+            return false;
+        }
+
+        return !IsUserInterfaceElement(type);
+    }
+
+    /// <summary>
+    ///     Matched by full name rather than by reference, so the core library keeps no dependency on
+    ///     WinForms or WPF and this stays correct on every target framework.
+    /// </summary>
+    private static bool IsUserInterfaceElement(Type type)
+    {
+        for (Type baseType = type; baseType != null; baseType = baseType.BaseType)
+        {
+            if (
+                baseType.FullName == "System.Windows.Forms.Control"
+                || baseType.FullName == "System.Windows.FrameworkElement"
+            )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///     The process-wide log stream. Logging-framework adapters publish here when constructed
     ///     without an explicit store, so a host that configures none still gets a usable stream.
     /// </summary>
@@ -325,7 +383,7 @@ public static class DiagnosticManager
                 }
             }
         }
-        return list.ToArray();
+        return [.. list];
     }
 
     [ThreadStatic]
@@ -611,7 +669,7 @@ public static class DiagnosticManager
         {
             if (arguments == null)
             {
-                arguments = new string[0];
+                arguments = [];
             }
 
             PropIdent ident = PropIdent.Parse(path);
@@ -688,7 +746,7 @@ public static class DiagnosticManager
             return Convert.ToString(obj);
         }
 
-        string[] values = asEnumerable.Cast<object>().Select(Convert.ToString).ToArray();
+        string[] values = [.. asEnumerable.Cast<object>().Select(Convert.ToString)];
         if (values.Length == 0)
         {
             return "<Empty>";
@@ -944,7 +1002,7 @@ public static class DiagnosticManager
     {
         parsed = null;
 
-        MethodInfo method = type.GetMethod("Parse", PublicStaticMethods, null, new[] { typeof(string) }, null);
+        MethodInfo method = type.GetMethod("Parse", PublicStaticMethods, null, [typeof(string)], null);
 
         if (method == null)
         {
@@ -953,7 +1011,7 @@ public static class DiagnosticManager
 
         try
         {
-            parsed = method.Invoke(null, new object[] { value });
+            parsed = method.Invoke(null, [value]);
             return true;
         }
         catch (TargetInvocationException ex)
