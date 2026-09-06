@@ -33,7 +33,18 @@ internal class RateGetter : PropertyGetter
     private readonly bool _exposeTotal;
 
     public RateGetter(PropertyInfo prop, RatePropertyAttribute attr, bool isStatic)
-        : base(prop, isStatic)
+        : this(prop, attr, attr, null, isStatic) { }
+
+    internal RateGetter(
+        PropertyInfo prop,
+        RatePropertyAttribute attr,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes = true,
+        string defaultFormat = null
+    )
+        : base(prop, metadata, configuration, isStatic, applyAttributes, defaultFormat)
     {
         if (attr != null)
         {

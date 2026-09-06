@@ -161,18 +161,22 @@ public class PropertyGetterTests
     }
 
     /// <summary>
-    ///     DateGetter's elapsed path must normalize UTC values — and Unspecified values on an
-    ///     IsUTC-attributed property — to local time before diffing against DateTime.Now; without
-    ///     it "Time since" is wrong by the local UTC offset while the throwing-branch test still
-    ///     passes. Four properties hold the same instant in different kinds: all must render the
-    ///     same elapsed value, and that value must be ~90 seconds, not off by an offset. The
-    ///     equality assertion pins the normalization; the magnitude assertion pins that it is the
-    ///     local offset being applied (a dropped ToLocalTime shifts the UTC value by the offset).
-    ///     The two-string tolerance absorbs a second boundary crossing between the fixture's clock
-    ///     read and the getter's. (DE-29)
+    ///     DateGetter's elapsed path normalizes every kind to UTC before diffing against
+    ///     DateTime.UtcNow. Four properties hold the same instant in different kinds — Utc, Local,
+    ///     Unspecified-declared-UTC, and Unspecified-meaning-local — and all four must render the
+    ///     same elapsed value of ~90 seconds. The equality assertion pins the normalization; the
+    ///     magnitude assertion pins that no offset was wrongly applied, since a missed conversion
+    ///     shifts one value by the local UTC offset while leaving the others right. The two-string
+    ///     tolerance absorbs a second boundary crossing between the fixture's clock read and the
+    ///     getter's. (DE-29)
     /// </summary>
+    /// <remarks>
+    ///     The arithmetic was local-time until the getter-layer merge. UTC is correct because local
+    ///     wall-clock readings are discontinuous: subtracting two of them across a daylight-saving
+    ///     transition understates or overstates the true elapsed time by an hour.
+    /// </remarks>
     [Fact]
-    public void DateProperty_UtcAndUnspecifiedKinds_AreNormalizedToLocalBeforeElapsed()
+    public void DateProperty_EveryDateTimeKind_IsNormalizedToUtcBeforeElapsed()
     {
         var bag = DiagnosticManager.ObjectToPropertyBag(new NormalizableDates(), "svc", null);
 

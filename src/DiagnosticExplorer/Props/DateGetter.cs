@@ -36,7 +36,18 @@ internal class DateGetter : PropertyGetter
     private readonly bool _isUtc;
 
     public DateGetter(PropertyInfo prop, DatePropertyAttribute attr, bool isStatic)
-        : base(prop, isStatic)
+        : this(prop, attr, attr, null, isStatic) { }
+
+    internal DateGetter(
+        PropertyInfo prop,
+        DatePropertyAttribute attr,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes = true,
+        string defaultFormat = null
+    )
+        : base(prop, metadata, configuration, isStatic, applyAttributes, defaultFormat)
     {
         if (attr != null)
         {
@@ -51,11 +62,6 @@ internal class DateGetter : PropertyGetter
         "Maintainability",
         "S3776:Cognitive Complexity of methods should not be too high",
         Justification = "The branches are the independent date, elapsed and time-until presentation options."
-    )]
-    [SuppressMessage(
-        "CodeQuality",
-        "S6561:Avoid DateTime.Now for elapsed time",
-        Justification = "This compares display-oriented local calendar values and is not a benchmark or duration clock."
     )]
     public override void GetProperties(object obj, PropertyBag bag, string catPrepend)
     {
@@ -73,17 +79,25 @@ internal class DateGetter : PropertyGetter
         try
         {
             var value = GetFunc(obj);
-            dateVal = value is DateTimeOffset off ? off.LocalDateTime : (DateTime?)value;
+            // Normalised to UTC, with the elapsed arithmetic below running against UtcNow. Done in
+            // local time, "time since" jumps by an hour at each daylight-saving transition, twice a
+            // year, for every date property in the estate. Only the arithmetic is affected: the
+            // displayed date itself goes through base.GetProperties above and is untouched.
+            dateVal = value is DateTimeOffset off ? off.UtcDateTime : (DateTime?)value;
             if (dateVal != null)
             {
-                if (_isUtc && dateVal.Value.Kind == DateTimeKind.Unspecified)
+                dateVal = dateVal.Value.Kind switch
                 {
-                    dateVal = DateTime.SpecifyKind(dateVal.Value, DateTimeKind.Utc).ToLocalTime();
-                }
-                else if (dateVal.Value.Kind == DateTimeKind.Utc)
-                {
-                    dateVal = dateVal.Value.ToLocalTime();
-                }
+                    // An Unspecified value means UTC only when the property says so; otherwise it
+                    // is a local wall-clock reading and has to be converted, or the elapsed value
+                    // comes out wrong by the UTC offset.
+                    DateTimeKind.Unspecified when _isUtc => DateTime.SpecifyKind(dateVal.Value, DateTimeKind.Utc),
+                    DateTimeKind.Unspecified => DateTime
+                        .SpecifyKind(dateVal.Value, DateTimeKind.Local)
+                        .ToUniversalTime(),
+                    DateTimeKind.Local => dateVal.Value.ToUniversalTime(),
+                    _ => dateVal.Value,
+                };
             }
         }
         catch (Exception ex)
@@ -93,12 +107,12 @@ internal class DateGetter : PropertyGetter
             var error = $"<{ex.Message}>";
             if (_exposeElapsed)
             {
-                bag.AddProperty(new Property("Time since " + Name, error), PrependToCategory(catPrepend));
+                bag.AddProperty(new Property("Time since " + GetName(obj), error), PrependToCategory(catPrepend, obj));
             }
 
             if (_exposeTimeUntil)
             {
-                bag.AddProperty(new Property("Time until " + Name, error), PrependToCategory(catPrepend));
+                bag.AddProperty(new Property("Time until " + GetName(obj), error), PrependToCategory(catPrepend, obj));
             }
 
             return;
@@ -106,16 +120,16 @@ internal class DateGetter : PropertyGetter
 
         if (_exposeElapsed)
         {
-            var val = dateVal == null ? "" : FormatTimeSpan(DateTime.Now.Subtract(dateVal.Value));
-            var property = new Property("Time since " + Name, val);
-            bag.AddProperty(property, PrependToCategory(catPrepend));
+            var val = dateVal == null ? "" : FormatTimeSpan(DateTime.UtcNow.Subtract(dateVal.Value));
+            var property = new Property("Time since " + GetName(obj), val);
+            bag.AddProperty(property, PrependToCategory(catPrepend, obj));
         }
 
         if (_exposeTimeUntil)
         {
-            var val = dateVal == null ? "" : FormatTimeSpan(dateVal.Value.Subtract(DateTime.Now));
-            var property = new Property("Time until " + Name, val);
-            bag.AddProperty(property, PrependToCategory(catPrepend));
+            var val = dateVal == null ? "" : FormatTimeSpan(dateVal.Value.Subtract(DateTime.UtcNow));
+            var property = new Property("Time until " + GetName(obj), val);
+            bag.AddProperty(property, PrependToCategory(catPrepend, obj));
         }
     }
 }

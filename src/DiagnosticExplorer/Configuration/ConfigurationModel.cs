@@ -560,3 +560,18 @@ internal enum PropertyStrategy
     Date,
     Extended,
 }
+
+/// <summary>
+///     An object whose properties are projected inline into a parent bag rather than appearing as
+///     a nested value.
+/// </summary>
+/// <remarks>
+///     Only the contract lives here. The implementation is built by the fluent configuration
+///     surface and arrives with it; the getter layer needs nothing more than this to call into it.
+/// </remarks>
+internal interface IInlineCustomObject
+{
+    void AddProperties(PropertyBag bag);
+
+    void AddProperties(PropertyBag bag, string category);
+}

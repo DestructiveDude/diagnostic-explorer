@@ -32,7 +32,24 @@ internal class ExtendedPropertyGetter : PropertyGetter
     private readonly string _name;
 
     public ExtendedPropertyGetter(PropertyInfo info, ExtendedPropertyAttribute attr, bool isStatic)
-        : base(info, isStatic)
+        : this(info, attr, attr, null, isStatic) { }
+
+    /// <summary>
+    ///     False: an extended property renders its target's properties rather than a value of its
+    ///     own, which is what <see cref="NestedPropertyRenderMode.PrimaryOnly" /> filters on.
+    /// </summary>
+    internal override bool IsDirectProperty => false;
+
+    internal ExtendedPropertyGetter(
+        PropertyInfo info,
+        ExtendedPropertyAttribute attr,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes = true,
+        string defaultFormat = null
+    )
+        : base(info, metadata, configuration, isStatic, applyAttributes, defaultFormat)
     {
         _name = attr.Name ?? info.Name;
     }
