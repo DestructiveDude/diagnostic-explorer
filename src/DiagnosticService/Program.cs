@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -76,6 +78,19 @@ public class Program
         var enableDetailedHubErrors = builder.Environment.IsDevelopment();
         services
             .AddSignalR()
+            // MessagePack replaces the protobuf-plus-gzip framing the agent channel used to apply
+            // by hand. The contractless resolver needs no serialization attributes on the transfer
+            // types at all, which is what lets the protobuf ones be removed. Registered alongside
+            // JSON so the browser stays on JSON, which is what diagnostics-web speaks; SignalR
+            // negotiates the protocol per connection.
+            .AddMessagePackProtocol(options =>
+            {
+                options.SerializerOptions = MessagePackSerializerOptions
+                    .Standard.WithResolver(ContractlessStandardResolver.Instance)
+                    // Agents are authenticated but still remote input: the untrusted profile caps
+                    // recursion depth so a malformed or hostile payload cannot exhaust the stack.
+                    .WithSecurity(MessagePackSecurity.UntrustedData);
+            })
             .AddHubOptions<DiagnosticHub>(options =>
             {
                 options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB — finite cap (was int.MaxValue, an unbounded-payload DoS)
