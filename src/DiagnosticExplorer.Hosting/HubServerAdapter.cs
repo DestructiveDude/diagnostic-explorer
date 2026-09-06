@@ -1,4 +1,4 @@
-#nullable enable annotations
+﻿#nullable enable annotations
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -18,6 +18,9 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     // CancellationTokenSource and its still-running SendEventStream loop.
     private readonly object _eventLock = new();
 
+    // _requestGate serializes the three client results against each other. See Run.
+    private readonly SemaphoreSlim _requestGate = new(1, 1);
+
     private readonly HubConnection _hubConn;
     private CancellationTokenSource? _writeEventCancel;
     private Task? _writeEventTask;
@@ -28,16 +31,22 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
         // Registered through the value-returning On overloads, which is what makes these client
         // results rather than one-way notifications.
-        _hubConn.On<DiagnosticResponse>(nameof(IDiagnosticHubClient.GetDiagnostics), GetDiagnostics);
+        // The service's typed proxy strips the trailing CancellationToken from the wire
+        // arguments (TypedClientBuilder), so these handlers still receive only the declared ones.
+        // The token bounds the caller's wait, not the agent's work.
+        _hubConn.On<DiagnosticResponse>(
+            nameof(IDiagnosticHubClient.GetDiagnostics),
+            () => GetDiagnostics(CancellationToken.None)
+        );
 
         _hubConn.On<string, string, OperationResponse>(
             nameof(IDiagnosticHubClient.SetProperty),
-            (path, value) => SetProperty(path, value)
+            (path, value) => SetProperty(path, value, CancellationToken.None)
         );
 
         _hubConn.On<string, string, string[], OperationResponse>(
             nameof(IDiagnosticHubClient.ExecuteOperation),
-            (path, operation, args) => ExecuteOperation(path, operation, args)
+            (path, operation, args) => ExecuteOperation(path, operation, args, CancellationToken.None)
         );
 
         _hubConn.On(nameof(IDiagnosticHubClient.SubscribeEvents), async () => await SubscribeEvents());
@@ -74,32 +83,53 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     // the caller. Previously each of these built an RpcResult, serialised it by hand and pushed it
     // to a matching *Return method on the server, which correlated it by request id.
     //
-    // Still on the thread pool via Task.Run: these walk the whole registered object graph through
-    // reflection, and the SignalR client invokes handlers on its receive loop. Blocking that loop
-    // stalls every other message on the connection, including the keep-alive.
-    public Task<DiagnosticResponse> GetDiagnostics()
+    // All three go through Run, which puts them on the thread pool and serializes them; see its
+    // remarks for why each half is needed.
+    public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.GetDiagnostics());
+        return Run(() => DiagnosticManager.GetDiagnostics(), cancel);
     }
 
-    public Task<OperationResponse> SetProperty(string path, string value)
+    public Task<OperationResponse> SetProperty(string path, string value, CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.SetProperty(path, value));
+        return Run(() => DiagnosticManager.SetProperty(path, value), cancel);
     }
 
-    public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
+    public Task<OperationResponse> ExecuteOperation(
+        string path,
+        string operation,
+        string[] arguments,
+        CancellationToken cancel
+    )
     {
-        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments));
+        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments), cancel);
     }
 
     /// <summary>
-    ///     Runs a client-result handler off the SignalR receive loop, logging locally before
-    ///     letting the exception travel back to the caller.
+    ///     Runs a client-result handler off the SignalR receive loop, one at a time, logging
+    ///     locally before letting the exception travel back to the caller.
     /// </summary>
     /// <remarks>
-    ///     The rethrow is the point: SignalR turns it into a failed invocation on the service
-    ///     side, which is what replaces the hand-built failure RpcResult. Logging first keeps the
-    ///     stack trace where the fault actually happened, on the agent.
+    ///     <para>
+    ///         Off the receive loop because these walk the whole registered object graph through
+    ///         reflection, and blocking that loop stalls every other message on the connection,
+    ///         including the keep-alive.
+    ///     </para>
+    ///     <para>
+    ///         One at a time because the SignalR client deliberately does not await a handler that
+    ///         returns a value - it will not block user code behind a client result - so without
+    ///         _requestGate every web user's SetProperty and ExecuteOperation would drive
+    ///         PropertyInfo.SetValue and MethodInfo.Invoke against the host's own objects
+    ///         concurrently, and concurrently with the poll's read walk of the same graph. The
+    ///         one-way sends this replaced were serialized by the client's invocation loop, so
+    ///         registering an object never used to expose it to concurrent access. It still
+    ///         doesn't.
+    ///     </para>
+    ///     <para>
+    ///         The rethrow is the point: SignalR turns it into a failed invocation on the service
+    ///         side, which is what replaces the hand-built failure RpcResult. Logging first keeps
+    ///         the stack trace where the fault actually happened, on the agent.
+    ///     </para>
     /// </remarks>
     [SuppressMessage(
         "Design",
@@ -109,28 +139,38 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             + "fail the invocation so the service sees the failure at all. Wrapping instead would "
             + "hide the original type from the caller."
     )]
-    private static Task<T> Run<T>(Func<T> work)
+    private async Task<T> Run<T>(Func<T> work, CancellationToken cancel)
     {
-        return Task.Run(
-            () =>
-            {
-                try
-                {
-                    return work();
-                }
-                catch (Exception ex)
-                {
-                    _log.Error(ex);
-                    throw;
-                }
-            },
-            CancellationToken.None
-        );
+        await _requestGate.WaitAsync(cancel).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(
+                    () =>
+                    {
+                        try
+                        {
+                            return work();
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Error(ex);
+                            throw;
+                        }
+                    },
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _requestGate.Release();
+        }
     }
 
     public void Dispose()
     {
         UnsubscribeEvents();
+        _requestGate.Dispose();
     }
 
     private void StopEventStreamNoLock()

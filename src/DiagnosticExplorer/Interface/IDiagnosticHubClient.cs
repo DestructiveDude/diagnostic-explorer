@@ -1,4 +1,4 @@
-#region Copyright
+﻿#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -23,21 +23,37 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiagnosticExplorer;
 
 /// <summary>
 ///     Calls the service makes INTO an agent. The request/response members return a value, which
-///     makes them SignalR client results: SignalR owns the correlation, the timeout and the
-///     disconnect handling that this codebase previously hand-rolled with a request id and a
-///     shared AsyncResultBucket.
+///     makes them SignalR client results: SignalR owns the correlation and the disconnect
+///     handling that this codebase previously hand-rolled with a request id and a shared
+///     AsyncResultBucket.
 /// </summary>
+/// <remarks>
+///     SignalR does NOT own the timeout, which the AsyncResultBucket did (a 10 second ceiling).
+///     A client result invoked without a token waits forever: SignalR's TypedClientBuilder passes
+///     CancellationToken.None when the interface method declares no trailing CancellationToken
+///     (TypedClientBuilder.cs, release/8.0, lines 148-152 and 214-222), and an agent that never
+///     sends a completion — because its response failed to serialise, say — then parks the caller
+///     indefinitely on a connection that is otherwise healthy. Hence the trailing token on every
+///     member that waits for a value; TypedClientBuilder strips it from the wire arguments and
+///     hands it to InvokeCoreAsync.
+/// </remarks>
 public interface IDiagnosticHubClient
 {
-    Task<DiagnosticResponse> GetDiagnostics();
-    Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments);
-    Task<OperationResponse> SetProperty(string path, string value);
+    Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel);
+    Task<OperationResponse> ExecuteOperation(
+        string path,
+        string operation,
+        string[] arguments,
+        CancellationToken cancel
+    );
+    Task<OperationResponse> SetProperty(string path, string value, CancellationToken cancel);
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }
