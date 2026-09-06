@@ -114,6 +114,45 @@ public class EventSinkRouterTests
     }
 
     /// <summary>
+    ///     The router is a filter, not a fan-out: an event matching several routes is published
+    ///     exactly once. This is why MatchMode is not consulted when publishing — narrowing the
+    ///     matched set could not change the outcome, since only whether it is empty is ever read.
+    ///     Pinning it here so a future fan-out change has to break this test deliberately.
+    /// </summary>
+    [Theory]
+    [InlineData(EventSinkRouteMatchMode.AllMatches)]
+    [InlineData(EventSinkRouteMatchMode.MostSpecific)]
+    [InlineData(EventSinkRouteMatchMode.FirstMatch)]
+    public void Route_WhenSeveralRoutesMatch_PublishesExactlyOnceRegardlessOfMatchMode(EventSinkRouteMatchMode mode)
+    {
+        var store = new LogEventStore();
+        var options = new EventSinkRouteOptions()
+            .UseMatchMode(mode)
+            .Route("Ems", route => route.To("Logs", "Broad"))
+            .Route("Ems.Pricing", route => route.To("Logs", "Specific"))
+            .Route("*", route => route.To("Logs", "Catchall"));
+        var router = new EventSinkRouter(options, store);
+
+        router.Route(Event("Ems.Pricing")).Should().Be(1);
+
+        store.CreateInitialization().ReplayEvents.Should().ContainSingle();
+    }
+
+    /// <summary>The configured match mode still reaches the client, which is what renders it.</summary>
+    [Fact]
+    public void Constructor_CarriesMatchModeIntoTheSnapshot()
+    {
+        var store = new LogEventStore();
+        var options = new EventSinkRouteOptions()
+            .UseMatchMode(EventSinkRouteMatchMode.FirstMatch)
+            .Route("App", route => route.To("Logs", "App"));
+
+        _ = new EventSinkRouter(options, store);
+
+        store.CreateInitialization().Routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
+    }
+
+    /// <summary>
     ///     Constructing the router pushes a routing snapshot into the store, which is what a
     ///     newly attached client reads to render the routing in force.
     /// </summary>
