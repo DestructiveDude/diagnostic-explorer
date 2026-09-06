@@ -110,7 +110,11 @@ public class RoutingDiagnosticAppender : AppenderSkeleton
     private string GetDetail(LoggingEvent loggingEvent)
     {
         string detail = RenderLoggingEvent(loggingEvent);
-        if (!ReferenceEquals(loggingEvent.MessageObject, loggingEvent.ExceptionObject))
+
+        // Guarded on the exception itself, matching the other three adapters. Upstream compares it
+        // against MessageObject instead, which differs for every ordinary event, so an empty
+        // exception plus a newline was appended to all of them.
+        if (loggingEvent.ExceptionObject != null)
         {
             detail += Environment.NewLine + loggingEvent.ExceptionObject;
         }

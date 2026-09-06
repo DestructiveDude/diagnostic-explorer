@@ -178,10 +178,62 @@ public class RoutingDiagnosticAppenderTests
         }
     }
 
-    private static LoggingEvent Event(string loggerName, Level level, string message)
+    /// <summary>
+    ///     An event with no exception must not have one appended. log4net leaves ExceptionObject
+    ///     null in that case, and the guard has to test that directly — comparing it against
+    ///     MessageObject instead is true for every ordinary event, which appends a trailing blank
+    ///     line to all of them.
+    /// </summary>
+    [Fact]
+    public void Append_WithNoException_LeavesNothingAppendedToTheDetail()
+    {
+        var store = new LogEventStore();
+        var appender = new TestAppender(store)
+        {
+            RoutingOptions = new EventSinkRouteOptions().Route(
+                "Widgets",
+                route => route.To("Widgets", "Widget Events")
+            ),
+        };
+        appender.ActivateOptions();
+
+        appender.AppendForTest(Event("Widgets", Level.Info, "Painted"));
+
+        // The layout ends every rendered event with a newline, so the detail ending in exactly one
+        // is the assertion: a second one is the appended empty exception.
+        LogStreamEvent published = Replay(store).Should().ContainSingle().Subject;
+        published.Detail.Should().EndWith("Painted" + Environment.NewLine);
+    }
+
+    [Fact]
+    public void Append_WithAnException_AppendsItToTheDetail()
+    {
+        var store = new LogEventStore();
+        var appender = new TestAppender(store)
+        {
+            RoutingOptions = new EventSinkRouteOptions().Route(
+                "Widgets",
+                route => route.To("Widgets", "Widget Events")
+            ),
+        };
+        appender.ActivateOptions();
+
+        appender.AppendForTest(Event("Widgets", Level.Error, "Paint failed", new InvalidOperationException("boom")));
+
+        Replay(store).Should().ContainSingle().Subject.Detail.Should().Contain("boom");
+    }
+
+    private static LoggingEvent Event(string loggerName, Level level, string message, Exception? exception = null)
     {
         ILoggerRepository repository = LogManager.GetRepository(typeof(RoutingDiagnosticAppenderTests).Assembly);
-        return new LoggingEvent(typeof(RoutingDiagnosticAppenderTests), repository, loggerName, level, message, null);
+        return new LoggingEvent(
+            typeof(RoutingDiagnosticAppenderTests),
+            repository,
+            loggerName,
+            level,
+            message,
+            exception
+        );
     }
 
     private static LogStreamEvent[] Replay(LogEventStore store)
