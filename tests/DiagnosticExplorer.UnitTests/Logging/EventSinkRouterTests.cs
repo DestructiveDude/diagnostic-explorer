@@ -1,0 +1,233 @@
+using System.ComponentModel;
+using AwesomeAssertions;
+using DiagnosticExplorer.Logging;
+using Microsoft.Extensions.Logging;
+
+namespace DiagnosticExplorer.UnitTests.Logging;
+
+/// <summary>
+///     EventSinkRouter decides which log events reach the store. Its category matching is the part
+///     most likely to be got subtly wrong — a prefix rule that also swallows sibling categories is
+///     silent and expensive — so the matching table is pinned exhaustively.
+/// </summary>
+/// <remarks>
+///     Every test passes an explicit store rather than letting the router fall back to
+///     <see cref="DiagnosticManager.LogEventStore" />, so nothing here mutates process-wide state
+///     except the one test that deliberately toggles <see cref="DiagnosticManager.Enabled" />.
+///     Tests within a class run serially, which is what keeps that toggle safe.
+/// </remarks>
+public class EventSinkRouterTests
+{
+    private static EventSinkRouteOptions RouteFor(string pattern) =>
+        new EventSinkRouteOptions().Route(pattern, route => route.To("Logs", "App"));
+
+    private static EventSinkLogEvent Event(string category, LogLevel level = LogLevel.Information) =>
+        new(category, level, "message");
+
+    /// <summary>
+    ///     A pattern matches itself and any dotted descendant, but must NOT match a category that
+    ///     merely starts with the same letters. "Ems" matching "EmsWidget" would silently capture
+    ///     an unrelated subsystem's logs.
+    /// </summary>
+    [Theory]
+    [InlineData("Ems", "Ems", true)]
+    [InlineData("Ems", "ems", true)]
+    [InlineData("Ems", "Ems.Pricing", true)]
+    [InlineData("Ems", "Ems.Pricing.Feed", true)]
+    [InlineData("Ems", "EmsWidget", false)]
+    [InlineData("Ems", "Other", false)]
+    [InlineData("*", "anything.at.all", true)]
+    public void IsEnabled_AppliesPrefixMatchingOnDotBoundariesOnly(string pattern, string category, bool expected)
+    {
+        var router = new EventSinkRouter(RouteFor(pattern), new LogEventStore());
+
+        router.IsEnabled(category, LogLevel.Information).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(LogLevel.Debug, false)]
+    [InlineData(LogLevel.Warning, true)]
+    [InlineData(LogLevel.Error, true)]
+    [InlineData(LogLevel.Critical, false)]
+    public void IsEnabled_RespectsMinimumAndMaximumLevels(LogLevel level, bool expected)
+    {
+        var options = new EventSinkRouteOptions().Route(
+            "App",
+            route => route.AtLeast(LogLevel.Warning).AtMost(LogLevel.Error).To("Logs", "App")
+        );
+        var router = new EventSinkRouter(options, new LogEventStore());
+
+        router.IsEnabled("App", level).Should().Be(expected);
+    }
+
+    /// <summary>A matching event is published exactly once; a non-matching one not at all.</summary>
+    [Fact]
+    public void Route_PublishesOnlyWhenARouteMatches()
+    {
+        var store = new LogEventStore();
+        var router = new EventSinkRouter(RouteFor("App"), store);
+
+        router.Route(Event("App")).Should().Be(1);
+        router.Route(Event("Unrelated")).Should().Be(0);
+
+        store.CreateInitialization().ReplayEvents.Should().HaveCount(1);
+    }
+
+    /// <summary>
+    ///     StopProcessing must halt evaluation at the route that sets it, so a catch-all placed
+    ///     after a specific route does not also fire.
+    /// </summary>
+    [Fact]
+    public void Route_WithStopProcessing_DoesNotEvaluateLaterRoutes()
+    {
+        var options = new EventSinkRouteOptions()
+            .Route("App", route => route.To("Logs", "App").StopAfterMatch())
+            .Route("*", route => route.To("Logs", "Catchall"));
+        var router = new EventSinkRouter(options, new LogEventStore());
+
+        // Both routes would match "App"; the first stops evaluation, so only one destination is live.
+        router.IsEnabled("App", LogLevel.Information).Should().BeTrue();
+        router.Route(Event("App")).Should().Be(1);
+    }
+
+    /// <summary>
+    ///     The global kill switch has to be honoured on the publish path, not just at
+    ///     configuration time, or disabling diagnostics leaves logs still accumulating.
+    /// </summary>
+    [Fact]
+    public void Route_WhenDiagnosticsAreDisabled_PublishesNothing()
+    {
+        var store = new LogEventStore();
+        var router = new EventSinkRouter(RouteFor("App"), store);
+
+        DiagnosticManager.Enabled = false;
+        try
+        {
+            router.Route(Event("App")).Should().Be(0);
+        }
+        finally
+        {
+            DiagnosticManager.Enabled = true;
+        }
+
+        store.CreateInitialization().ReplayEvents.Should().BeEmpty();
+    }
+
+    /// <summary>
+    ///     Constructing the router pushes a routing snapshot into the store, which is what a
+    ///     newly attached client reads to render the routing in force.
+    /// </summary>
+    [Fact]
+    public void Constructor_PublishesRoutingSnapshotToTheStore()
+    {
+        var store = new LogEventStore();
+
+        _ = new EventSinkRouter(RouteFor("Ems.Pricing"), store);
+
+        var routing = store.CreateInitialization().Routing;
+        routing.Routes.Should().ContainSingle();
+        routing.Routes[0].LoggerName.Should().Be("Ems.Pricing");
+        routing.Routes[0].LoggerNameMatchMode.Should().Be(LoggerNameMatchMode.Prefix);
+        routing.Routes[0].Destinations.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Constructor_WithWildcardPattern_SnapshotsAsWildcardMatchMode()
+    {
+        var store = new LogEventStore();
+
+        _ = new EventSinkRouter(RouteFor("*"), store);
+
+        store.CreateInitialization().Routing.Routes[0].LoggerNameMatchMode.Should().Be(LoggerNameMatchMode.Wildcard);
+    }
+
+    /// <summary>
+    ///     Route configuration is validated once, at construction, so a misconfiguration fails at
+    ///     startup rather than silently dropping logs at runtime.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithRouteLackingDestinations_Throws()
+    {
+        var options = new EventSinkRouteOptions { Routes = [new EventSinkRoute { CategoryPattern = "App" }] };
+
+        var act = () => new EventSinkRouter(options, new LogEventStore());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_WithPatternEndingInPeriod_Throws()
+    {
+        var act = () => new EventSinkRouter(RouteFor("App."), new LogEventStore());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_WithMinimumLevelAboveMaximum_Throws()
+    {
+        var options = new EventSinkRouteOptions().Route(
+            "App",
+            route => route.AtLeast(LogLevel.Error).AtMost(LogLevel.Debug).To("Logs", "App")
+        );
+
+        var act = () => new EventSinkRouter(options, new LogEventStore());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_WithNullOptions_Throws()
+    {
+        var act = () => new EventSinkRouter(null!, new LogEventStore());
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Route_WithNullEvent_Throws()
+    {
+        var router = new EventSinkRouter(RouteFor("App"), new LogEventStore());
+
+        var act = () => router.Route(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void RouteOptions_WithBlankPattern_Throws()
+    {
+        var act = () => new EventSinkRouteOptions().Route(" ", route => route.To("Logs", "App"));
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    /// <summary>
+    ///     Destinations are configurable as "Category/Name" strings so they can come from a config
+    ///     file. A malformed value must fail loudly rather than produce a half-built destination.
+    /// </summary>
+    [Fact]
+    public void DestinationConverter_ParsesCategorySlashName()
+    {
+        var converter = TypeDescriptor.GetConverter(typeof(EventSinkDestination));
+
+        var destination = (EventSinkDestination)converter.ConvertFrom("Logs/App")!;
+
+        destination.SinkCategory!.Value.Should().Be("Logs");
+        destination.SinkName!.Value.Should().Be("App");
+    }
+
+    [Theory]
+    [InlineData("NoSeparator")]
+    [InlineData("Too/Many/Parts")]
+    [InlineData("/MissingCategory")]
+    [InlineData("MissingName/")]
+    public void DestinationConverter_WithMalformedValue_Throws(string value)
+    {
+        var converter = TypeDescriptor.GetConverter(typeof(EventSinkDestination));
+
+        var act = () => converter.ConvertFrom(value);
+
+        act.Should().Throw<FormatException>();
+    }
+}
