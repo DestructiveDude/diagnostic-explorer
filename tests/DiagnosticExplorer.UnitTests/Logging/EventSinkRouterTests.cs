@@ -269,4 +269,28 @@ public class EventSinkRouterTests
 
         act.Should().Throw<FormatException>();
     }
+
+    /// <summary>
+    ///     Two routers sharing a store — two logging frameworks side by side, which is what a
+    ///     migration looks like — both keep publishing, but the store's routing snapshot describes
+    ///     only the last router constructed. That is a known limitation rather than an accident, and
+    ///     this pins it: aggregating the snapshots needs a global route ordering, a resolution for
+    ///     two routers disagreeing on MatchMode, and retraction when a provider is disposed. Those
+    ///     belong with the configuration surface that owns routing, so a change here has to break
+    ///     this test deliberately.
+    /// </summary>
+    [Fact]
+    public void Constructor_WhenRoutersShareAStore_BothPublishButTheLastOwnsTheSnapshot()
+    {
+        var store = new LogEventStore();
+        var first = new EventSinkRouter(RouteFor("First"), store);
+        var second = new EventSinkRouter(RouteFor("Second"), store);
+
+        first.Route(Event("First")).Should().Be(1);
+        second.Route(Event("Second")).Should().Be(1);
+
+        LogStreamInitialization initialization = store.CreateInitialization();
+        initialization.ReplayEvents.Should().HaveCount(2);
+        initialization.Routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("Second");
+    }
 }

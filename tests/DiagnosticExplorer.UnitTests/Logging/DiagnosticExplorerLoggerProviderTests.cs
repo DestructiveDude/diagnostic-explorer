@@ -86,6 +86,44 @@ public class DiagnosticExplorerLoggerProviderTests
         Replay(store).Should().ContainSingle().Subject.Detail.Should().Contain("Scope.OrderId: 7");
     }
 
+    /// <summary>
+    ///     BeginScope with a bare value is ordinary usage, and its whole purpose is correlation, so
+    ///     dropping it for not being a property list loses the only thing it carried.
+    /// </summary>
+    [Fact]
+    public void Log_FoldsAScalarScopeIntoDetail()
+    {
+        var store = new LogEventStore();
+        using var provider = new DiagnosticExplorerLoggerProvider(RoutesFor("Widgets"), store);
+        provider.SetScopeProvider(new LoggerExternalScopeProvider());
+        ILogger logger = provider.CreateLogger("Widgets");
+
+        using (logger.BeginScope("RequestId=7"))
+        {
+            logger.LogInformation("Painted");
+        }
+
+        Replay(store).Should().ContainSingle().Subject.Detail.Should().Contain("Scope: RequestId=7");
+    }
+
+    /// <summary>
+    ///     The same leniency must NOT extend to the message state. A scalar there is the message,
+    ///     which is already the headline, so recording it again would double every non-templated
+    ///     line in the detail pane.
+    /// </summary>
+    [Fact]
+    public void Log_DoesNotRepeatAScalarMessageStateInDetail()
+    {
+        var store = new LogEventStore();
+        using var provider = new DiagnosticExplorerLoggerProvider(RoutesFor("Widgets"), store);
+
+        provider.CreateLogger("Widgets").Log(LogLevel.Information, default, "Painted", null, (state, _) => state);
+
+        LogStreamEvent published = Replay(store).Should().ContainSingle().Subject;
+        published.Message.Should().Be("Painted");
+        published.Detail.Should().BeNull();
+    }
+
     [Fact]
     public void Log_FoldsTheExceptionAndEventIdIntoDetail()
     {

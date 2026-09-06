@@ -135,7 +135,7 @@ public class RoutingDiagnosticAppenderTests
     {
         var appender = new TestAppender(new LogEventStore())
         {
-            ConfigurationFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json"),
+            ConfigurationFile = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.json"),
         };
 
         Action activate = appender.ActivateOptions;
@@ -147,7 +147,7 @@ public class RoutingDiagnosticAppenderTests
     public void ActivateOptions_ReadsRoutesFromAConfigurationFile()
     {
         var store = new LogEventStore();
-        string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json");
+        string path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.json");
         File.WriteAllText(
             path,
             """

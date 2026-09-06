@@ -42,9 +42,10 @@ public class LogLevelMapTests
     [Fact]
     public void ToMicrosoftOrdinal_WhenLevelIsNull_FoldsToInformation()
     {
-        Level? level = null;
-
-        level.ToMicrosoftOrdinal().Should().Be((int)LogLevel.Information);
+        // Called as a plain static rather than through extension syntax: invoking an extension
+        // method on a null reference reads as a bug at the call site even where it is the
+        // behaviour under test.
+        LogLevelMap.ToMicrosoftOrdinal(level: null).Should().Be((int)LogLevel.Information);
     }
 
     /// <summary>
