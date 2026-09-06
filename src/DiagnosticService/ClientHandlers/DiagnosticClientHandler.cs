@@ -30,25 +30,56 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     public IObservable<SystemEvent[]> EventsSet => _eventsSet;
     public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
 
-    // These three are SignalR client results. The request id, the shared response bucket and the
-    // ConnectionAborted registration that used to release a pending call on disconnect are all
-    // gone: SignalR correlates the invocation itself and faults it when the connection ends, which
-    // is exactly what the hand-rolled machinery existed to do. The cancel parameter is kept on
-    // GetDiagnostics for its callers' benefit and observed before the call.
-    public async Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
+    // These three are SignalR client results. The request id and the shared response bucket are
+    // gone: SignalR correlates the invocation itself and faults it when the AGENT's connection
+    // ends.
+    //
+    // That is not the same connection as the caller's. A browser that disconnects mid-request
+    // would otherwise leave this await parked until the agent answers or its own connection drops,
+    // so the caller's token is still raced against the invocation below — which is what
+    // ConnectionAborted did before.
+    public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        cancel.ThrowIfCancellationRequested();
-        return await _client.GetDiagnostics();
+        return AwaitOrAbandon(_client.GetDiagnostics(), cancel);
     }
 
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return _client.SetProperty(path, value!);
+        return AwaitOrAbandon(_client.SetProperty(path, value!), _callerContext.ConnectionAborted);
     }
 
     public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
     {
-        return _client.ExecuteOperation(path, operation, arguments);
+        return AwaitOrAbandon(_client.ExecuteOperation(path, operation, arguments), _callerContext.ConnectionAborted);
+    }
+
+    /// <summary>
+    ///     Waits for a client result, giving up as soon as the caller cancels.
+    /// </summary>
+    /// <remarks>
+    ///     Abandons the wait, not the work: a client result cannot be cancelled mid-flight, so the
+    ///     agent still completes its invocation and SignalR still resolves it. The point is that
+    ///     the caller's request thread is released at once rather than held until the agent
+    ///     answers. The registration is disposed on every path, cancelled or not, so a long-lived
+    ///     caller token does not accumulate one per request.
+    /// </remarks>
+    private static async Task<T> AwaitOrAbandon<T>(Task<T> invocation, CancellationToken cancel)
+    {
+        if (!cancel.CanBeCanceled)
+        {
+            return await invocation;
+        }
+
+        TaskCompletionSource<bool> cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (cancel.Register(() => cancelled.TrySetResult(true)))
+        {
+            if (await Task.WhenAny(invocation, cancelled.Task) != (Task)invocation)
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+        }
+
+        return await invocation;
     }
 
     public async Task SubscribeEvents()

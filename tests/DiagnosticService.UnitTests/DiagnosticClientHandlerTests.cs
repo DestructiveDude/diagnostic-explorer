@@ -10,6 +10,58 @@ namespace DiagnosticService.UnitTests;
 
 public class DiagnosticClientHandlerTests
 {
+    /// <summary>
+    ///     A caller that gives up must be released at once, not held until the agent answers.
+    /// </summary>
+    /// <remarks>
+    ///     SignalR client results fault when the AGENT's connection ends — which is a different
+    ///     connection from the caller's. Adopting client results therefore removed the release that
+    ///     the old ConnectionAborted registration provided, and this pins it back: the invocation
+    ///     here never completes, so the test can only pass if the caller's token is being observed.
+    /// </remarks>
+    [Fact]
+    public async Task GetDiagnostics_WhenTheCallerCancelsMidFlight_StopsWaitingOnTheAgent()
+    {
+        var callerContext = Substitute.For<HubCallerContext>();
+        callerContext.ConnectionId.Returns("connection-1");
+        callerContext.ConnectionAborted.Returns(CancellationToken.None);
+
+        var client = Substitute.For<IDiagnosticHubClient>();
+        // Never completes: only the caller's cancellation can end the wait.
+        client.GetDiagnostics().Returns(new TaskCompletionSource<DiagnosticResponse>().Task);
+
+        using var handler = new DiagnosticClientHandler(callerContext, client);
+        using CancellationTokenSource caller = new();
+
+        Task<DiagnosticResponse> pending = handler.GetDiagnostics(caller.Token);
+        pending.IsCompleted.Should().BeFalse("the agent has not answered yet");
+
+        await caller.CancelAsync();
+
+        Func<Task> act = async () => await pending;
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <summary>An already-cancelled caller never reaches the agent at all.</summary>
+    [Fact]
+    public async Task GetDiagnostics_WhenTheCallerHasAlreadyCancelled_Throws()
+    {
+        var callerContext = Substitute.For<HubCallerContext>();
+        callerContext.ConnectionId.Returns("connection-1");
+        callerContext.ConnectionAborted.Returns(CancellationToken.None);
+
+        var client = Substitute.For<IDiagnosticHubClient>();
+        client.GetDiagnostics().Returns(new TaskCompletionSource<DiagnosticResponse>().Task);
+
+        using var handler = new DiagnosticClientHandler(callerContext, client);
+        using CancellationTokenSource caller = new();
+        await caller.CancelAsync();
+
+        Func<Task> act = async () => await handler.GetDiagnostics(caller.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     [Fact]
     public async Task SetEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
