@@ -23,11 +23,9 @@
 #endregion
 
 using System.Collections.Generic;
-using ProtoBuf;
 
 namespace DiagnosticExplorer;
 
-[ProtoContract(UseProtoMembersOnly = true)]
 public class PropertyBag
 {
     public PropertyBag()
@@ -47,16 +45,12 @@ public class PropertyBag
         Category = category;
     }
 
-    [ProtoMember(1)]
     public string Name { get; set; }
 
-    [ProtoMember(2)]
     public string Category { get; set; }
 
-    [ProtoMember(3)]
     public string OperationSet { get; set; }
 
-    [ProtoMember(4)]
     public List<Category> Categories { get; set; }
 
     public object SourceObject { get; set; }

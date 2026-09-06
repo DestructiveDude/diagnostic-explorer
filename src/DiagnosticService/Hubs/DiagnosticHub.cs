@@ -10,7 +10,6 @@ namespace Diagnostic.Service.Hubs;
 public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 {
     private static readonly ILog _log = LogManager.GetLogger(typeof(DiagnosticHub));
-    private static readonly AsyncResultBucket _clientResponses = new();
     private readonly RetroManager _retroManager;
     private readonly RealtimeManager _rtManager;
 
@@ -49,11 +48,10 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
     }
 
     // Not async: the body is synchronous (CS1998). SignalR awaits the returned Task either way.
-    public Task<RpcResult> LogEvents(byte[] eventData)
+    public Task<RpcResult> LogEvents(DiagnosticMsg[] messages)
     {
         try
         {
-            var messages = ProtobufUtil.Decompress<DiagnosticMsg[]>(eventData);
             if (messages?.Any() == true)
             {
                 _rtManager.RegisterAlertLevel(Context.ConnectionId, messages);
@@ -70,22 +68,9 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
         }
     }
 
-    public Task GetDiagnosticsReturn(RpcResult<byte[]> response)
-    {
-        _clientResponses.SetResult(response, response.Response);
-        return Task.CompletedTask;
-    }
-
-    public Task ExecuteOperationReturn(RpcResult<OperationResponse> response)
-    {
-        _clientResponses.SetResult(response, response.Response);
-        return Task.CompletedTask;
-    }
-
-    public Task SetPropertyReturn(RpcResult<OperationResponse> response)
-    {
-        return ExecuteOperationReturn(response);
-    }
+    // The three *Return callbacks that used to complete a pending request here are gone: with
+    // client results the agent returns its value from the invocation itself, so there is nothing
+    // for the service to correlate.
 
     public Task SetEvents(SystemEvent[] events)
     {
@@ -103,7 +88,7 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
 
     public override Task OnConnectedAsync()
     {
-        _rtManager.AddDiagnosticClient(new DiagnosticClientHandler(Context, Clients.Caller, _clientResponses));
+        _rtManager.AddDiagnosticClient(new DiagnosticClientHandler(Context, Clients.Caller));
         return base.OnConnectedAsync();
     }
 

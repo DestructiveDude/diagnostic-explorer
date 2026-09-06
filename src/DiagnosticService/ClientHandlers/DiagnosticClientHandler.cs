@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Diagnostic.Service.ClientHandlers;
 
-public sealed class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient, IDisposable
+public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
 {
     private readonly HubCallerContext _callerContext;
     private readonly IDiagnosticHubClient _client;
@@ -17,12 +17,7 @@ public sealed class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient, I
     private readonly ISubject<SystemEvent[]> _eventsStreamed;
     private int _disposed;
 
-    public DiagnosticClientHandler(
-        HubCallerContext callerContext,
-        IDiagnosticHubClient client,
-        AsyncResultBucket responses
-    )
-        : base(responses)
+    public DiagnosticClientHandler(HubCallerContext callerContext, IDiagnosticHubClient client)
     {
         _client = client;
         _callerContext = callerContext;
@@ -35,29 +30,25 @@ public sealed class DiagnosticClientHandler : HubProxyBase, IDiagnosticClient, I
     public IObservable<SystemEvent[]> EventsSet => _eventsSet;
     public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
 
+    // These three are SignalR client results. The request id, the shared response bucket and the
+    // ConnectionAborted registration that used to release a pending call on disconnect are all
+    // gone: SignalR correlates the invocation itself and faults it when the connection ends, which
+    // is exactly what the hand-rolled machinery existed to do. The cancel parameter is kept on
+    // GetDiagnostics for its callers' benefit and observed before the call.
     public async Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        var data = await SendRequest<byte[]>(cancel, requestId => _client.GetDiagnostics(requestId));
-        return ProtobufUtil.Decompress<DiagnosticResponse>(data);
+        cancel.ThrowIfCancellationRequested();
+        return await _client.GetDiagnostics();
     }
 
-    // Pass the caller's ConnectionAborted token (not CancellationToken.None): if the client
-    // disconnects mid-request, the pending TaskCompletionSource in the shared response bucket is
-    // released immediately rather than lingering until the round-trip timeout elapses.
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return SendRequest<OperationResponse>(
-            _callerContext.ConnectionAborted,
-            requestId => _client.SetProperty(requestId, path, value)
-        );
+        return _client.SetProperty(path, value!);
     }
 
     public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
     {
-        return SendRequest<OperationResponse>(
-            _callerContext.ConnectionAborted,
-            requestId => _client.ExecuteOperation(requestId, path, operation, arguments)
-        );
+        return _client.ExecuteOperation(path, operation, arguments);
     }
 
     public async Task SubscribeEvents()

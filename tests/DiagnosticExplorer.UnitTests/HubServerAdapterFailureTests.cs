@@ -123,7 +123,8 @@ public class HubServerAdapterFailureTests
         {
             "Register" => [new Registration(), CancellationToken.None],
             "Deregister" => [new Registration(), CancellationToken.None],
-            "LogEvents" => [new byte[] { 1, 2, 3 }, CancellationToken.None],
+            // A typed array now, not a protobuf blob: MessagePack frames the messages on the wire.
+            "LogEvents" => [new DiagnosticMsg[] { new() }, CancellationToken.None],
             _ => throw new ArgumentOutOfRangeException(nameof(methodName)),
         };
 

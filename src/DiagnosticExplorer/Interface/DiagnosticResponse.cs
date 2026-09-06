@@ -23,11 +23,9 @@
 #endregion
 
 using System.Collections.Generic;
-using ProtoBuf;
 
 namespace DiagnosticExplorer;
 
-[ProtoContract(UseProtoMembersOnly = true)]
 public class DiagnosticResponse
 {
     public DiagnosticResponse()
@@ -37,21 +35,15 @@ public class DiagnosticResponse
         OperationSets = [];
     }
 
-    [ProtoMember(1)]
     public List<PropertyBag> PropertyBags { get; set; }
 
-    [ProtoMember(2)]
     public List<EventResponse> Events { get; set; }
 
-    [ProtoMember(3)]
     public string Context { get; set; }
 
-    [ProtoMember(4)]
     public string ExceptionMessage { get; set; }
 
-    [ProtoMember(5)]
     public string ExceptionDetail { get; set; }
 
-    [ProtoMember(6)]
     public List<OperationSet> OperationSets { get; set; }
 }

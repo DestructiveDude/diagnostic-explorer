@@ -1,8 +1,5 @@
-using ProtoBuf;
-
 namespace DiagnosticExplorer;
 
-[ProtoContract(UseProtoMembersOnly = true)]
 public class OperationParameter
 {
     public OperationParameter() { }
@@ -13,9 +10,7 @@ public class OperationParameter
         Type = type;
     }
 
-    [ProtoMember(1)]
     public string Name { get; set; }
 
-    [ProtoMember(2)]
     public string Type { get; set; }
 }

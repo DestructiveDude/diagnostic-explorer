@@ -1,6 +1,7 @@
 #nullable enable annotations
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using DiagnosticExplorer.Util;
@@ -25,19 +26,18 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     {
         _hubConn = hubConn;
 
-        _hubConn.On<string>(
-            nameof(IDiagnosticHubClient.GetDiagnostics),
-            async requestId => await GetDiagnostics(requestId)
-        );
+        // Registered through the value-returning On overloads, which is what makes these client
+        // results rather than one-way notifications.
+        _hubConn.On<DiagnosticResponse>(nameof(IDiagnosticHubClient.GetDiagnostics), GetDiagnostics);
 
-        _hubConn.On<string, string, string>(
+        _hubConn.On<string, string, OperationResponse>(
             nameof(IDiagnosticHubClient.SetProperty),
-            async (requestId, context, value) => await SetProperty(requestId, context, value)
+            (path, value) => SetProperty(path, value)
         );
 
-        _hubConn.On<string, string, string, string[]>(
+        _hubConn.On<string, string, string[], OperationResponse>(
             nameof(IDiagnosticHubClient.ExecuteOperation),
-            async (requestId, path, operation, args) => await ExecuteOperation(requestId, path, operation, args)
+            (path, operation, args) => ExecuteOperation(path, operation, args)
         );
 
         _hubConn.On(nameof(IDiagnosticHubClient.SubscribeEvents), async () => await SubscribeEvents());
@@ -70,82 +70,59 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task GetDiagnostics(string requestId)
+    // Client results: the value is returned from the invocation and SignalR carries it back to
+    // the caller. Previously each of these built an RpcResult, serialised it by hand and pushed it
+    // to a matching *Return method on the server, which correlated it by request id.
+    //
+    // Still on the thread pool via Task.Run: these walk the whole registered object graph through
+    // reflection, and the SignalR client invokes handlers on its receive loop. Blocking that loop
+    // stalls every other message on the connection, including the keep-alive.
+    public Task<DiagnosticResponse> GetDiagnostics()
+    {
+        return Run(() => DiagnosticManager.GetDiagnostics());
+    }
+
+    public Task<OperationResponse> SetProperty(string path, string value)
+    {
+        return Run(() => DiagnosticManager.SetProperty(path, value));
+    }
+
+    public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
+    {
+        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments));
+    }
+
+    /// <summary>
+    ///     Runs a client-result handler off the SignalR receive loop, logging locally before
+    ///     letting the exception travel back to the caller.
+    /// </summary>
+    /// <remarks>
+    ///     The rethrow is the point: SignalR turns it into a failed invocation on the service
+    ///     side, which is what replaces the hand-built failure RpcResult. Logging first keeps the
+    ///     stack trace where the fault actually happened, on the agent.
+    /// </remarks>
+    [SuppressMessage(
+        "Design",
+        "S2139:Exceptions should be either logged or rethrown but not both",
+        Justification = "Both are wanted, and they serve different readers. The log keeps the full "
+            + "stack trace on the agent, where the fault happened; the rethrow is what makes SignalR "
+            + "fail the invocation so the service sees the failure at all. Wrapping instead would "
+            + "hide the original type from the caller."
+    )]
+    private static Task<T> Run<T>(Func<T> work)
     {
         return Task.Run(
-            async () =>
+            () =>
             {
-                RpcResult<byte[]> result;
                 try
                 {
-                    var response = DiagnosticManager.GetDiagnostics();
-                    var compress = ProtobufUtil.Compress(response, 1024);
-
-                    result = RpcResult<byte[]>.Success(requestId, compress);
+                    return work();
                 }
                 catch (Exception ex)
                 {
                     _log.Error(ex);
-                    result = RpcResult<byte[]>.Fail(requestId, ex);
+                    throw;
                 }
-
-                await _hubConn.InvokeCoreAsync<string>(
-                    nameof(IDiagnosticHubServer.GetDiagnosticsReturn),
-                    new object[] { result },
-                    CancellationToken.None
-                );
-            },
-            CancellationToken.None
-        );
-    }
-
-    public Task SetProperty(string requestId, string path, string value)
-    {
-        return Task.Run(
-            async () =>
-            {
-                RpcResult<OperationResponse> result;
-
-                try
-                {
-                    var response = DiagnosticManager.SetProperty(path, value);
-                    result = RpcResult<OperationResponse>.Success(requestId, response);
-                }
-                catch (Exception ex)
-                {
-                    result = RpcResult<OperationResponse>.Fail(requestId, ex);
-                }
-                await _hubConn.InvokeCoreAsync<string>(
-                    nameof(IDiagnosticHubServer.SetPropertyReturn),
-                    new object[] { result },
-                    CancellationToken.None
-                );
-            },
-            CancellationToken.None
-        );
-    }
-
-    public Task ExecuteOperation(string requestId, string path, string operation, string[] arguments)
-    {
-        return Task.Run(
-            async () =>
-            {
-                RpcResult<OperationResponse> result;
-
-                try
-                {
-                    var response = DiagnosticManager.ExecuteOperation(path, operation, arguments);
-                    result = RpcResult<OperationResponse>.Success(requestId, response);
-                }
-                catch (Exception ex)
-                {
-                    result = RpcResult<OperationResponse>.Fail(requestId, ex);
-                }
-                await _hubConn.InvokeCoreAsync<string>(
-                    nameof(IDiagnosticHubServer.ExecuteOperationReturn),
-                    new object[] { result },
-                    CancellationToken.None
-                );
             },
             CancellationToken.None
         );
@@ -253,11 +230,13 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         }
     }
 
-    public async Task LogEvents(byte[] eventData, CancellationToken cancel = default)
+    // Sends the messages as a typed array. MessagePack frames them on the wire, so the
+    // serialise-then-gzip step this used to do by hand is gone.
+    public async Task LogEvents(IList<DiagnosticMsg> messages, CancellationToken cancel = default)
     {
         var response = await _hubConn.InvokeCoreAsync<RpcResult>(
             nameof(IDiagnosticHubServer.LogEvents),
-            new object[] { eventData },
+            new object[] { messages as DiagnosticMsg[] ?? [.. messages] },
             cancel
         );
 
