@@ -84,7 +84,6 @@ public sealed class LogEventStore
         lock (_sync)
         {
             DateTime timestampUtc = UtcNow;
-            Prune(timestampUtc);
 
             LogStreamEvent streamEvent = new()
             {
@@ -100,6 +99,10 @@ public sealed class LogEventStore
             };
 
             _events.Add(streamEvent);
+
+            // One prune per publish. Pruning before the add as well would be pure O(n) waste on
+            // the caller's logging thread: the timestamp does not change between the two, and the
+            // event just added is the newest, so it can never be the one aged out.
             Prune(timestampUtc);
 
             // A subscriber whose bounded channel is full is dropped rather than allowed to stall the
@@ -271,7 +274,7 @@ public static class LogStreamRoutingConfigurationExtensions
                             StopProcessing = route.StopProcessing,
                             Destinations =
                             [
-                                .. route.Destinations.Select(destination => new LogStreamRouteDestination
+                                .. (route.Destinations ?? []).Select(destination => new LogStreamRouteDestination
                                 {
                                     Category = destination.SinkCategory.ToSnapshot(),
                                     Name = destination.SinkName.ToSnapshot(),
@@ -305,18 +308,10 @@ public static class LogStreamRoutingConfigurationExtensions
                     StopProcessing = route.StopProcessing,
                     Destinations =
                     [
-                        .. route.Destinations.Select(destination => new LogStreamRouteDestination
+                        .. (route.Destinations ?? []).Select(destination => new LogStreamRouteDestination
                         {
-                            Category = new LogStreamRouteValue
-                            {
-                                Source = destination.Category.Source,
-                                Value = destination.Category.Value,
-                            },
-                            Name = new LogStreamRouteValue
-                            {
-                                Source = destination.Name.Source,
-                                Value = destination.Name.Value,
-                            },
+                            Category = destination.Category.ToSnapshot(),
+                            Name = destination.Name.ToSnapshot(),
                         }),
                     ],
                 }),
@@ -325,11 +320,20 @@ public static class LogStreamRoutingConfigurationExtensions
     }
 
     /// <summary>
-    ///     Destinations are validated non-null when a route is compiled, but this is also reachable
-    ///     from a hand-built options object, so an absent value snapshots as an empty fixed value
-    ///     rather than throwing during projection.
+    ///     Destinations are validated non-null when a route is compiled, but both projections are
+    ///     also reachable from a hand-built configuration passed to the public
+    ///     <see cref="LogEventStore.Configure" />, so an absent value projects as an empty fixed
+    ///     value rather than throwing.
     /// </summary>
     private static LogStreamRouteValue ToSnapshot(this RouteValue? routeValue)
+    {
+        return routeValue == null
+            ? new LogStreamRouteValue()
+            : new LogStreamRouteValue { Source = routeValue.Source, Value = routeValue.Value };
+    }
+
+    /// <inheritdoc cref="ToSnapshot(RouteValue)" />
+    private static LogStreamRouteValue ToSnapshot(this LogStreamRouteValue? routeValue)
     {
         return routeValue == null
             ? new LogStreamRouteValue()

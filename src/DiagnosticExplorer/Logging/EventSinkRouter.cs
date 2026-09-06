@@ -9,6 +9,16 @@ namespace DiagnosticExplorer.Logging;
 ///     it against a compiled routing table. Routes are validated once at construction so the hot
 ///     path is comparison only.
 /// </summary>
+/// <remarks>
+///     The router is a FILTER, not a fan-out. An event that matches any route is published exactly
+///     once, to the single store this router holds; the number of routes it matched does not change
+///     that. Route destinations and <see cref="EventSinkRouteOptions.MatchMode" /> are therefore not
+///     consulted when publishing — they are snapshotted into
+///     <see cref="LogStreamRoutingConfiguration" /> and carried to the client, which is what renders
+///     the routing in force. Anything that needs per-destination delivery has to add fan-out here
+///     first; narrowing the matched set alone would change nothing, because only whether the set is
+///     empty is ever read.
+/// </remarks>
 public sealed class EventSinkRouter
 {
     private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;

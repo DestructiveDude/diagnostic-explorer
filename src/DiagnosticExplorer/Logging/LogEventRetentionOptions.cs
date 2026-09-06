@@ -37,9 +37,16 @@ public sealed class LogEventRetentionOptions
             throw new InvalidOperationException("The log stream maximum event count must be greater than zero.");
         }
 
-        if (MaxAgeMinutes <= 0)
+        // The upper bound is not pedantry: Prune does TimeSpan.FromMinutes(MaxAgeMinutes) on every
+        // publish, which throws for NaN, infinity, or anything beyond TimeSpan's range. Rejecting
+        // here turns a plausible "never expire" misconfiguration into a startup failure instead of
+        // an exception on the caller's logging thread. Note NaN survives the `<= 0` test above,
+        // since every comparison with NaN is false.
+        if (MaxAgeMinutes <= 0 || double.IsNaN(MaxAgeMinutes) || MaxAgeMinutes > TimeSpan.MaxValue.TotalMinutes)
         {
-            throw new InvalidOperationException("The log stream maximum age must be greater than zero.");
+            throw new InvalidOperationException(
+                "The log stream maximum age must be a positive, finite number of minutes within the range of TimeSpan."
+            );
         }
 
         return new LogEventRetentionOptions { MaxEvents = MaxEvents, MaxAgeMinutes = MaxAgeMinutes };

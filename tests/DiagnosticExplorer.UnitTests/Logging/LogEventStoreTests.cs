@@ -171,6 +171,68 @@ public class LogEventStoreTests
         act.Should().Throw<InvalidOperationException>();
     }
 
+    /// <summary>
+    ///     Prune calls TimeSpan.FromMinutes(MaxAgeMinutes) on every publish, so a value outside
+    ///     TimeSpan's range would throw on the caller's logging thread rather than at startup.
+    ///     NaN matters specifically because it survives a `&lt;= 0` guard — every comparison with
+    ///     NaN is false — so it has to be rejected explicitly.
+    /// </summary>
+    [Theory]
+    [InlineData(double.MaxValue)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NaN)]
+    public void CloneAndValidate_WithOutOfRangeMaxAge_ThrowsAtConstructionNotOnPublish(double maxAgeMinutes)
+    {
+        var options = new LogEventRetentionOptions { MaxAgeMinutes = maxAgeMinutes };
+
+        var act = () => new LogEventStore(options);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    /// <summary>
+    ///     Configure is public and takes a caller-built configuration, so a destination with null
+    ///     values must project rather than throw. Clone previously dereferenced these directly
+    ///     while the sibling snapshot path did not.
+    /// </summary>
+    [Fact]
+    public void Configure_WithHandBuiltRoutingContainingNulls_DoesNotThrow()
+    {
+        var store = new LogEventStore();
+        var routing = new LogStreamRoutingConfiguration
+        {
+            Routes =
+            [
+                new LogStreamRoute
+                {
+                    LoggerName = "App",
+                    Destinations = [new LogStreamRouteDestination { Category = null!, Name = null! }],
+                },
+            ],
+        };
+
+        var act = () => store.Configure(new LogEventRetentionOptions(), routing);
+
+        act.Should().NotThrow();
+        store.CreateInitialization().Routing.Routes[0].Destinations[0].Category.Should().NotBeNull();
+    }
+
+    /// <summary>A route whose Destinations list is null must not break the projection either.</summary>
+    [Fact]
+    public void Configure_WithRouteHavingNullDestinationList_DoesNotThrow()
+    {
+        var store = new LogEventStore();
+        var routing = new LogStreamRoutingConfiguration
+        {
+            Routes = [new LogStreamRoute { LoggerName = "App", Destinations = null! }],
+        };
+
+        var act = () => store.Configure(new LogEventRetentionOptions(), routing);
+
+        act.Should().NotThrow();
+        store.CreateInitialization().Routing.Routes[0].Destinations.Should().BeEmpty();
+    }
+
     [Fact]
     public void Publish_WithNullEvent_Throws()
     {
