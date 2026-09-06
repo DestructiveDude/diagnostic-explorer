@@ -25,8 +25,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -36,53 +37,167 @@ namespace DiagnosticExplorer;
 
 internal class PropertyGetter
 {
+    // Upstream raised this to 100. Deliberately kept at 10: it is the default cap for EVERY
+    // unconfigured collection property, so the change would multiply the inline payload of every
+    // collection-valued property by ten on every poll. That is a presentation and bandwidth
+    // decision to take on its own evidence, not a side effect of porting the getter layer. Three
+    // tests pin the current cap.
     public const int MaxConcatItems = 10;
+    private readonly Func<object, string> _nameFormatter;
+    private readonly Func<object, string> _categoryFormatter;
+    private ConfiguredValue<bool> _categoryInitiallyExpanded;
+    private ConfiguredValue<string> _categoryExpansionScope;
+    private readonly Func<object, string> _descriptionFormatter;
+    private Func<object, string> _valueFormatter;
+    private readonly Func<object, string> _textFormatter;
+    private IReadOnlyList<PropertyAlertConfiguration> _alerts;
+    private IReadOnlyList<PropertyStatusConfiguration> _statuses;
+    protected bool DrillDownEnabled { get; private set; }
+    protected int DrillDownMaxItems { get; private set; }
+    protected bool DrillDownIconOnly { get; private set; }
+    protected string DrillDownText { get; private set; }
+    private Func<object, string> _drillDownTextFormatter;
+    protected bool JsonHoverEnabled { get; private set; }
+    protected bool ExpandedHoverEnabled { get; private set; }
+    protected bool NoTruncate { get; private set; }
+    protected StatusIconSize StatusIconSize { get; private set; }
+    protected bool IsJson { get; private set; }
 
     protected PropertyGetter() { }
 
     public PropertyGetter(PropertyInfo propInfo, bool isStatic)
+        : this(propInfo, AttributeUtil.GetAttribute<DiagnosticPropertyAttribute>(propInfo), null, isStatic) { }
+
+    public PropertyGetter(PropertyInfo propInfo, DiagnosticPropertyAttribute propAttr, bool isStatic)
+        : this(propInfo, propAttr, null, isStatic) { }
+
+    [SuppressMessage(
+        "Maintainability",
+        "S3776:Cognitive Complexity of methods should not be too high",
+        Justification = "A flat sequence of independent IsSet checks, one per configurable facet. "
+            + "Splitting it would scatter the mapping it exists to make readable in one place."
+    )]
+    internal PropertyGetter(
+        PropertyInfo propInfo,
+        DiagnosticPropertyAttribute propAttr,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes = true,
+        string defaultFormat = null,
+        bool defaultDrillDown = false
+    )
     {
         PropInfo = propInfo;
 
-        GetFunc = PropertyToFunction(propInfo, isStatic);
-        Name = propInfo.Name;
-
-        CategoryAttribute catAttr = AttributeUtil.GetAttribute<CategoryAttribute>(propInfo);
-        if (catAttr != null)
+        if (propInfo != null)
         {
-            Category = catAttr.Category;
-        }
+            GetFunc = PropertyToFunction(propInfo, isStatic);
+            Name = propInfo.Name;
 
-        DescriptionAttribute descAttr = AttributeUtil.GetAttribute<DescriptionAttribute>(propInfo);
-        if (descAttr != null)
-        {
-            Description = descAttr.Description;
-        }
-
-        Type declaringType =
-            propInfo.DeclaringType
-            ?? throw new ArgumentException("Property must have a declaring type.", nameof(propInfo));
-        DiagnosticClassAttribute classAttr = declaringType
-            .GetCustomAttributes(typeof(DiagnosticClassAttribute), true)
-            .Cast<DiagnosticClassAttribute>()
-            .FirstOrDefault();
-
-        if (classAttr != null && classAttr.AllPropertiesSettable)
-        {
-            CanSet = propInfo.CanWrite && classAttr.AllPropertiesSettable;
-        }
-
-        DiagnosticPropertyAttribute propAttr = AttributeUtil.GetAttribute<DiagnosticPropertyAttribute>(propInfo);
-        if (propAttr != null)
-        {
-            Name = propAttr.Name ?? Name;
-            Category = propAttr.Category ?? Category;
-            Description = propAttr.Description ?? Description;
-            FormatString = propAttr.FormatString ?? GetDefaultFormatString(propInfo.PropertyType);
-            if (propInfo.CanWrite && propAttr.AllowSetSpecified)
+            if (applyAttributes)
             {
-                CanSet = propAttr.AllowSet;
+                DiagnosticClassAttribute classAttr = propInfo
+                    .DeclaringType.GetCustomAttributes(typeof(DiagnosticClassAttribute), true)
+                    .Cast<DiagnosticClassAttribute>()
+                    .FirstOrDefault();
+
+                if (classAttr != null && classAttr.AllPropertiesSettable)
+                {
+                    CanSet = propInfo.CanWrite && classAttr.AllPropertiesSettable;
+                }
             }
+
+            if (propAttr != null)
+            {
+                Name = propAttr.Name ?? Name;
+                Category = propAttr.Category ?? Category;
+                Description = propAttr.Description ?? Description;
+                FormatString = propAttr.FormatString;
+                if (propInfo.CanWrite && propAttr.AllowSetSpecified)
+                {
+                    CanSet = propAttr.AllowSet;
+                }
+            }
+        }
+        else if (configuration != null)
+        {
+            GetFunc = configuration.Value;
+            Name = configuration.Name.Value;
+        }
+
+        if (configuration != null)
+        {
+            if (configuration.Name.IsSet)
+            {
+                Name = configuration.Name.Value;
+            }
+
+            _nameFormatter = configuration.NameFormatter;
+            if (configuration.Category.IsSet)
+            {
+                Category = configuration.Category.Value;
+            }
+
+            _categoryFormatter = configuration.CategoryFormatter;
+            _categoryInitiallyExpanded = configuration.CategoryInitiallyExpanded;
+            _categoryExpansionScope = configuration.CategoryExpansionScope;
+            if (configuration.Description.IsSet)
+            {
+                Description = configuration.Description.Value;
+            }
+
+            _descriptionFormatter = configuration.DescriptionFormatter;
+            if (configuration.FormatString.IsSet)
+            {
+                FormatString = configuration.FormatString.Value;
+            }
+
+            _valueFormatter = configuration.ValueFormatter;
+            _textFormatter = configuration.TextFormatter;
+            if (configuration.IsJson.IsSet)
+            {
+                IsJson = configuration.IsJson.Value;
+            }
+
+            _alerts = configuration.Alerts;
+            _statuses = configuration.Statuses;
+            if (configuration.StatusIconSize.IsSet)
+            {
+                StatusIconSize = configuration.StatusIconSize.Value;
+            }
+
+            if (configuration.AllowSet.IsSet)
+            {
+                CanSet = propInfo?.CanWrite == true && configuration.AllowSet.Value;
+            }
+
+            ConfigureDrillDown(
+                configuration.DrillDown,
+                configuration.DrillDownMaxItems,
+                configuration.DrillDownIconOnly,
+                configuration.DrillDownText,
+                configuration.DrillDownTextFormatter
+            );
+            ConfigureHover(configuration.JsonHover, configuration.ExpandedHover);
+            if (configuration.NoTruncate.IsSet)
+            {
+                NoTruncate = configuration.NoTruncate.Value;
+            }
+        }
+
+        if (FormatString == null && defaultFormat != null)
+        {
+            FormatString = defaultFormat.Contains("{0") ? defaultFormat : "{0:" + defaultFormat + "}";
+        }
+        else if (FormatString == null && propAttr != null)
+        {
+            FormatString = GetDefaultFormatString(propInfo.PropertyType);
+        }
+
+        if (defaultDrillDown)
+        {
+            DrillDownEnabled = true;
+            DrillDownIconOnly = true;
         }
     }
 
@@ -95,15 +210,17 @@ internal class PropertyGetter
 
         try
         {
+            // Compiled accessor rather than propInfo.GetValue, which costs about three times as
+            // much per call and is on the hot path for every property of every poll.
             if (isStatic)
             {
                 return obj => propInfo.GetValue(obj, null);
             }
 
+            ParameterExpression objParam = Expression.Parameter(typeof(object), "obj");
             Type declaringType =
                 propInfo.DeclaringType
                 ?? throw new ArgumentException("Property must have a declaring type.", nameof(propInfo));
-            ParameterExpression objParam = Expression.Parameter(typeof(object), "obj");
             UnaryExpression objToType = Expression.Convert(objParam, declaringType);
             Expression propExp = Expression.Property(objToType, propInfo);
             Expression resultToObj = Expression.Convert(propExp, typeof(object));
@@ -117,7 +234,7 @@ internal class PropertyGetter
                 propInfo.Name,
                 ex.Message
             );
-            return _ => msg;
+            return obj => msg;
         }
     }
 
@@ -127,7 +244,6 @@ internal class PropertyGetter
     {
         if (s == null)
         {
-            // ReSharper disable once ExpressionIsAlwaysNull -- legacy callers may supply null.
             return s;
         }
 
@@ -141,19 +257,46 @@ internal class PropertyGetter
 
     public virtual void GetProperties(object obj, PropertyBag bag, string catPrepend)
     {
+        string value = GetValue(obj, out object objectValue);
         Property p = new Property
         {
-            Name = Name,
-            Description = Description,
-            Value = MaxLengthString(GetValue(obj, out object objectValue), 8092),
+            Name = GetName(obj),
+            Description = GetDescription(obj),
+            Value = MaxLengthString(GetText(obj, value), 8092),
             ValueObject = objectValue,
             CanSet = CanSet,
+            Alerts = GetAlerts(obj),
+            Statuses = GetStatuses(obj),
+            StatusIconSize = StatusIconSize,
+            IsJson = IsJson,
             SourceObject = obj,
             SourceProperty = PropInfo,
         };
+        ApplyDrillDown(p, objectValue, obj);
+        if (p.DrillDownIconOnly)
+        {
+            p.Value = null;
+        }
 
-        string prependToCategory = PrependToCategory(catPrepend);
+        string prependToCategory = PrependToCategory(catPrepend, obj);
         bag.AddProperty(p, prependToCategory);
+        if (
+            _categoryInitiallyExpanded.IsSet
+            && _categoryExpansionScope.IsSet
+            && string.Equals(
+                CategoryExtensions.NormalizeName(prependToCategory),
+                CategoryExtensions.NormalizeName(_categoryExpansionScope.Value),
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            bag.FindOrCreateCategory(prependToCategory).IsExpanded = _categoryInitiallyExpanded.Value;
+        }
+    }
+
+    protected string PrependToCategory(string prepend, object obj)
+    {
+        return CombineCategories(prepend, GetCategory(obj));
     }
 
     protected string PrependToCategory(string prepend)
@@ -161,8 +304,146 @@ internal class PropertyGetter
         return CombineCategories(prepend, Category);
     }
 
+    protected virtual string GetName(object obj) => GetFormattedMetadata(_nameFormatter, obj, Name);
+
+    protected virtual string GetDescription(object obj) =>
+        GetFormattedMetadata(_descriptionFormatter, obj, Description);
+
+    protected virtual string GetCategory(object obj) => GetFormattedMetadata(_categoryFormatter, obj, Category);
+
+    private string GetText(object obj, string value)
+    {
+        if (_textFormatter == null)
+        {
+            return value;
+        }
+
+        try
+        {
+            return _textFormatter(obj);
+        }
+        catch (Exception ex)
+        {
+            return $"<{ex.Message}>";
+        }
+    }
+
+    internal virtual bool IsDirectProperty => true;
+
+    internal bool IsInGeneralCategory(object obj) => CategoryExtensions.NormalizeName(GetCategory(obj)) == null;
+
+    /// <remarks>
+    ///     Returns null, not an empty list, when nothing is configured. The result is assigned
+    ///     straight to Property.Alerts and serialized, so an empty list would put "Alerts":[] on
+    ///     every property of every poll across the estate.
+    /// </remarks>
+    [SuppressMessage(
+        "Design",
+        "S1168:Empty arrays and collections should be returned instead of null",
+        Justification = "Null omits the field from the serialized property; an empty list would not."
+    )]
+    protected List<PropertyAlert> GetAlerts(object obj)
+    {
+        if (_alerts == null || _alerts.Count == 0)
+        {
+            return null;
+        }
+
+        List<PropertyAlert> activeAlerts = [];
+        Dictionary<string, int> alertIndexes = new(StringComparer.Ordinal);
+        foreach (PropertyAlertConfiguration alert in _alerts)
+        {
+            try
+            {
+                if (alert.Condition(obj))
+                {
+                    string message = alert.Message(obj);
+                    string category = alert.Category == null ? message : alert.Category(obj);
+                    AddWorstAlert(activeAlerts, alertIndexes, new PropertyAlert(alert.Severity, message, category));
+                }
+            }
+            catch (Exception ex)
+            {
+                string message = $"<{ex.Message}>";
+                AddWorstAlert(activeAlerts, alertIndexes, new PropertyAlert(PropertyAlertSeverity.Error, message));
+                break;
+            }
+        }
+
+        return activeAlerts.Count == 0 ? null : activeAlerts;
+    }
+
+    /// <remarks>Null rather than empty, for the same serialization reason as GetAlerts.</remarks>
+    [SuppressMessage(
+        "Design",
+        "S1168:Empty arrays and collections should be returned instead of null",
+        Justification = "Null omits the field from the serialized property; an empty list would not."
+    )]
+    protected List<PropertyStatus> GetStatuses(object obj)
+    {
+        if (_statuses == null || _statuses.Count == 0)
+        {
+            return null;
+        }
+
+        List<PropertyStatus> activeStatuses = [];
+        foreach (PropertyStatusConfiguration status in _statuses)
+        {
+            try
+            {
+                if (status.Condition(obj))
+                {
+                    activeStatuses.Add(new PropertyStatus(status.Status, status.Text(obj)));
+                }
+            }
+            catch (Exception ex)
+            {
+                activeStatuses.Add(new PropertyStatus(StatusCode.Error, $"<{ex.Message}>"));
+                break;
+            }
+        }
+
+        return activeStatuses.Count == 0 ? null : activeStatuses;
+    }
+
+    private static void AddWorstAlert(List<PropertyAlert> alerts, IDictionary<string, int> indexes, PropertyAlert alert)
+    {
+        string category = alert.Category ?? string.Empty;
+        if (indexes.TryGetValue(category, out int index))
+        {
+            if (alert.Severity > alerts[index].Severity)
+            {
+                alerts[index] = alert;
+            }
+
+            return;
+        }
+
+        indexes.Add(category, alerts.Count);
+        alerts.Add(alert);
+    }
+
+    private static string GetFormattedMetadata(Func<object, string> formatter, object obj, string fallback)
+    {
+        if (formatter == null)
+        {
+            return fallback;
+        }
+
+        try
+        {
+            return formatter(obj);
+        }
+        catch (Exception ex)
+        {
+            return $"<{ex.Message}>";
+        }
+    }
+
     protected static string CombineCategories(string start, string end)
     {
+        start = CategoryExtensions.NormalizeName(start);
+        end = CategoryExtensions.NormalizeName(end);
         if (string.IsNullOrEmpty(start))
         {
             return end;
@@ -209,58 +490,42 @@ internal class PropertyGetter
     public PropertyInfo PropInfo { get; private set; }
     public string Name { get; protected set; }
     public string Description { get; protected set; }
-    protected string FormatString { get; private set; }
+    protected string FormatString { get; set; }
     public bool CanSet { get; private set; }
-    public string Category { get; private set; }
+    public string Category { get; protected set; }
 
+    /// <summary>Renders a bounded preview of a sequence.</summary>
+    /// <remarks>
+    ///     Deliberately does NOT call Count() and then Take() on the same sequence, which is what
+    ///     upstream still does: that enumerates twice, is quadratic on a lazy source and never
+    ///     returns on a streaming or unbounded one. A known count is used when the sequence can
+    ///     supply one cheaply; otherwise one extra item is taken to detect an overflow without
+    ///     draining the rest.
+    /// </remarks>
     [SuppressMessage(
         "Maintainability",
         "S3776:Cognitive Complexity of methods should not be too high",
         Justification = "Bounded enumeration handles counted and streaming collections in one pass."
     )]
-    protected string FormatEnumerable(IEnumerable col, string separator, int maxItems)
+    protected string FormatEnumerable(IEnumerable col, string separator, int maxItems, bool includeCount = true)
     {
         if (maxItems <= 0)
         {
             maxItems = MaxConcatItems;
         }
-
-        int count = -1;
-        if (col is ICollection c)
-        {
-            count = c.Count;
-        }
-        else
-        {
-            PropertyInfo countProp = col.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
-            if (
-                countProp != null
-                && countProp.PropertyType == typeof(int)
-                && countProp.GetValue(col) is int propertyCount
-            )
-            {
-                count = propertyCount;
-            }
-        }
-
-        if (count == 0)
-        {
-            return "0 items";
-        }
-
+        int count = TryGetCount(col);
         List<object> asObject;
         int remaining;
         int displayCount;
-
         if (count != -1)
         {
-            asObject = col.Cast<object>().Take(maxItems).ToList();
+            asObject = [.. col.Cast<object>().Take(maxItems)];
             remaining = count - asObject.Count;
             displayCount = count;
         }
         else
         {
-            asObject = col.Cast<object>().Take(maxItems + 1).ToList();
+            asObject = [.. col.Cast<object>().Take(maxItems + 1)];
             if (asObject.Count > maxItems)
             {
                 remaining = 1;
@@ -273,33 +538,45 @@ internal class PropertyGetter
                 displayCount = asObject.Count;
             }
         }
-
         if (displayCount == 0)
         {
             return "0 items";
         }
-
         List<string> values = [];
         foreach (object o in asObject)
         {
             values.Add(FormatValue(o));
         }
-
         if (remaining > 0)
         {
-            if (count != -1)
-            {
-                values.Add(string.Format("... ({0} more item{1})", remaining, remaining == 1 ? "" : "s"));
-            }
-            else
-            {
-                values.Add("... (more items)");
-            }
+            string remainingSuffix = remaining == 1 ? "" : "s";
+            values.Add(
+                count != -1 ? string.Format("... ({0} more item{1})", remaining, remainingSuffix) : "... (more items)"
+            );
         }
+        string formattedValues = string.Join(separator, [.. values]);
+        if (!includeCount)
+        {
+            return formattedValues;
+        }
+        string countSuffix = count == 1 ? "" : "s";
+        string countText = count != -1 ? string.Format("{0} item{1}", count, countSuffix) : "Many items";
+        return countText + ": " + formattedValues;
+    }
 
-        string suffix = count == 1 ? "" : "s";
-        string pre = count != -1 ? string.Format("{0} item{1}: ", count, suffix) : "Many items: ";
-        return pre + string.Join(separator, values.ToArray());
+    /// <summary>A count if the sequence can give one without enumerating it, otherwise -1.</summary>
+    private static int TryGetCount(IEnumerable col)
+    {
+        if (col is ICollection c)
+        {
+            return c.Count;
+        }
+        PropertyInfo countProp = col.GetType().GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+        if (countProp != null && countProp.PropertyType == typeof(int) && countProp.GetValue(col) is int propertyCount)
+        {
+            return propertyCount;
+        }
+        return -1;
     }
 
     public string GetValue(object obj, out object objectValue)
@@ -326,6 +603,86 @@ internal class PropertyGetter
         }
     }
 
+    protected void ConfigureCustomProperty(CustomPropertyConfiguration configuration)
+    {
+        Name = configuration.Name;
+        Category = configuration.Category.IsSet ? configuration.Category.Value : null;
+        Description = configuration.Description.IsSet ? configuration.Description.Value : null;
+        _categoryInitiallyExpanded = configuration.CategoryInitiallyExpanded;
+        _categoryExpansionScope = configuration.CategoryExpansionScope;
+        _valueFormatter = configuration.ValueFormatter;
+        _alerts = configuration.Alerts;
+        _statuses = configuration.Statuses;
+        if (configuration.IsJson.IsSet)
+        {
+            IsJson = configuration.IsJson.Value;
+        }
+
+        ConfigureDrillDown(
+            configuration.DrillDown,
+            configuration.DrillDownMaxItems,
+            configuration.DrillDownIconOnly,
+            configuration.DrillDownText,
+            configuration.DrillDownTextFormatter
+        );
+        ConfigureHover(configuration.JsonHover, configuration.ExpandedHover);
+    }
+
+    protected void ApplyDrillDown(Property property, object value, object owner)
+    {
+        bool canDrillDown = DiagnosticManager.IsDrillDownValue(value);
+        if (!canDrillDown && (!JsonHoverEnabled || value == null))
+        {
+            return;
+        }
+
+        property.CanDrillDown = DrillDownEnabled && canDrillDown;
+        property.DrillDownIconOnly = property.CanDrillDown && DrillDownIconOnly;
+        property.DrillDownText = property.CanDrillDown ? GetDrillDownText(owner) : null;
+        property.CanJsonHover = JsonHoverEnabled && value != null;
+        property.CanExpandedHover = ExpandedHoverEnabled && canDrillDown;
+        property.DrillDownObject = value;
+        property.DrillDownMaxItems = DrillDownMaxItems;
+    }
+
+    private void ConfigureDrillDown(
+        ConfiguredValue<bool> enabled,
+        ConfiguredValue<int> maxItems,
+        ConfiguredValue<bool> iconOnly,
+        ConfiguredValue<string> text,
+        Func<object, string> textFormatter = null
+    )
+    {
+        DrillDownEnabled = enabled.IsSet && enabled.Value;
+        DrillDownMaxItems = maxItems.IsSet ? maxItems.Value : DiagnosticManager.DrillDownMaxItems;
+        DrillDownIconOnly = iconOnly.IsSet && iconOnly.Value;
+        DrillDownText = text.IsSet ? text.Value : null;
+        _drillDownTextFormatter = textFormatter;
+    }
+
+    private string GetDrillDownText(object owner)
+    {
+        if (_drillDownTextFormatter == null)
+        {
+            return DrillDownText;
+        }
+
+        try
+        {
+            return _drillDownTextFormatter(owner);
+        }
+        catch (Exception ex)
+        {
+            return $"<{ex.Message}>";
+        }
+    }
+
+    private void ConfigureHover(ConfiguredValue<bool> jsonHover, ConfiguredValue<bool> expandedHover)
+    {
+        JsonHoverEnabled = jsonHover.IsSet && jsonHover.Value;
+        ExpandedHoverEnabled = expandedHover.IsSet && expandedHover.Value;
+    }
+
     protected string FormatValue(object val)
     {
         if (val == null)
@@ -333,14 +690,19 @@ internal class PropertyGetter
             return null;
         }
 
+        if (_valueFormatter != null)
+        {
+            return _valueFormatter(val);
+        }
+
         if (val is TimeSpan timeSpan)
         {
             return FormatTimeSpan(timeSpan);
         }
 
-        if (val is string str)
+        if (val is string text)
         {
-            return str;
+            return text;
         }
 
         if (val is IEnumerable enumerable)
@@ -359,17 +721,25 @@ internal class PropertyGetter
     protected static string FormatTimeSpan(TimeSpan span)
     {
         string sign = span < TimeSpan.Zero ? "-" : "";
-        string value = $"{Math.Abs(span.Hours):D2}:{Math.Abs(span.Minutes):D2}:{Math.Abs(span.Seconds):D2}";
+        string format = "{0}{2:D2}:{3:D2}:{4:D2}";
         if (span.Days != 0)
         {
-            value = $"{Math.Abs(span.Days)}.{value}";
+            format = "{0}{1}.{2:D2}:{3:D2}:{4:D2}";
         }
 
         if (Math.Abs(span.TotalSeconds) < 1)
         {
-            value += $".{Math.Abs(span.Milliseconds):D2}";
+            format += ".{5:D2}";
         }
 
-        return sign + value;
+        return string.Format(
+            format,
+            sign,
+            Math.Abs(span.Days),
+            Math.Abs(span.Hours),
+            Math.Abs(span.Minutes),
+            Math.Abs(span.Seconds),
+            Math.Abs(span.Milliseconds)
+        );
     }
 }
