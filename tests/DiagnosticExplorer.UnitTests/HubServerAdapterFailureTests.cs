@@ -96,6 +96,32 @@ public class HubServerAdapterFailureTests
         await act.Should().NotThrowAsync();
     }
 
+    /// <summary>
+    ///     Tearing the adapter down must not turn an in-flight request into an
+    ///     ObjectDisposedException.
+    /// </summary>
+    /// <remarks>
+    ///     RegistrationHandler.DisposeConnection disposes the adapter BEFORE the connection, so an
+    ///     invocation that arrived a moment earlier can still be inside the request gate. Disposing
+    ///     the gate under it would throw from the release in the finally and replace whatever the
+    ///     request actually returned — or escape unobserved on the receive-loop task. The gate is
+    ///     therefore never disposed, which is safe because nothing touches AvailableWaitHandle.
+    /// </remarks>
+    [Fact]
+    public async Task GetDiagnostics_AfterDispose_StillCompletes()
+    {
+        HubConnection hub = CreateHubSubstitute();
+        IDisposable adapter = CreateAdapter(hub);
+
+        adapter.Dispose();
+
+        Task invocation = (Task)AdapterType.GetMethod("GetDiagnostics")!.Invoke(adapter, [CancellationToken.None])!;
+
+        Func<Task> act = () => invocation;
+
+        await act.Should().NotThrowAsync();
+    }
+
     // HubConnection (SignalR.Client 8.x) is concrete with virtual RPC methods and no
     // parameterless ctor, so the substitute must be given its five ctor dependencies.
     private static HubConnection CreateHubSubstitute()
