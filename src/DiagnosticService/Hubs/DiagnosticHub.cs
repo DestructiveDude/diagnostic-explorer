@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Diagnostic.Service.ClientHandlers;
 using DiagnosticExplorer;
 using DiagnosticExplorer.Util;
