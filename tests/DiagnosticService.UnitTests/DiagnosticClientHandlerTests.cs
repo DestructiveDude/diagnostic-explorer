@@ -82,6 +82,43 @@ public class DiagnosticClientHandlerTests
     }
 
     /// <summary>
+    ///     A real agent fault that lands while the caller's token happens to be cancelled is still
+    ///     a fault, and must travel.
+    /// </summary>
+    /// <remarks>
+    ///     Deciding on token state alone would relabel it as cancellation, and the request loop
+    ///     filters cancellation out of what it pushes to the browser — so a serialization failure
+    ///     on the agent would vanish entirely, which is the failure this whole sequence of fixes
+    ///     started with.
+    /// </remarks>
+    [Fact]
+    public async Task GetDiagnostics_WhenTheAgentFaultsAsTheCallerCancels_SurfacesTheAgentsFault()
+    {
+        var client = Substitute.For<IDiagnosticHubClient>();
+        client
+            .GetDiagnostics(Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var token = call.Arg<CancellationToken>();
+                TaskCompletionSource<DiagnosticResponse> completion = new(
+                    TaskCreationOptions.RunContinuationsAsynchronously
+                );
+                token.Register(() => completion.TrySetException(new InvalidOperationException("agent boom")));
+                return completion.Task;
+            });
+
+        using var handler = new DiagnosticClientHandler(CallerContext(), client);
+        using CancellationTokenSource caller = new();
+
+        Task<DiagnosticResponse> pending = handler.GetDiagnostics(caller.Token);
+        await caller.CancelAsync();
+
+        Func<Task> act = async () => await pending;
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("agent boom");
+    }
+
+    /// <summary>
     ///     Stands in for SignalR's ClientResultsManager: completes only when the invocation's own
     ///     token is cancelled, never on its own.
     /// </summary>
