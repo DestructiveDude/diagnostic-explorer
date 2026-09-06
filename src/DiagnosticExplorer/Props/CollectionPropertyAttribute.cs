@@ -39,6 +39,9 @@ public enum CollectionMode
 
     /// <summary>Each item in a collection property is exposed in its own category</summary>
     Categories,
+
+    /// <summary>The collection is exposed as an expanded category containing one category per item</summary>
+    ExpandedItems,
 }
 
 [AttributeUsage(AttributeTargets.Property)]
