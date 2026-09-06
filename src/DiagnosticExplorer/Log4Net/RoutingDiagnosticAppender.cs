@@ -1,0 +1,119 @@
+using System;
+using System.IO;
+using DiagnosticExplorer.Logging;
+using log4net.Appender;
+using log4net.Core;
+using log4net.Layout;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+namespace DiagnosticExplorer.Log4Net;
+
+/// <summary>
+///     Routes log4net events into a <see cref="LogEventStore" /> through an
+///     <see cref="EventSinkRouter" />, so a log4net host feeds the same live event stream the other
+///     logging-framework adapters do.
+/// </summary>
+/// <remarks>
+///     This appender lives in the <c>DiagnosticExplorer</c> assembly rather than a separate package
+///     because log4net binds appenders by assembly-qualified name from XML configuration, and the
+///     consuming estate has upwards of 1,700 such bindings naming this assembly.
+/// </remarks>
+public class RoutingDiagnosticAppender : AppenderSkeleton
+{
+    private const int MaxMessageLength = 150;
+    private readonly LogEventStore _eventStore;
+    private EventSinkRouter _router;
+
+    public RoutingDiagnosticAppender()
+        : this(null) { }
+
+    public RoutingDiagnosticAppender(LogEventStore eventStore)
+    {
+        _eventStore = eventStore ?? DiagnosticManager.LogEventStore;
+        PatternLayout layout = new("%-4timestamp [%thread] %-5level %logger %ndc - %message%newline");
+        layout.ActivateOptions();
+        Layout = layout;
+    }
+
+    public string ConfigurationFile { get; set; } = "config.json";
+    public string ConfigurationSection { get; set; } = "DiagnosticExplorer:Routing";
+    public EventSinkRouteOptions RoutingOptions { get; set; }
+
+    public override void ActivateOptions()
+    {
+        base.ActivateOptions();
+        _router = new EventSinkRouter(RoutingOptions ?? LoadRoutingOptions(), _eventStore);
+    }
+
+    protected override void Append(LoggingEvent loggingEvent)
+    {
+        if (_router == null)
+        {
+            ActivateOptions();
+        }
+        LogLevel level = (LogLevel)loggingEvent.Level.ToMicrosoftOrdinal();
+        if (!_router.IsEnabled(loggingEvent.LoggerName, level))
+        {
+            return;
+        }
+        string renderedMessage = loggingEvent.RenderedMessage;
+        _router.Route(
+            new EventSinkLogEvent(loggingEvent.LoggerName, level, GetHeadline(renderedMessage), GetDetail(loggingEvent))
+        );
+    }
+
+    private EventSinkRouteOptions LoadRoutingOptions()
+    {
+        if (string.IsNullOrWhiteSpace(ConfigurationFile))
+        {
+            throw new InvalidOperationException("A routing configuration file is required.");
+        }
+        if (string.IsNullOrWhiteSpace(ConfigurationSection))
+        {
+            throw new InvalidOperationException("A routing configuration section is required.");
+        }
+        if (!File.Exists(ConfigurationFile))
+        {
+            throw new FileNotFoundException("The routing configuration file was not found.", ConfigurationFile);
+        }
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddJsonFile(ConfigurationFile, optional: false, reloadOnChange: false)
+            .Build();
+        IConfigurationSection section = configuration.GetSection(ConfigurationSection);
+        if (!section.Exists())
+        {
+            throw new InvalidOperationException(
+                $"The routing configuration section '{ConfigurationSection}' was not found in '{ConfigurationFile}'."
+            );
+        }
+        return section.Get<EventSinkRouteOptions>()
+            ?? throw new InvalidOperationException(
+                $"The routing configuration section '{ConfigurationSection}' is invalid."
+            );
+    }
+
+    private static string GetHeadline(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return message;
+        }
+        int newLine = message.IndexOfAny(['\r', '\n']);
+        if (newLine >= 0)
+        {
+            message = message.Substring(0, newLine);
+        }
+        return message.Length <= MaxMessageLength ? message : message.Substring(0, MaxMessageLength) + "...";
+    }
+
+    private string GetDetail(LoggingEvent loggingEvent)
+    {
+        string detail = RenderLoggingEvent(loggingEvent);
+        if (!ReferenceEquals(loggingEvent.MessageObject, loggingEvent.ExceptionObject))
+        {
+            detail += Environment.NewLine + loggingEvent.ExceptionObject;
+        }
+        return detail;
+    }
+}
