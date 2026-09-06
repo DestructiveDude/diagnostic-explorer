@@ -39,7 +39,13 @@ public class RateCounter
     private readonly TimeProvider _timeProvider;
     private readonly TimeSpan[] _times;
     private int _index;
-    private DateTime _lastCheck;
+
+    // A monotonic timestamp, not a wall-clock reading. Elapsed time here drives the rate, so a
+    // clock step - an NTP correction, a daylight-saving jump, an operator setting the clock -
+    // would otherwise produce a wildly wrong or negative interval. Upstream fixed the same bug
+    // with Stopwatch.GetTimestamp(); TimeProvider gives the same monotonic source while staying
+    // injectable, so the counter is still testable without waiting on real time.
+    private long _lastCheck;
 
     private double _rate;
     private ulong _total;
@@ -62,7 +68,7 @@ public class RateCounter
         }
 
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        _lastCheck = UtcNow;
+        _lastCheck = _timeProvider.GetTimestamp();
         _counts = new int[secondsAverage];
         _times = new TimeSpan[secondsAverage];
         new CounterTimerState(this).Start(timeProvider);
@@ -98,18 +104,16 @@ public class RateCounter
     {
         lock (_counts)
         {
-            _times[_index % _counts.Length] = UtcNow - _lastCheck;
+            _times[_index % _counts.Length] = _timeProvider.GetElapsedTime(_lastCheck);
             CalcRate();
             _index++;
             _counts[_index % _counts.Length] = 0;
             _times[_index % _counts.Length] = TimeSpan.Zero;
-            _lastCheck = UtcNow;
+            _lastCheck = _timeProvider.GetTimestamp();
 
             InvokeSampleCollected();
         }
     }
-
-    private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
 
     private void InvokeSampleCollected()
     {
