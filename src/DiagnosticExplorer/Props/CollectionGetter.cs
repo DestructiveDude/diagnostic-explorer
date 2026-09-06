@@ -19,8 +19,24 @@ internal class CollectionGetter : PropertyGetter
     private readonly Func<object, object> _catFunc;
 
     public CollectionGetter(PropertyInfo info, CollectionPropertyAttribute attr, bool isStatic)
-        : base(info, isStatic)
+        : this(info, attr.CreateOptions(), attr, null, isStatic) { }
+
+    /// <summary>
+    ///     Driven by <see cref="CollectionOptions" /> rather than the attribute directly, so an
+    ///     attribute-configured and a fluently-configured collection reach the same code path.
+    /// </summary>
+    internal CollectionGetter(
+        PropertyInfo info,
+        CollectionOptions options,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes = true,
+        string defaultFormat = null
+    )
+        : base(info, metadata, configuration, isStatic, applyAttributes, defaultFormat)
     {
+        CollectionOptions attr = options ?? new CollectionOptions(CollectionMode.Count);
         _separator = attr.Separator ?? Environment.NewLine;
         _mode = attr.Mode;
 
