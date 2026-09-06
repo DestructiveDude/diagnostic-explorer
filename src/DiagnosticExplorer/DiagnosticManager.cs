@@ -465,6 +465,421 @@ public static class DiagnosticManager
         return _typeHash.GetOrAdd(typeKey, _ => BuildPropertyGetters(resolvedType, isStatic));
     }
 
+    /// <summary>
+    ///     Builds the getters for one property, choosing the presentation strategy from the
+    ///     attribute, the configuration, or the property's own type.
+    /// </summary>
+    /// <remarks>
+    ///     The single seam between the configuration model and the getter pipeline. Both routes —
+    ///     an attribute on the property, or a <see cref="PropertyConfiguration" /> built fluently —
+    ///     arrive here and converge on the same getters, which is what stops the two ways of
+    ///     configuring a property drifting apart.
+    /// </remarks>
+    internal static void AddPropertyGetters(
+        ICollection<PropertyGetter> getters,
+        PropertyInfo info,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes,
+        string defaultFormat,
+        bool useDefaultPropertyPresentation = false
+    )
+    {
+        PropertyStrategy strategy = GetPropertyStrategy(info, metadata, configuration, useDefaultPropertyPresentation);
+        switch (strategy)
+        {
+            case PropertyStrategy.Collection:
+                AddCollectionGetters(getters, info, metadata, configuration, isStatic, applyAttributes, defaultFormat);
+                break;
+            case PropertyStrategy.Extended:
+                getters.Add(
+                    new ExtendedPropertyGetter(
+                        info,
+                        new ExtendedPropertyAttribute(),
+                        metadata,
+                        configuration,
+                        isStatic,
+                        applyAttributes,
+                        defaultFormat
+                    )
+                );
+                break;
+            case PropertyStrategy.Rate:
+                getters.Add(
+                    new RateGetter(
+                        info,
+                        CreateRateOptions(metadata as RatePropertyAttribute, configuration),
+                        metadata,
+                        configuration,
+                        isStatic,
+                        applyAttributes,
+                        defaultFormat
+                    )
+                );
+                break;
+            case PropertyStrategy.Date:
+                getters.Add(
+                    new DateGetter(
+                        info,
+                        CreateDateOptions(metadata as DatePropertyAttribute, configuration),
+                        metadata,
+                        configuration,
+                        isStatic,
+                        applyAttributes,
+                        defaultFormat
+                    )
+                );
+                break;
+            default:
+                getters.Add(
+                    new PropertyGetter(
+                        info,
+                        metadata,
+                        configuration,
+                        isStatic,
+                        applyAttributes,
+                        defaultFormat,
+                        useDefaultPropertyPresentation
+                            && IsDefaultObjectType(info.PropertyType)
+                            && !HasUsefulToString(info.PropertyType)
+                    )
+                );
+                break;
+        }
+    }
+
+    private static PropertyStrategy GetPropertyStrategy(
+        PropertyInfo info,
+        DiagnosticPropertyAttribute attribute,
+        PropertyConfiguration configuration,
+        bool useDefaultPropertyPresentation
+    )
+    {
+        // An explicit configuration wins over everything; then an explicit attribute; then the
+        // property's own type. Order matters: a RateCounter-typed property is a rate whether or not
+        // it carries the attribute, but a configuration saying otherwise still overrides that.
+        if (configuration?.Strategy != null)
+        {
+            return configuration.Strategy.Value;
+        }
+
+        if (attribute is CollectionPropertyAttribute)
+        {
+            return PropertyStrategy.Collection;
+        }
+
+        if (attribute is ExtendedPropertyAttribute)
+        {
+            return PropertyStrategy.Extended;
+        }
+
+        Type propertyType = info?.PropertyType ?? configuration?.ValueType;
+        if (attribute is RatePropertyAttribute || propertyType == typeof(RateCounter))
+        {
+            return PropertyStrategy.Rate;
+        }
+
+        Type underlying = GetUnderlyingType(propertyType);
+        if (
+            attribute is DatePropertyAttribute
+            || underlying == typeof(DateTime)
+            || underlying == typeof(DateTimeOffset)
+        )
+        {
+            return PropertyStrategy.Date;
+        }
+
+        if (configuration?.UsesPropertyDefaults == true && UsesDefaultCollectionPresentation(underlying, configuration))
+        {
+            return PropertyStrategy.Collection;
+        }
+
+        return useDefaultPropertyPresentation && IsDefaultCollectionType(underlying)
+            ? PropertyStrategy.Collection
+            : PropertyStrategy.Default;
+    }
+
+    private static bool UsesDefaultCollectionPresentation(Type type, PropertyConfiguration configuration)
+    {
+        return configuration.ValueFormatter == null
+            && !configuration.FormatString.IsSet
+            && IsConfiguredCollectionType(type);
+    }
+
+    private static bool IsConfiguredCollectionType(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        if (underlyingType == typeof(string))
+        {
+            return false;
+        }
+
+        if (underlyingType.IsArray)
+        {
+            return true;
+        }
+
+        return ImplementsGenericInterface(underlyingType, typeof(ICollection<>))
+            || ImplementsGenericInterface(underlyingType, typeof(IList<>))
+            || ImplementsGenericInterface(underlyingType, typeof(IReadOnlyCollection<>))
+            || ImplementsGenericInterface(underlyingType, typeof(IReadOnlyList<>))
+            || ImplementsGenericInterface(underlyingType, typeof(ISet<>));
+    }
+
+    private static bool ImplementsGenericInterface(Type type, Type genericInterface)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == genericInterface
+            || type.GetInterfaces()
+                .Any(candidate => candidate.IsGenericType && candidate.GetGenericTypeDefinition() == genericInterface);
+    }
+
+    private static void AddCollectionGetters(
+        ICollection<PropertyGetter> getters,
+        PropertyInfo info,
+        DiagnosticPropertyAttribute metadata,
+        PropertyConfiguration configuration,
+        bool isStatic,
+        bool applyAttributes,
+        string defaultFormat
+    )
+    {
+        CollectionOptions source = (metadata as CollectionPropertyAttribute)?.CreateOptions();
+        IReadOnlyList<CollectionOutputConfiguration> outputs = configuration?.CollectionOutputs;
+        if (outputs == null || outputs.Count == 0)
+        {
+            CollectionOptions options = CloneCollectionOptions(source);
+            ApplyCollectionConfiguration(options, configuration);
+            getters.Add(
+                new CollectionGetter(info, options, metadata, configuration, isStatic, applyAttributes, defaultFormat)
+            );
+            return;
+        }
+
+        // One collection property can be projected several ways at once - a count alongside a
+        // listing, say - so each configured output becomes its own getter over the same property.
+        foreach (CollectionOutputConfiguration output in outputs)
+        {
+            CollectionOptions options = CloneCollectionOptions(source);
+            options.Mode = output.Mode;
+            options.NameProperty = output.NameProperty ?? options.NameProperty;
+            options.NameFormatter = output.NameFormatter ?? options.NameFormatter;
+            options.IndexedNameFormatter = output.IndexedNameFormatter ?? options.IndexedNameFormatter;
+            options.ValueProperty = output.ValueProperty ?? options.ValueProperty;
+            options.ValueFormatter = output.ValueFormatter ?? options.ValueFormatter;
+            options.ItemIsJson = output.ItemIsJson;
+            options.DescriptionProperty = output.DescriptionProperty ?? options.DescriptionProperty;
+            options.DescriptionFormatter = output.DescriptionFormatter ?? options.DescriptionFormatter;
+            options.CategoryProperty = output.CategoryProperty ?? options.CategoryProperty;
+            options.CategoryFormatter = output.CategoryFormatter ?? options.CategoryFormatter;
+            options.Separator = output.Separator ?? options.Separator;
+            options.InitiallyExpanded = output.InitiallyExpanded;
+            options.PrimaryPropertiesOnly = output.PrimaryPropertiesOnly;
+            options.ItemStatuses = output.ItemStatuses;
+            options.ItemStatusIconSize = output.ItemStatusIconSize;
+            options.ItemWidth = output.ItemWidth;
+            ApplyCollectionConfiguration(options, configuration);
+
+            PropertyConfiguration outputConfiguration = configuration.Clone();
+            ApplyCollectionOutputConfiguration(outputConfiguration, output);
+            string outputName = output.Name;
+            if (outputName == null && outputs.Count > 1 && output.Mode == CollectionMode.Count)
+            {
+                // Several outputs over one property would otherwise collide on the same name.
+                string baseName = configuration.Name.IsSet ? configuration.Name.Value : metadata?.Name ?? info?.Name;
+                outputName = baseName + " count";
+            }
+
+            if (outputName != null)
+            {
+                outputConfiguration = configuration.Clone();
+                outputConfiguration.Name = new ConfiguredValue<string>(outputName);
+            }
+
+            getters.Add(
+                new CollectionGetter(
+                    info,
+                    options,
+                    metadata,
+                    outputConfiguration,
+                    isStatic,
+                    applyAttributes,
+                    defaultFormat
+                )
+            );
+        }
+    }
+
+    private static CollectionOptions CloneCollectionOptions(CollectionOptions source)
+    {
+        if (source == null)
+        {
+            return new CollectionOptions(CollectionMode.Count);
+        }
+
+        return new CollectionOptions(source.Mode)
+        {
+            NameProperty = source.NameProperty,
+            NameFormatter = source.NameFormatter,
+            IndexedNameFormatter = source.IndexedNameFormatter,
+            ValueProperty = source.ValueProperty,
+            ValueFormatter = source.ValueFormatter,
+            ItemIsJson = source.ItemIsJson,
+            DescriptionProperty = source.DescriptionProperty,
+            DescriptionFormatter = source.DescriptionFormatter,
+            CategoryProperty = source.CategoryProperty,
+            CategoryFormatter = source.CategoryFormatter,
+            Separator = source.Separator,
+            MaxItems = source.MaxItems,
+            InitiallyExpanded = source.InitiallyExpanded,
+            PrimaryPropertiesOnly = source.PrimaryPropertiesOnly,
+            ItemStatuses = source.ItemStatuses,
+            ItemStatusIconSize = source.ItemStatusIconSize,
+            ItemWidth = source.ItemWidth,
+        };
+    }
+
+    private static void ApplyCollectionConfiguration(CollectionOptions options, PropertyConfiguration configuration)
+    {
+        if (configuration != null && configuration.MaxItems.IsSet)
+        {
+            options.MaxItems = configuration.MaxItems.Value;
+        }
+    }
+
+    private static void ApplyCollectionOutputConfiguration(
+        PropertyConfiguration configuration,
+        CollectionOutputConfiguration output
+    )
+    {
+        configuration.NoTruncate = output.NoTruncate.Or(configuration.NoTruncate);
+        configuration.DrillDown = output.DrillDown.Or(configuration.DrillDown);
+        configuration.DrillDownMaxItems = output.DrillDownMaxItems.Or(configuration.DrillDownMaxItems);
+        configuration.DrillDownIconOnly = output.DrillDownIconOnly.Or(configuration.DrillDownIconOnly);
+        configuration.DrillDownText = output.DrillDownText.Or(configuration.DrillDownText);
+        configuration.DrillDownTextFormatter = output.DrillDownTextFormatter ?? configuration.DrillDownTextFormatter;
+        configuration.JsonHover = output.JsonHover.Or(configuration.JsonHover);
+        configuration.ExpandedHover = output.ExpandedHover.Or(configuration.ExpandedHover);
+    }
+
+    private static RatePropertyAttribute CreateRateOptions(
+        RatePropertyAttribute source,
+        PropertyConfiguration configuration
+    )
+    {
+        if (source == null && configuration?.Strategy != PropertyStrategy.Rate)
+        {
+            return null;
+        }
+
+        RatePropertyAttribute options =
+            source == null
+                ? new RatePropertyAttribute()
+                : new RatePropertyAttribute { ExposeRate = source.ExposeRate, ExposeTotal = source.ExposeTotal };
+
+        if (configuration != null)
+        {
+            if (configuration.ExposeRate.IsSet)
+            {
+                options.ExposeRate = configuration.ExposeRate.Value;
+            }
+
+            if (configuration.ExposeTotal.IsSet)
+            {
+                options.ExposeTotal = configuration.ExposeTotal.Value;
+            }
+        }
+
+        return options;
+    }
+
+    private static DatePropertyAttribute CreateDateOptions(
+        DatePropertyAttribute source,
+        PropertyConfiguration configuration
+    )
+    {
+        DatePropertyAttribute options =
+            source == null
+                ? new DatePropertyAttribute()
+                : new DatePropertyAttribute
+                {
+                    ExposeDate = source.ExposeDate,
+                    ExposeElapsed = source.ExposeElapsed,
+                    ExposeTimeUntil = source.ExposeTimeUntil,
+                    IsUTC = source.IsUTC,
+                };
+
+        if (configuration != null)
+        {
+            if (configuration.ExposeDate.IsSet)
+            {
+                options.ExposeDate = configuration.ExposeDate.Value;
+            }
+
+            if (configuration.ExposeElapsed.IsSet)
+            {
+                options.ExposeElapsed = configuration.ExposeElapsed.Value;
+            }
+
+            if (configuration.ExposeTimeUntil.IsSet)
+            {
+                options.ExposeTimeUntil = configuration.ExposeTimeUntil.Value;
+            }
+        }
+
+        return options;
+    }
+
+    private static bool IsDefaultObjectType(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        return !IsDefaultDiagnosticPropertyType(underlyingType)
+            && !IsDefaultCollectionType(underlyingType)
+            && !IsExcludedDefaultDiagnosticPropertyType(underlyingType);
+    }
+
+    private static bool IsDefaultDiagnosticPropertyType(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        return underlyingType == typeof(string)
+            || underlyingType.IsPrimitive
+            || underlyingType.IsEnum
+            || underlyingType == typeof(decimal)
+            || underlyingType == typeof(DateTime)
+            || underlyingType == typeof(DateTimeOffset)
+            || underlyingType == typeof(TimeSpan)
+            || underlyingType == typeof(Guid);
+    }
+
+    /// <summary>
+    ///     Tasks are excluded from default object presentation: walking one's properties forces
+    ///     evaluation of Result and can deadlock or surface an exception that was never observed.
+    /// </summary>
+    private static bool IsExcludedDefaultDiagnosticPropertyType(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        return underlyingType.Namespace?.StartsWith("System.Threading.Tasks", StringComparison.Ordinal) == true;
+    }
+
+    private static bool IsDefaultCollectionType(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        return underlyingType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(underlyingType);
+    }
+
+    /// <summary>
+    ///     Whether a type overrides ToString itself. A type that does not would render as its type
+    ///     name, which is worth nothing, so the default presentation expands it instead.
+    /// </summary>
+    private static bool HasUsefulToString(Type type)
+    {
+        Type underlyingType = GetUnderlyingType(type);
+        MethodInfo toString = underlyingType.GetMethod(nameof(ToString), Type.EmptyTypes);
+        return toString != null
+            && toString.DeclaringType != typeof(object)
+            && toString.DeclaringType != typeof(ValueType);
+    }
+
     private static List<PropertyGetter> BuildPropertyGetters(Type type, bool isStatic)
     {
         List<PropertyGetter> propertyList = [];
