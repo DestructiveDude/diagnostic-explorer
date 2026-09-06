@@ -1,4 +1,4 @@
-#region Copyright
+﻿#region Copyright
 
 // Diagnostic Explorer, a .Net diagnostic toolset
 // Copyright (C) 2010 Cameron Elliot
@@ -53,7 +53,19 @@ public class PropertyBag
 
     public List<Category> Categories { get; set; }
 
-    public object SourceObject { get; set; }
+    /// <summary>
+    ///     The live registered object this bag was built from. Never on the wire.
+    /// </summary>
+    /// <remarks>
+    ///     Internal, matching <see cref="Property.SourceObject" /> and
+    ///     <see cref="Category.ValueObject" />. It was public until 4.0.0, which was harmless only
+    ///     because protobuf's UseProtoMembersOnly contract was an allowlist and silently skipped
+    ///     it. Contractless MessagePack has no allowlist, so a public member here puts the host's
+    ///     own object graph on the agent channel: a host with an internal type, an interface-typed
+    ///     property, a non-public constructor or a self-reference then fails to serialise, or
+    ///     worse, ships.
+    /// </remarks>
+    internal object SourceObject { get; set; }
 
     public void AddProperty(Property property, string category)
     {
