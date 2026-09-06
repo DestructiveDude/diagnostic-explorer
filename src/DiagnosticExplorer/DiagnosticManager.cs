@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer;
@@ -22,6 +23,12 @@ public static class DiagnosticManager
     private static readonly ConcurrentDictionary<Type, Lazy<OperationSet>> _staticOperationLookup = new();
     private static int _operationSetId;
     public static bool Enabled { get; set; } = true;
+
+    /// <summary>
+    ///     The process-wide log stream. Logging-framework adapters publish here when constructed
+    ///     without an explicit store, so a host that configures none still gets a usable stream.
+    /// </summary>
+    public static LogEventStore LogEventStore { get; } = new();
 
     static DiagnosticManager()
     {
