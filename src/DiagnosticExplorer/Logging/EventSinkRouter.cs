@@ -42,6 +42,17 @@ public sealed class EventSinkRouter
         // Compile first: CompiledRoute validates every route and destination, and CreateSnapshot
         // below projects those same destinations.
         _routes = options.Routes?.Select((route, index) => new CompiledRoute(route, index)).ToArray() ?? [];
+
+        // REPLACES the store's routing snapshot rather than merging into it, so where several
+        // routers share a store — two logging frameworks running side by side through the default
+        // DiagnosticManager.LogEventStore, which is the shape of a migration — the last one
+        // constructed is the one the client sees described. Every router still publishes; only the
+        // description is last-writer-wins. Aggregating them is a real change and not a local one:
+        // route Order is per-options so a merged table needs a global ordering, MatchMode is a
+        // single value per snapshot so two routers disagreeing cannot both be represented, and a
+        // disposed provider would have to retract its contribution. That belongs with
+        // DiagnosticConfiguration, which is where a host declares routing once. Pinned by
+        // EventSinkRouterTests so changing it has to be deliberate.
         _eventStore.ConfigureRouting(options.CreateSnapshot());
     }
 

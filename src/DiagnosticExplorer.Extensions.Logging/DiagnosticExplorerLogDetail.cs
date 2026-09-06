@@ -48,15 +48,30 @@ internal static class DiagnosticExplorerLogDetail
             detail.AppendLine($"EventId: {eventId.Id} {eventId.Name}".TrimEnd());
         }
 
-        AppendState(detail, state, "State");
-        scopeProvider?.ForEachScope((scope, builder) => AppendState(builder, scope, "Scope"), detail);
+        AppendState(detail, state, "State", includeScalar: false);
+        scopeProvider?.ForEachScope(
+            (scope, builder) => AppendState(builder, scope, "Scope", includeScalar: true),
+            detail
+        );
         return detail.Length == 0 ? null : detail.ToString().TrimEnd();
     }
 
-    private static void AppendState<TState>(StringBuilder detail, TState state, string prefix)
+    /// <param name="includeScalar">
+    ///     Whether a state that is not a property list is worth recording as a bare value.
+    ///     <c>BeginScope("RequestId=7")</c> is a normal thing to write and its correlation value is
+    ///     lost otherwise, so scopes say yes. The message state says no: a scalar there is the
+    ///     message itself, which is already the headline, and repeating it would double every
+    ///     non-templated log line.
+    /// </param>
+    private static void AppendState<TState>(StringBuilder detail, TState state, string prefix, bool includeScalar)
     {
         if (state is not IEnumerable<KeyValuePair<string, object?>> properties)
         {
+            if (includeScalar && state is not null)
+            {
+                detail.Append(prefix).Append(": ").AppendLine(state.ToString());
+            }
+
             return;
         }
 
