@@ -42,7 +42,7 @@ public enum CollectionMode
 }
 
 [AttributeUsage(AttributeTargets.Property)]
-public class CollectionPropertyAttribute : PropertyAttribute
+public class CollectionPropertyAttribute : DiagnosticPropertyAttribute
 {
     public CollectionPropertyAttribute(CollectionMode mode)
         : this(mode, null) { }

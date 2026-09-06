@@ -27,7 +27,7 @@ using System;
 namespace DiagnosticExplorer;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class ExtendedPropertyAttribute : PropertyAttribute
+public class ExtendedPropertyAttribute : DiagnosticPropertyAttribute
 {
     public ExtendedPropertyAttribute() { }
 

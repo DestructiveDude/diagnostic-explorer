@@ -72,7 +72,7 @@ internal class PropertyGetter
             CanSet = propInfo.CanWrite && classAttr.AllPropertiesSettable;
         }
 
-        PropertyAttribute propAttr = AttributeUtil.GetAttribute<PropertyAttribute>(propInfo);
+        DiagnosticPropertyAttribute propAttr = AttributeUtil.GetAttribute<DiagnosticPropertyAttribute>(propInfo);
         if (propAttr != null)
         {
             Name = propAttr.Name ?? Name;
