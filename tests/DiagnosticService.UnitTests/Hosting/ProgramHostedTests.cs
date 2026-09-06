@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Reflection;
 using AwesomeAssertions;
@@ -248,14 +248,44 @@ public sealed class ProgramHostedTests
         await agent.StartAsync(TestContext.Current.CancellationToken);
 
         var manager = factory.Services.GetRequiredService<RealtimeManager>();
-        var handler = (DiagnosticClientHandler)
-            typeof(RealtimeManager)
-                .GetMethod("GetClientHandler", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(manager, [agent.ConnectionId])!;
+        var handler = await WaitForClientHandler(manager, agent.ConnectionId!);
 
         var response = await handler.GetDiagnostics(TestContext.Current.CancellationToken);
 
         response.PropertyBags.Should().ContainSingle().Which.Name.Should().Be("agent-bag");
+    }
+
+    /// <summary>
+    ///     Waits for the SERVER to register the handler, which is not what StartAsync signals.
+    /// </summary>
+    /// <remarks>
+    ///     StartAsync completes on the handshake response; the handler is created later, inside
+    ///     DiagnosticHub.OnConnectedAsync. Reading it straight after StartAsync therefore returns
+    ///     null a fraction of the time — measured at roughly one connection in two hundred against
+    ///     this service, and a contended CI runner widens that. Polling the server's own state is
+    ///     the completion signal; the timeout is generous because it only has to bound a failure.
+    /// </remarks>
+    private static async Task<DiagnosticClientHandler> WaitForClientHandler(
+        RealtimeManager manager,
+        string connectionId
+    )
+    {
+        var getClientHandler = typeof(RealtimeManager).GetMethod(
+            "GetClientHandler",
+            BindingFlags.Instance | BindingFlags.NonPublic
+        )!;
+
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (true)
+        {
+            if (getClientHandler.Invoke(manager, [connectionId]) is DiagnosticClientHandler handler)
+            {
+                return handler;
+            }
+
+            DateTime.UtcNow.Should().BeBefore(deadline, "the hub should register the agent's handler on connect");
+            await Task.Delay(TimeSpan.FromMilliseconds(10), TestContext.Current.CancellationToken);
+        }
     }
 
     private static DiagnosticServiceFactory CreateAuthenticatedFactory()

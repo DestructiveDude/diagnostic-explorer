@@ -1,4 +1,4 @@
-﻿using AwesomeAssertions;
+using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;

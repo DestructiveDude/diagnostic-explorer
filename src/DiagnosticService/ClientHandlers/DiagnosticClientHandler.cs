@@ -1,4 +1,4 @@
-﻿using System.Reactive.Subjects;
+using System.Reactive.Subjects;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
@@ -70,24 +70,24 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
         return Invoke(_client.GetDiagnostics, cancel, _requestTimeout);
     }
 
-    // ConnectionAborted here is the AGENT's connection, not the browser's - this handler is built
-    // in DiagnosticHub.OnConnectedAsync from the agent's own context - and SignalR already faults
-    // a client result when the agent goes away. So it adds nothing, and the operation ceiling is
-    // what actually bounds these two.
+    // No caller token on these two, deliberately. The only one available is the AGENT's
+    // ConnectionAborted — this handler is built in DiagnosticHub.OnConnectedAsync from the agent's
+    // own context, not the browser's — and SignalR already faults a client result when the agent
+    // goes away. Passing it does not add a bound; it SUBTRACTS information. An operation whose
+    // agent dies mid-flight then reports "The operation was canceled." in place of SignalR's
+    // "Connection 'x' disconnected.", and a person reading "canceled" is the one most likely to
+    // retry — into the double-run described on DefaultOperationTimeout. The ceiling is what bounds
+    // these.
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return Invoke(
-            token => _client.SetProperty(path, value!, token),
-            _callerContext.ConnectionAborted,
-            _operationTimeout
-        );
+        return Invoke(token => _client.SetProperty(path, value!, token), CancellationToken.None, _operationTimeout);
     }
 
     public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
     {
         return Invoke(
             token => _client.ExecuteOperation(path, operation, arguments, token),
-            _callerContext.ConnectionAborted,
+            CancellationToken.None,
             _operationTimeout
         );
     }
