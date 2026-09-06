@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
@@ -11,26 +11,23 @@ namespace DiagnosticService.UnitTests;
 public class DiagnosticClientHandlerTests
 {
     /// <summary>
-    ///     A caller that gives up must be released at once, not held until the agent answers.
+    ///     The caller's cancellation must reach SignalR, not merely release this await.
     /// </summary>
     /// <remarks>
-    ///     SignalR client results fault when the AGENT's connection ends — which is a different
-    ///     connection from the caller's. Adopting client results therefore removed the release that
-    ///     the old ConnectionAborted registration provided, and this pins it back: the invocation
-    ///     here never completes, so the test can only pass if the caller's token is being observed.
+    ///     SignalR's typed proxy substitutes CancellationToken.None when the client interface
+    ///     declares no trailing token, and a client result invoked that way has no deadline and no
+    ///     way to be abandoned: the pending invocation lives until the AGENT's connection ends,
+    ///     which is a different connection from the caller's. The stub below cancels the way
+    ///     SignalR's ClientResultsManager does, so this test can only pass if a live token is
+    ///     being handed to the invocation.
     /// </remarks>
     [Fact]
-    public async Task GetDiagnostics_WhenTheCallerCancelsMidFlight_StopsWaitingOnTheAgent()
+    public async Task GetDiagnostics_WhenTheCallerCancelsMidFlight_CancelsTheInvocation()
     {
-        var callerContext = Substitute.For<HubCallerContext>();
-        callerContext.ConnectionId.Returns("connection-1");
-        callerContext.ConnectionAborted.Returns(CancellationToken.None);
-
         var client = Substitute.For<IDiagnosticHubClient>();
-        // Never completes: only the caller's cancellation can end the wait.
-        client.GetDiagnostics().Returns(new TaskCompletionSource<DiagnosticResponse>().Task);
+        client.GetDiagnostics(Arg.Any<CancellationToken>()).Returns(_ => NeverCompletes(_));
 
-        using var handler = new DiagnosticClientHandler(callerContext, client);
+        using var handler = new DiagnosticClientHandler(CallerContext(), client);
         using CancellationTokenSource caller = new();
 
         Task<DiagnosticResponse> pending = handler.GetDiagnostics(caller.Token);
@@ -46,20 +43,62 @@ public class DiagnosticClientHandlerTests
     [Fact]
     public async Task GetDiagnostics_WhenTheCallerHasAlreadyCancelled_Throws()
     {
-        var callerContext = Substitute.For<HubCallerContext>();
-        callerContext.ConnectionId.Returns("connection-1");
-        callerContext.ConnectionAborted.Returns(CancellationToken.None);
-
         var client = Substitute.For<IDiagnosticHubClient>();
-        client.GetDiagnostics().Returns(new TaskCompletionSource<DiagnosticResponse>().Task);
+        client.GetDiagnostics(Arg.Any<CancellationToken>()).Returns(_ => NeverCompletes(_));
 
-        using var handler = new DiagnosticClientHandler(callerContext, client);
+        using var handler = new DiagnosticClientHandler(CallerContext(), client);
         using CancellationTokenSource caller = new();
         await caller.CancelAsync();
 
         Func<Task> act = async () => await handler.GetDiagnostics(caller.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <summary>
+    ///     An agent that never sends a completion still resolves, on the request ceiling.
+    /// </summary>
+    /// <remarks>
+    ///     This is the case the deleted AsyncResultBucket covered with its 10 second timeout and
+    ///     SignalR does not: the agent is connected and healthy, it simply never answers this one
+    ///     invocation - because the response failed to frame, say. Without the ceiling the request
+    ///     loop parks forever on a connection nothing will tear down.
+    ///
+    ///     It must surface as a timeout rather than a cancellation: the request loop filters
+    ///     OperationCanceledException out of the error it pushes to the browser, so reporting it
+    ///     as cancellation would leave a healthy-looking panel of stale figures instead.
+    /// </remarks>
+    [Fact]
+    public async Task GetDiagnostics_WhenTheAgentNeverCompletes_ReportsATimeoutNotACancellation()
+    {
+        var client = Substitute.For<IDiagnosticHubClient>();
+        client.GetDiagnostics(Arg.Any<CancellationToken>()).Returns(_ => NeverCompletes(_));
+
+        using var handler = new DiagnosticClientHandler(CallerContext(), client, TimeSpan.FromMilliseconds(20));
+
+        Func<Task> act = async () => await handler.GetDiagnostics(CancellationToken.None);
+
+        await act.Should().ThrowAsync<TimeoutException>();
+    }
+
+    /// <summary>
+    ///     Stands in for SignalR's ClientResultsManager: completes only when the invocation's own
+    ///     token is cancelled, never on its own.
+    /// </summary>
+    private static Task<DiagnosticResponse> NeverCompletes(NSubstitute.Core.CallInfo call)
+    {
+        var token = call.Arg<CancellationToken>();
+        TaskCompletionSource<DiagnosticResponse> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        token.Register(() => completion.TrySetCanceled(token));
+        return completion.Task;
+    }
+
+    private static HubCallerContext CallerContext()
+    {
+        var callerContext = Substitute.For<HubCallerContext>();
+        callerContext.ConnectionId.Returns("connection-1");
+        callerContext.ConnectionAborted.Returns(CancellationToken.None);
+        return callerContext;
     }
 
     [Fact]
@@ -134,12 +173,8 @@ public class DiagnosticClientHandlerTests
 
     private static DiagnosticClientHandler CreateHandler()
     {
-        var callerContext = Substitute.For<HubCallerContext>();
-        callerContext.ConnectionId.Returns("connection-1");
-        callerContext.ConnectionAborted.Returns(CancellationToken.None);
-
         var client = Substitute.For<IDiagnosticHubClient>();
-        return new DiagnosticClientHandler(callerContext, client);
+        return new DiagnosticClientHandler(CallerContext(), client);
     }
 
     private static Task[] StartConcurrentPublishes<TState>(int count, TState state, Action<TState, int> publish)

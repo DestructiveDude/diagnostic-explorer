@@ -9,18 +9,27 @@ namespace Diagnostic.Service.ClientHandlers;
 
 public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
 {
+    /// <summary>The ceiling the deleted AsyncResultBucket applied to every request.</summary>
+    public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(10);
+
     private readonly HubCallerContext _callerContext;
     private readonly IDiagnosticHubClient _client;
     private readonly Subject<SystemEvent[]> _eventsSetSubject = new();
     private readonly Subject<SystemEvent[]> _eventsStreamedSubject = new();
     private readonly ISubject<SystemEvent[]> _eventsSet;
     private readonly ISubject<SystemEvent[]> _eventsStreamed;
+    private readonly TimeSpan _requestTimeout;
     private int _disposed;
 
-    public DiagnosticClientHandler(HubCallerContext callerContext, IDiagnosticHubClient client)
+    public DiagnosticClientHandler(
+        HubCallerContext callerContext,
+        IDiagnosticHubClient client,
+        TimeSpan? requestTimeout = null
+    )
     {
         _client = client;
         _callerContext = callerContext;
+        _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
         _eventsSet = Subject.Synchronize(_eventsSetSubject);
         _eventsStreamed = Subject.Synchronize(_eventsStreamedSubject);
         ConnectionId = callerContext.ConnectionId;
@@ -34,52 +43,61 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     // gone: SignalR correlates the invocation itself and faults it when the AGENT's connection
     // ends.
     //
-    // That is not the same connection as the caller's. A browser that disconnects mid-request
-    // would otherwise leave this await parked until the agent answers or its own connection drops,
-    // so the caller's token is still raced against the invocation below — which is what
-    // ConnectionAborted did before.
+    // What SignalR does NOT supply is the bucket's timeout, and the agent's connection is not the
+    // caller's. Both gaps close by handing SignalR a real token in place of the
+    // CancellationToken.None its typed proxy substitutes when the interface declares none: the
+    // caller's own token, so a browser that gives up releases the pending invocation instead of
+    // leaving it parked on an otherwise healthy agent, linked with a ceiling so that an agent
+    // which never sends a completion at all still resolves.
     public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return AwaitOrAbandon(_client.GetDiagnostics(), cancel);
+        return Invoke(_client.GetDiagnostics, cancel);
     }
 
     public Task<OperationResponse> SetProperty(string path, string? value)
     {
-        return AwaitOrAbandon(_client.SetProperty(path, value!), _callerContext.ConnectionAborted);
+        return Invoke(token => _client.SetProperty(path, value!, token), _callerContext.ConnectionAborted);
     }
 
     public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
     {
-        return AwaitOrAbandon(_client.ExecuteOperation(path, operation, arguments), _callerContext.ConnectionAborted);
+        return Invoke(
+            token => _client.ExecuteOperation(path, operation, arguments, token),
+            _callerContext.ConnectionAborted
+        );
     }
 
     /// <summary>
-    ///     Waits for a client result, giving up as soon as the caller cancels.
+    ///     Invokes a client result under the caller's token, bounded by the request timeout.
     /// </summary>
     /// <remarks>
-    ///     Abandons the wait, not the work: a client result cannot be cancelled mid-flight, so the
-    ///     agent still completes its invocation and SignalR still resolves it. The point is that
-    ///     the caller's request thread is released at once rather than held until the agent
-    ///     answers. The registration is disposed on every path, cancelled or not, so a long-lived
-    ///     caller token does not accumulate one per request.
+    ///     <para>
+    ///         The linked source is disposed on every path, so a long-lived caller token does not
+    ///         accumulate one registration per request.
+    ///     </para>
+    ///     <para>
+    ///         A ceiling breach is reported as a TimeoutException rather than cancellation, which
+    ///         is the distinction the AsyncResultBucket drew and the request loop still relies on:
+    ///         it filters OperationCanceledException out of the error it pushes to the browser,
+    ///         because a caller that gave up is not a fault. An agent that stopped answering IS
+    ///         one, and reporting it as cancellation would leave the browser showing a healthy
+    ///         panel of stale figures.
+    ///     </para>
     /// </remarks>
-    private static async Task<T> AwaitOrAbandon<T>(Task<T> invocation, CancellationToken cancel)
+    private async Task<T> Invoke<T>(Func<CancellationToken, Task<T>> invoke, CancellationToken cancel)
     {
-        if (!cancel.CanBeCanceled)
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        linked.CancelAfter(_requestTimeout);
+        try
         {
-            return await invocation;
+            return await invoke(linked.Token);
         }
-
-        TaskCompletionSource<bool> cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        using (cancel.Register(() => cancelled.TrySetResult(true)))
+        catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
         {
-            if (await Task.WhenAny(invocation, cancelled.Task) != (Task)invocation)
-            {
-                cancel.ThrowIfCancellationRequested();
-            }
+            throw new TimeoutException(
+                $"The agent did not answer within {_requestTimeout.TotalSeconds:F0}s on connection {ConnectionId}."
+            );
         }
-
-        return await invocation;
     }
 
     public async Task SubscribeEvents()
