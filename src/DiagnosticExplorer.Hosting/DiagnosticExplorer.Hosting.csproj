@@ -14,6 +14,9 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" />
+		<PackageReference Include="MessagePack" />
+		<PackageReference Include="TypedSignalR.Client" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" />
 	</ItemGroup>
 

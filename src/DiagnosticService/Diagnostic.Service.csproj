@@ -31,6 +31,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" />
+    <PackageReference Include="MessagePack" />
     <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="SharpCompress" />

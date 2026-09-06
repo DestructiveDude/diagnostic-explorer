@@ -8,8 +8,11 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using DiagnosticExplorer.Util;
 using log4net;
+using MessagePack;
+using MessagePack.Resolvers;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DiagnosticExplorer;
 
@@ -252,6 +255,16 @@ public class RegistrationHandler
                     }
                 }
             )
+            // The agent channel speaks MessagePack, which is what replaces the protobuf-plus-gzip
+            // framing this transport used to apply by hand. Contractless keeps the DTOs free of
+            // serialization attributes; the resolver and security profile must match the service's
+            // registration exactly or negotiation succeeds and deserialization then fails.
+            .AddMessagePackProtocol(options =>
+            {
+                options.SerializerOptions = MessagePackSerializerOptions
+                    .Standard.WithResolver(ContractlessStandardResolver.Instance)
+                    .WithSecurity(MessagePackSecurity.UntrustedData);
+            })
             .Build();
 
         connection.Closed += HandleClosed;
