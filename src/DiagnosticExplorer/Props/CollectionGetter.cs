@@ -17,9 +17,16 @@ internal class CollectionGetter : PropertyGetter
     private readonly Func<object, object> _valueFunc;
     private readonly Func<object, object> _descrFunc;
     private readonly Func<object, object> _catFunc;
+    private readonly bool _initiallyExpanded;
+    private readonly NestedPropertyRenderMode _itemRenderMode;
 
     public CollectionGetter(PropertyInfo info, CollectionPropertyAttribute attr, bool isStatic)
         : this(info, attr.CreateOptions(), attr, null, isStatic) { }
+
+    /// <summary>
+    ///     False for ExpandedItems, which contributes categories rather than a property of its own.
+    /// </summary>
+    internal override bool IsDirectProperty => _mode != CollectionMode.ExpandedItems;
 
     /// <summary>
     ///     Driven by <see cref="CollectionOptions" /> rather than the attribute directly, so an
@@ -65,6 +72,10 @@ internal class CollectionGetter : PropertyGetter
             _catFunc = PropertyToFunction(GetListProperty(info, attr.CategoryProperty), isStatic);
         }
         _maxItems = attr.MaxItems;
+        _initiallyExpanded = attr.InitiallyExpanded;
+        _itemRenderMode = attr.PrimaryPropertiesOnly
+            ? NestedPropertyRenderMode.PrimaryOnly
+            : NestedPropertyRenderMode.All;
     }
 
     public interface IDictPropGetter
@@ -205,6 +216,11 @@ internal class CollectionGetter : PropertyGetter
                         );
                     }
                     break;
+                case CollectionMode.ExpandedItems:
+                    AppendExpandedItems(col, bag, catPrepend, obj, wasTruncated);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unsupported collection mode '{_mode}'.");
             }
         }
         catch (Exception ex)
@@ -212,6 +228,105 @@ internal class CollectionGetter : PropertyGetter
             string error = $"<{ex.Message}>";
             bag.AddProperty(new Property(Name, error), PrependToCategory(catPrepend));
         }
+    }
+
+    /// <summary>
+    ///     Renders the collection as one expanded category per item, each holding that item's own
+    ///     properties inline rather than a nested value.
+    /// </summary>
+    /// <remarks>
+    ///     Carries the same cycle and depth guards as <see cref="AppendSeparateCategories" />: this
+    ///     mode recurses into arbitrary object graphs through
+    ///     <see cref="NestedPropertyRenderer" />, so a self-referencing item would otherwise recurse
+    ///     until the stack gives out. Upstream's equivalent has no such guard.
+    /// </remarks>
+    private void AppendExpandedItems(
+        IEnumerable col,
+        PropertyBag bag,
+        string catPrepend,
+        object owner,
+        bool wasTruncated
+    )
+    {
+        // An inline custom projection is already writing into the caller's category, so nesting
+        // another level under the property name would bury it.
+        bool isInlineProjection = owner is IInlineCustomObject;
+        string category = isInlineProjection
+            ? catPrepend
+            : CombineCategories(PrependToCategory(catPrepend, owner), GetName(owner));
+
+        int index = 0;
+        HashSet<object> visited = DiagnosticManager.VisitedObjects;
+        foreach (object listObject in col)
+        {
+            if (listObject == null)
+            {
+                continue;
+            }
+
+            string itemName = Convert.ToString(GetNextPropVal(listObject, _catFunc ?? _nameFunc, index++));
+            string itemCategory = CombineCategories(category, itemName);
+
+            if (TryAddRecursionGuardProperty(listObject, bag, itemCategory, visited))
+            {
+                continue;
+            }
+
+            visited.Add(listObject);
+            try
+            {
+                NestedPropertyRenderer.Render(listObject, bag, itemCategory, _itemRenderMode);
+            }
+            finally
+            {
+                visited.Remove(listObject);
+            }
+
+            Category item = bag.Categories.FindByName(itemCategory);
+            item?.ValueObject = listObject;
+        }
+
+        if (!isInlineProjection)
+        {
+            Category expandedCategory = bag.FindOrCreateCategory(category);
+            expandedCategory.IsExpanded = _initiallyExpanded;
+            expandedCategory.IsExpandedProperty = true;
+        }
+
+        if (wasTruncated)
+        {
+            bag.AddProperty(new Property("...", "Truncated at 10000 items"), CombineCategories(category, "..."));
+        }
+    }
+
+    /// <summary>
+    ///     Writes a placeholder and reports true when an item must not be recursed into, either
+    ///     because it is already on the current path or because the walk is too deep.
+    /// </summary>
+    private static bool TryAddRecursionGuardProperty(
+        object listObject,
+        PropertyBag bag,
+        string itemCategory,
+        HashSet<object> visited
+    )
+    {
+        string guard = null;
+        if (visited.Contains(listObject))
+        {
+            guard = "<cycle>";
+        }
+        else if (visited.Count > 50)
+        {
+            guard = "<max depth>";
+        }
+
+        if (guard == null)
+        {
+            return false;
+        }
+
+        bag.AddProperty(new Property { Name = guard, SourceObject = listObject }, itemCategory);
+        return true;
     }
 
     [SuppressMessage(
