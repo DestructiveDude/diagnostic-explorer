@@ -107,10 +107,20 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     ///         leave a healthy-looking panel of stale figures.
     ///     </para>
     ///     <para>
-    ///         Neither outcome can be matched on its exception type. Cancelling a client result
-    ///         raises HubException("Invocation canceled by the server."), not
+    ///         Which of the two it is cannot be read off the exception type. Cancelling a client
+    ///         result raises HubException("Invocation canceled by the server."), not
     ///         OperationCanceledException, whichever token did the cancelling - observed against a
-    ///         real hub, so the token state is the only thing that distinguishes them.
+    ///         real hub - so only the token state separates them.
+    ///     </para>
+    ///     <para>
+    ///         Token state alone is not enough to decide there WAS a cancellation, though. An agent
+    ///         fault that arrives while the token happens to be cancelled is a real fault and must
+    ///         travel: relabelling it would make RunLoop drop it and leave the browser with no sign
+    ///         of it. So the exception must also be cancellation-shaped. Both shapes are admitted -
+    ///         a token cancelled after the invocation is sent comes back as HubException, one
+    ///         already cancelled when it is issued never reaches the agent and fails locally as
+    ///         OperationCanceledException - and the original is kept as the inner exception either
+    ///         way.
     ///     </para>
     /// </remarks>
     private async Task<T> Invoke<T>(Func<CancellationToken, Task<T>> invoke, CancellationToken cancel, TimeSpan timeout)
@@ -121,17 +131,20 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
         {
             return await invoke(linked.Token);
         }
-        catch (Exception) when (cancel.IsCancellationRequested)
+        catch (Exception ex) when (IsCancellationShaped(ex) && cancel.IsCancellationRequested)
         {
-            throw new OperationCanceledException(cancel);
+            throw new OperationCanceledException("The caller stopped waiting for the agent.", ex, cancel);
         }
-        catch (Exception) when (linked.IsCancellationRequested)
+        catch (Exception ex) when (IsCancellationShaped(ex) && linked.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"The agent did not answer within {timeout.TotalSeconds:F0}s on connection {ConnectionId}."
+                $"The agent did not answer within {timeout.TotalSeconds:F0}s on connection {ConnectionId}.",
+                ex
             );
         }
     }
+
+    private static bool IsCancellationShaped(Exception ex) => ex is HubException or OperationCanceledException;
 
     public async Task SubscribeEvents()
     {
