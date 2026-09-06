@@ -123,6 +123,46 @@ public sealed class FluentConfigurationTests : IDisposable
         Render(new Widget()).Select(p => p.Name).Should().Contain("Summary");
     }
 
+    /// <summary>
+    ///     DiagnosticManager.Enabled is a public, directly-settable toggle. Applying a configuration
+    ///     that says nothing about it must leave it alone — otherwise a host that turned diagnostics
+    ///     off, then reconfigured something unrelated, would silently have them switched back on.
+    /// </summary>
+    [Fact]
+    public void UseConfiguration_SayingNothingAboutEnabled_LeavesItAlone()
+    {
+        bool original = DiagnosticManager.Enabled;
+        try
+        {
+            DiagnosticManager.Enabled = false;
+
+            DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+
+            DiagnosticManager.Enabled.Should().BeFalse();
+        }
+        finally
+        {
+            DiagnosticManager.Enabled = original;
+        }
+    }
+
+    /// <summary>And it is still applied when the configuration does say so.</summary>
+    [Fact]
+    public void UseConfiguration_ConfiguringEnabled_AppliesIt()
+    {
+        bool original = DiagnosticManager.Enabled;
+        try
+        {
+            DiagnosticManager.Configure(c => c.ConfigureHosting(h => h.Enabled(false)));
+
+            DiagnosticManager.Enabled.Should().BeFalse();
+        }
+        finally
+        {
+            DiagnosticManager.Enabled = original;
+        }
+    }
+
     [Fact]
     public void Configure_WithoutAConfigureAction_Throws()
     {

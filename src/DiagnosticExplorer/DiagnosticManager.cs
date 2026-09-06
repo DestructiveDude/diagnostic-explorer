@@ -24,9 +24,13 @@ public static class DiagnosticManager
     private static int _operationSetId;
     public static bool Enabled { get; set; } = true;
 
-    public const string EnabledConfigurationKey = "DiagnosticExplorer:Enabled";
-
     private static DiagnosticConfigurationSnapshot _configuration = DiagnosticConfigurationSnapshot.Empty;
+
+    /// <summary>
+    ///     Bumped by every <see cref="UseConfiguration" /> and stamped into the getter cache key, so
+    ///     entries built under a superseded configuration can never be read back.
+    /// </summary>
+    private static int _configurationVersion;
 
     /// <summary>The configuration currently in force. Replaced wholesale by <see cref="UseConfiguration" />.</summary>
     public static DiagnosticConfiguration CurrentConfiguration { get; private set; } = new();
@@ -62,7 +66,15 @@ public static class DiagnosticManager
 
         CurrentConfiguration = configuration;
         _configuration = configuration.CreateSnapshot();
-        Enabled = configuration.RuntimeOptions.Enabled;
+
+        // Only when the configuration actually says so. Enabled is a public, directly-settable
+        // toggle, so assigning it unconditionally would silently switch diagnostics back on for a
+        // host that had turned them off and then reconfigured something unrelated.
+        if (configuration.RuntimeOptions.EnabledIsSet)
+        {
+            Enabled = configuration.RuntimeOptions.Enabled;
+        }
+
         LogEventStore.Configure(
             configuration.RuntimeOptions.LogEventRetention,
             configuration.RuntimeOptions.Routing.CreateSnapshot()
@@ -71,6 +83,7 @@ public static class DiagnosticManager
         // Upstream also pushes RuntimeOptions.EventRetention into EventSinkRepo here. That needs
         // the EventSink retention rework, which is still unported, so event-sink retention keeps
         // its existing behaviour and only the log stream is retuned.
+        Interlocked.Increment(ref _configurationVersion);
         _typeHash.Clear();
     }
 
@@ -510,9 +523,17 @@ public static class DiagnosticManager
         // ConcurrentDictionary.GetOrAdd makes the cache thread-safe (the build path runs
         // on the thread pool via the hub adapter). The factory is idempotent; a redundant
         // build under contention is harmless because only one list is stored.
+        //
+        // The key carries the configuration version because clearing the cache is not enough on
+        // its own: a thread already inside GetOrAdd with the previous snapshot can insert its
+        // getters just after UseConfiguration clears, leaving that type stale until the next
+        // reconfiguration. Stamping the version means such a write lands under the old key and is
+        // simply never read again.
+        int version = Volatile.Read(ref _configurationVersion);
+        string versionedKey = version + ":" + typeKey;
         Type resolvedType = type;
         bool isStatic = obj is Type;
-        return _typeHash.GetOrAdd(typeKey, _ => BuildPropertyGetters(resolvedType, isStatic));
+        return _typeHash.GetOrAdd(versionedKey, _ => BuildPropertyGetters(resolvedType, isStatic));
     }
 
     /// <summary>

@@ -123,7 +123,9 @@ public sealed class DiagnosticConfiguration : IDiagConfigurator
                     [typeof(IDiagConfigurator)],
                     null
                 );
-                if (method?.ReturnType != typeof(void))
+                // Written as an explicit null test rather than method?.ReturnType, which guards the
+                // Invoke below just as well but reads to an analyzer as an unguarded dereference.
+                if (method == null || method.ReturnType != typeof(void))
                 {
                     continue;
                 }
@@ -202,6 +204,13 @@ public sealed class DiagnosticConfiguration : IDiagConfigurator
 public sealed class DiagnosticRuntimeOptions : IDiagnosticHostingConfigurator
 {
     public bool Enabled { get; private set; } = true;
+
+    /// <summary>
+    ///     Whether a host actually configured <see cref="Enabled" />, as opposed to leaving the
+    ///     default. DiagnosticManager.Enabled is separately settable, so applying a configuration
+    ///     must not overwrite it unless the configuration says something about it.
+    /// </summary>
+    internal bool EnabledIsSet { get; private set; }
     public List<DiagnosticHostOptions> Hosts { get; } = [];
     public EventRetentionOptions EventRetention { get; } = new();
     public SystemEnvironmentOptions SystemEnvironment { get; } = new();
@@ -211,6 +220,7 @@ public sealed class DiagnosticRuntimeOptions : IDiagnosticHostingConfigurator
     IDiagnosticHostingConfigurator IDiagnosticHostingConfigurator.Enabled(bool enabled)
     {
         Enabled = enabled;
+        EnabledIsSet = true;
         return this;
     }
 
