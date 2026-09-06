@@ -19,6 +19,19 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     private readonly object _eventLock = new();
 
     // _requestGate serializes the three client results against each other. See Run.
+    //
+    // Deliberately never disposed. RegistrationHandler.DisposeConnection disposes the adapter
+    // while the connection is still up, so an invocation that arrived a moment earlier can still
+    // be inside Run; disposing the semaphore under it would make Release throw
+    // ObjectDisposedException from the finally and replace whatever the request actually returned.
+    // SemaphoreSlim only needs disposing once AvailableWaitHandle has been touched, which nothing
+    // here does, so not disposing it removes the race rather than catching it.
+    [SuppressMessage(
+        "Design",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "See the comment above: disposing it would introduce a teardown race, and "
+            + "SemaphoreSlim allocates nothing to dispose unless AvailableWaitHandle is used."
+    )]
     private readonly SemaphoreSlim _requestGate = new(1, 1);
 
     private readonly HubConnection _hubConn;
@@ -31,9 +44,11 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
         // Registered through the value-returning On overloads, which is what makes these client
         // results rather than one-way notifications.
-        // The service's typed proxy strips the trailing CancellationToken from the wire
-        // arguments (TypedClientBuilder), so these handlers still receive only the declared ones.
-        // The token bounds the caller's wait, not the agent's work.
+        //
+        // CancellationToken.None is not a shortcut, it is the only value available: the service's
+        // typed proxy strips the trailing token from the wire arguments (TypedClientBuilder), so
+        // an agent never learns that its caller gave up. The token on IDiagnosticHubClient bounds
+        // the SERVICE's wait; the agent always runs the work to completion.
         _hubConn.On<DiagnosticResponse>(
             nameof(IDiagnosticHubClient.GetDiagnostics),
             () => GetDiagnostics(CancellationToken.None)
@@ -85,14 +100,17 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     //
     // All three go through Run, which puts them on the thread pool and serializes them; see its
     // remarks for why each half is needed.
+    // cancel is unused by design, and unusable: see the handler registrations in the
+    // constructor. It is on the interface because the SERVICE needs somewhere to put the caller's
+    // token, and it never crosses the wire.
     public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.GetDiagnostics(), cancel);
+        return Run(() => DiagnosticManager.GetDiagnostics());
     }
 
     public Task<OperationResponse> SetProperty(string path, string value, CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.SetProperty(path, value), cancel);
+        return Run(() => DiagnosticManager.SetProperty(path, value));
     }
 
     public Task<OperationResponse> ExecuteOperation(
@@ -102,7 +120,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         CancellationToken cancel
     )
     {
-        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments), cancel);
+        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments));
     }
 
     /// <summary>
@@ -139,9 +157,12 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             + "fail the invocation so the service sees the failure at all. Wrapping instead would "
             + "hide the original type from the caller."
     )]
-    private async Task<T> Run<T>(Func<T> work, CancellationToken cancel)
+    private async Task<T> Run<T>(Func<T> work)
     {
-        await _requestGate.WaitAsync(cancel).ConfigureAwait(false);
+        // No token: nothing here can be cancelled. The agent never receives the caller's token,
+        // and work() is synchronous reflection that does not observe one either. A queued request
+        // waits for the one ahead of it; the SERVICE bounds how long its own caller waits.
+        await _requestGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             return await Task.Run(
@@ -170,7 +191,6 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     public void Dispose()
     {
         UnsubscribeEvents();
-        _requestGate.Dispose();
     }
 
     private void StopEventStreamNoLock()
