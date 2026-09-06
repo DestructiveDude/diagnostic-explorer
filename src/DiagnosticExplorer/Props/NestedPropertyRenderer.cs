@@ -19,12 +19,17 @@ internal static class NestedPropertyRenderer
 {
     public static void Render(object value, PropertyBag bag, string category, NestedPropertyRenderMode mode)
     {
-        foreach (PropertyGetter getter in DiagnosticManager.GetPropertyGetters(value))
+        // The mode is loop-invariant, so it selects the sequence once rather than being re-tested
+        // for every getter.
+        IEnumerable<PropertyGetter> getters = DiagnosticManager.GetPropertyGetters(value);
+        if (mode != NestedPropertyRenderMode.All)
         {
-            if (mode == NestedPropertyRenderMode.All || getter.IsDirectProperty && getter.IsInGeneralCategory(value))
-            {
-                getter.GetProperties(value, bag, category);
-            }
+            getters = getters.Where(getter => getter.IsDirectProperty && getter.IsInGeneralCategory(value));
+        }
+
+        foreach (PropertyGetter getter in getters)
+        {
+            getter.GetProperties(value, bag, category);
         }
     }
 }
