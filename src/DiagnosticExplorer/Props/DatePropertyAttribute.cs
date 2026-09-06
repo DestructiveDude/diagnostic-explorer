@@ -27,7 +27,7 @@ using System;
 namespace DiagnosticExplorer;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class DatePropertyAttribute : PropertyAttribute
+public class DatePropertyAttribute : DiagnosticPropertyAttribute
 {
     public DatePropertyAttribute()
         : this(null) { }

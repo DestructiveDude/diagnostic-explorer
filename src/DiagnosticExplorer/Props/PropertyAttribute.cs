@@ -21,51 +21,33 @@
 // http://diagexplorer.sourceforge.net/
 
 #endregion
-
 using System;
 
 namespace DiagnosticExplorer;
 
+/// <summary>
+///     The former name of <see cref="DiagnosticPropertyAttribute" />, kept so existing call sites
+///     keep compiling. Prefer <see cref="DiagnosticPropertyAttribute" /> in new code.
+/// </summary>
+/// <remarks>
+///     This is a subclass rather than a type alias because attribute discovery runs through
+///     <c>GetCustomAttributes(typeof(DiagnosticPropertyAttribute), false)</c>, which matches any
+///     assignable attribute type. A property marked <c>[Property]</c> is therefore found by the same
+///     query as one marked <c>[DiagnosticProperty]</c>, with no branch anywhere in the pipeline. The
+///     consuming estate has upwards of 300 such call sites; the alternative was a mechanical rename
+///     across all of them for no behavioural gain.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Property)]
-public class PropertyAttribute : Attribute
+public class PropertyAttribute : DiagnosticPropertyAttribute
 {
-    private bool _allowSet;
-
     public PropertyAttribute() { }
 
     public PropertyAttribute(string name)
-        : this(name, null) { }
+        : base(name) { }
 
     public PropertyAttribute(string name, string category)
-        : this(name, category, null) { }
+        : base(name, category) { }
 
     public PropertyAttribute(string name, string category, string description)
-    {
-        Ignore = false;
-        Name = name;
-        Category = category;
-        Description = description;
-    }
-
-    public bool Ignore { get; set; }
-
-    public string Name { get; set; }
-
-    public string FormatString { get; set; }
-
-    public string Category { get; set; }
-
-    public string Description { get; set; }
-
-    public bool AllowSet
-    {
-        get => _allowSet;
-        set
-        {
-            _allowSet = value;
-            AllowSetSpecified = true;
-        }
-    }
-
-    internal bool AllowSetSpecified { get; private set; }
+        : base(name, category, description) { }
 }

@@ -416,7 +416,7 @@ public static class DiagnosticManager
         {
             Type underlying = GetUnderlyingType(info.PropertyType);
 
-            PropertyAttribute propAttr = GetAttribute<PropertyAttribute>(info);
+            DiagnosticPropertyAttribute propAttr = GetAttribute<DiagnosticPropertyAttribute>(info);
 
             if (propAttr is CollectionPropertyAttribute colPropAttr)
             {
@@ -529,7 +529,7 @@ public static class DiagnosticManager
 
         bool attributedOnly = diagAttr is { AttributedPropertiesOnly: true };
         BrowsableAttribute browseAttr = GetAttribute<BrowsableAttribute>(info);
-        PropertyAttribute propAttr = GetAttribute<PropertyAttribute>(info);
+        DiagnosticPropertyAttribute propAttr = GetAttribute<DiagnosticPropertyAttribute>(info);
 
         if (propAttr != null)
         {

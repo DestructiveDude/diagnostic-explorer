@@ -27,7 +27,7 @@ using System;
 namespace DiagnosticExplorer;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class RatePropertyAttribute : PropertyAttribute
+public class RatePropertyAttribute : DiagnosticPropertyAttribute
 {
     public RatePropertyAttribute()
         : this(null) { }
