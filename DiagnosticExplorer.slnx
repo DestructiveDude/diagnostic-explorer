@@ -31,7 +31,10 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/ConsoleApp/ConsoleApp.csproj" />
+    <Project Path="src/DiagnosticExplorer.Extensions.Logging/DiagnosticExplorer.Extensions.Logging.csproj" />
     <Project Path="src/DiagnosticExplorer.Hosting/DiagnosticExplorer.Hosting.csproj" />
+    <Project Path="src/DiagnosticExplorer.NLog/DiagnosticExplorer.NLog.csproj" />
+    <Project Path="src/DiagnosticExplorer.Serilog/DiagnosticExplorer.Serilog.csproj" />
     <Project Path="src/DiagnosticExplorer/DiagnosticExplorer.csproj">
       <Build Solution="*|x86" Project="false" />
     </Project>

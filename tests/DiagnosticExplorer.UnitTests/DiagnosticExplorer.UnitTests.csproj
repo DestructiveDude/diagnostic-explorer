@@ -21,6 +21,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DiagnosticExplorer\DiagnosticExplorer.csproj" />
+    <ProjectReference Include="..\..\src\DiagnosticExplorer.Extensions.Logging\DiagnosticExplorer.Extensions.Logging.csproj" />
+    <ProjectReference Include="..\..\src\DiagnosticExplorer.NLog\DiagnosticExplorer.NLog.csproj" />
+    <ProjectReference Include="..\..\src\DiagnosticExplorer.Serilog\DiagnosticExplorer.Serilog.csproj" />
     <ProjectReference Include="..\..\src\DiagnosticExplorer.Hosting\DiagnosticExplorer.Hosting.csproj" />
   </ItemGroup>
 

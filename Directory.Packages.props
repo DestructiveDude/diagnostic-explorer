@@ -30,6 +30,7 @@
         <PackageVersion Include="Microsoft.Extensions.Configuration.FileExtensions" Version="8.0.1" />
         <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
         <PackageVersion Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+        <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.0" />
         <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
         <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
         <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="6.0.0" />
@@ -40,6 +41,8 @@
         <PackageVersion Include="Grpc.Net.Client" Version="2.66.0" />
         <PackageVersion Include="MongoDB.Driver" Version="2.29.0" />
         <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageVersion Include="NLog" Version="5.4.0" />
+        <PackageVersion Include="Serilog" Version="3.1.1" />
         <PackageVersion Include="log4net" Version="3.3.1" />
         <PackageVersion Include="protobuf-net" Version="3.2.30" />
         <PackageVersion Include="SharpCompress" Version="0.48.1" />
