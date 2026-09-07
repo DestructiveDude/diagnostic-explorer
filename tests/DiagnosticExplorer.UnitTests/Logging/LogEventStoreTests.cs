@@ -324,6 +324,34 @@ public class LogEventStoreTests
             .Be(EventSinkRouteMatchMode.FirstMatch, "a fresh subscription carries the new routing");
     }
 
+    /// <summary>
+    ///     Configure changes the routing too, so it has to supersede as well.
+    /// </summary>
+    /// <remarks>
+    ///     Covered separately from ConfigureRouting rather than assumed: the two are different
+    ///     entry points that happen to share a private helper, and a change breaking only this one
+    ///     — reordering the prune and the supersede, or dropping the call — would otherwise leave
+    ///     subscribers on stale routing with nothing red.
+    /// </remarks>
+    [Fact]
+    public async Task Configure_WithALiveSubscription_EndsItAsSuperseded()
+    {
+        var store = new LogEventStore();
+        using var subscription = store.CreateSubscription();
+
+        store.Configure(
+            new LogEventRetentionOptions().WithMaxEvents(7),
+            new LogStreamRoutingConfiguration { MatchMode = EventSinkRouteMatchMode.FirstMatch }
+        );
+
+        await subscription.Events.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        subscription.EndReason.Should().Be(SubscriptionEndReason.Superseded);
+
+        var fresh = store.CreateSubscription().Initialization!;
+        fresh.Routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
+        fresh.MaxEvents.Should().Be(7, "a fresh subscription carries the new retention as well");
+    }
+
     /// <summary>A dropped subscriber is reported as an overrun, which is not routine.</summary>
     [Fact]
     public async Task Publish_WhenASubscriberCannotKeepUp_EndsItAsOverrun()
