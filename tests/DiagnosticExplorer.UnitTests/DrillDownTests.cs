@@ -450,9 +450,14 @@ public sealed class DrillDownTests : IDisposable
         DiagnosticManager.Configure(c => c.Configure<Host>(t => t.Property(h => h.Engine).WithDrillDown()));
 
         // Matched by signature, taken from the drilldown's own response: an operation set that did
-        // not survive the drilldown render would leave nothing to invoke.
+        // not survive the drilldown render would leave nothing to invoke. Selected by name rather
+        // than by Single(), because the drilled object renders its nested objects and their
+        // operation sets too.
         DrillDownResponse drillDown = DrillTo(host, "Svc|Host||Engine");
-        string signature = drillDown.Diagnostics.OperationSets.Single().Operations.Single().Signature;
+        string signature = drillDown
+            .Diagnostics.OperationSets.SelectMany(set => set.Operations)
+            .Select(operation => operation.Signature)
+            .Single(sig => sig.StartsWith(nameof(Engine.Restart), StringComparison.Ordinal));
         OperationResponse response = DiagnosticManager.ExecuteOperation(
             Registered(host),
             ["Svc|Host||Engine"],
@@ -464,6 +469,110 @@ public sealed class DrillDownTests : IDisposable
         response.IsSuccess.Should().BeTrue();
         host.Engine.RestartCount.Should().Be(1);
         host.RestartCount.Should().Be(0);
+    }
+
+    /// <summary>
+    ///     An operation inside a drilldown resolves its path by re-rendering the drilled object,
+    ///     and that render has to use the drilldown configuration. The popup is the fuller of the
+    ///     two views, so the object an operation runs on is routinely one only that configuration
+    ///     places where the path names it.
+    /// </summary>
+    /// <remarks>
+    ///     The category here exists ONLY under <c>ConfigureDrillDown</c>. Rendered in the main
+    ///     view's mode the path cannot resolve at all, which is what separates this from the
+    ///     bag-level case where both modes yield the same object.
+    /// </remarks>
+    [Fact]
+    public void ExecuteOperation_InsideADrillDown_ResolvesAPathOnlyTheDrillDownConfigurationExposes()
+    {
+        Host host = new();
+        DiagnosticManager.Configure(c =>
+        {
+            c.Configure<Host>(t => t.Property(h => h.Engine).WithDrillDown());
+            c.ConfigureDrillDown<Engine>(t => t.Property(e => e.Vendor).WithCategory("Deep"));
+        });
+
+        OperationResponse response = DiagnosticManager.ExecuteOperation(
+            Registered(host),
+            ["Svc|Host||Engine"],
+            "DrillDown|Engine|Deep|Vendor",
+            "Refresh()",
+            []
+        );
+
+        response.ErrorMessage.Should().BeNull();
+        response.IsSuccess.Should().BeTrue();
+        host.Engine.Vendor.RefreshCount.Should().Be(1);
+    }
+
+    /// <summary>
+    ///     An item path names a position, and a position is not an identity. If the host drops an
+    ///     earlier item between the render and the action, the same index points at a different
+    ///     object - so the path must stop resolving rather than quietly address its neighbour.
+    /// </summary>
+    [Fact]
+    public void SetProperty_ThroughAnItemPathWhoseCollectionShifted_FailsRatherThanHittingItsNeighbour()
+    {
+        Host host = new();
+        DiagnosticManager.Configure(c =>
+        {
+            c.Configure<Host>(t => t.Property(h => h.Orders).WithDrillDown());
+            c.ConfigureDrillDown<Order>(t => t.Property(o => o.Status).AllowSet());
+        });
+
+        // The path the browser would have been handed for the third order.
+        string itemPath = ItemPath(DrillTo(host, "Svc|Host||Orders"), 2);
+        Order intendedTarget = host.Orders[2];
+        Order neighbour = host.Orders[3];
+
+        host.Orders.RemoveAt(0);
+
+        OperationResponse response = DiagnosticManager.SetProperty(
+            Registered(host),
+            ["Svc|Host||Orders", itemPath],
+            "DrillDown|Order||Status",
+            "Cancelled"
+        );
+
+        response.IsSuccess.Should().BeFalse();
+        intendedTarget.Status.Should().Be("New");
+        neighbour.Status.Should().Be("New");
+    }
+
+    /// <summary>The fence must not cost an unchanged collection its ordinary resolution.</summary>
+    [Fact]
+    public void SetProperty_ThroughAnItemPathOnAnUnchangedCollection_WritesToThatItem()
+    {
+        Host host = new();
+        DiagnosticManager.Configure(c =>
+        {
+            c.Configure<Host>(t => t.Property(h => h.Orders).WithDrillDown());
+            c.ConfigureDrillDown<Order>(t => t.Property(o => o.Status).AllowSet());
+        });
+
+        string itemPath = ItemPath(DrillTo(host, "Svc|Host||Orders"), 2);
+
+        OperationResponse response = DiagnosticManager.SetProperty(
+            Registered(host),
+            ["Svc|Host||Orders", itemPath],
+            "DrillDown|Order||Status",
+            "Cancelled"
+        );
+
+        response.ErrorMessage.Should().BeNull();
+        host.Orders[2].Status.Should().Be("Cancelled");
+        host.Orders[3].Status.Should().Be("New");
+    }
+
+    /// <summary>
+    ///     The fence rides in the item name, so it must survive the round trip a client makes:
+    ///     read the bag's category and name, join them into a path, send it back.
+    /// </summary>
+    private static string ItemPath(DrillDownResponse response, int index)
+    {
+        PropertyBag bag = response.Diagnostics.PropertyBags[index];
+        bag.Name.Should().Contain(DiagnosticManager.ItemFenceSeparator.ToString());
+        return $"{bag.Category}|{bag.Name}";
     }
 
     private sealed class Host
@@ -498,6 +607,10 @@ public sealed class DrillDownTests : IDisposable
     {
         public string Name { get; set; } = "";
         public string Contact { get; set; } = "sales@example.com";
+        public int RefreshCount { get; private set; }
+
+        [DiagnosticMethod]
+        public void Refresh() => RefreshCount++;
     }
 
     private sealed class Order

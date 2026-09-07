@@ -4,8 +4,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -1457,9 +1459,21 @@ public static class DiagnosticManager
     /// <param name="registeredObjects">The objects to search within</param>
     /// <param name="ident">Identifies the BagCat/BagName/PropCat/PropName we are searching for</param>
     /// <returns>An object which represents the Bag/PropCat/Prop, or exception if not found</returns>
+    /// <summary>
+    ///     Resolves an operation's path to the object it names.
+    /// </summary>
+    /// <remarks>
+    ///     Reads the ambient render mode rather than assuming the main view, for the same reason
+    ///     <see cref="GetPropertyGetters" /> does: an operation triggered inside a drilldown names
+    ///     its target in the drilldown's own diagnostics, and a category or property that only the
+    ///     drilldown configuration places there does not exist in a main-view render. Assuming
+    ///     Normal here would re-render the drilled object under the wrong configuration and fail
+    ///     the lookup for an operation the UI had just offered.
+    /// </remarks>
     private static object GetSourceObject(IEnumerable<RegisteredObject> registeredObjects, PropIdent ident)
     {
-        return GetSourceTarget(registeredObjects, ident, DiagnosticRenderMode.Normal, DrillDownAccess.None).Value;
+        DiagnosticRenderMode renderMode = _renderMode.Value ?? DiagnosticRenderMode.Normal;
+        return GetSourceTarget(registeredObjects, ident, renderMode, DrillDownAccess.None).Value;
     }
 
     /// <summary>
@@ -1492,7 +1506,7 @@ public static class DiagnosticManager
         PropertyBag bag = GetRegisteredObject(registeredObjects, ident, renderMode);
         if (string.IsNullOrEmpty(ident.PropCategory) && string.IsNullOrEmpty(ident.PropName))
         {
-            return GetBagTarget(bag, ident, access);
+            return GetBagTarget(bag, ident, access, renderMode);
         }
         Category cat = bag.Categories.FindByName(ident.PropCategory);
         if (cat == null)
@@ -1506,7 +1520,30 @@ public static class DiagnosticManager
             : GetPropertyTarget(cat, ident, access);
     }
 
-    private static DrillDownTarget GetBagTarget(PropertyBag bag, PropIdent ident, DrillDownAccess access)
+    /// <summary>
+    ///     Resolves a hop that names a whole bag rather than a property inside one.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The host's opt-in is checked on the OUTERMOST hop only, and that is the whole of the
+    ///         gate: it is what stops a request naming a bag the UI never offered.
+    ///     </para>
+    ///     <para>
+    ///         An inner hop is a different question. The bags a chain resolves against after the
+    ///         first are the ones the previous hop just produced - the items of a collection the
+    ///         operator already has open, each rendered in drilldown mode and so reporting
+    ///         <see cref="PropertyBag.CanDrillDown" /> false because it IS the thing being looked
+    ///         at. Requiring the flag there would refuse every action on a list item and every
+    ///         drilldown from a list into one of its rows, which is the ordinary interaction, while
+    ///         granting no access the already-gated outer hop had not granted.
+    ///     </para>
+    /// </remarks>
+    private static DrillDownTarget GetBagTarget(
+        PropertyBag bag,
+        PropIdent ident,
+        DrillDownAccess access,
+        DiagnosticRenderMode renderMode
+    )
     {
         if (bag.SourceObject == null)
         {
@@ -1514,10 +1551,8 @@ public static class DiagnosticManager
                 $"Can't invoke operation. Property bag {ident.BagCategory}|{ident.BagName} doesn't have a value.";
             throw new ArgumentException(msg);
         }
-        // A bag rendered inside a drilldown reports CanDrillDown false, because the operator is
-        // already looking at it. Only the outermost hop of a chain addresses a bag, and that one is
-        // rendered in Normal mode, so the flag is set where it is read.
-        if (access != DrillDownAccess.None && !bag.CanDrillDown)
+        bool outermost = renderMode == DiagnosticRenderMode.Normal;
+        if (access != DrillDownAccess.None && outermost && !bag.CanDrillDown)
         {
             throw new ArgumentException($"{ident.BagCategory}|{ident.BagName} is not available for drilldown.");
         }
@@ -1805,13 +1840,9 @@ public static class DiagnosticManager
     )
     {
         Dictionary<string, DrillDownEventViewDefinition> views = new(StringComparer.OrdinalIgnoreCase);
-        foreach (RegisteredObject registeredObject in registeredObjects)
+        // A registered object held weakly can have been collected since the caller took the list.
+        foreach (object target in registeredObjects.Select(o => o?.Object).Where(o => o != null))
         {
-            object target = registeredObject?.Object;
-            if (target == null)
-            {
-                continue;
-            }
             TypeConfiguration configuration = _configuration.GetEffectiveTypeConfiguration(
                 target.GetType(),
                 drillDown: true
@@ -1986,6 +2017,52 @@ public static class DiagnosticManager
     }
 
     /// <summary>
+    ///     Separates an item's display name from the fence that identifies WHICH item it was.
+    /// </summary>
+    /// <remarks>
+    ///     A unit separator, for the same reason the event-view id uses one: no name a host can
+    ///     produce contains it, and it does not render. A client splits on it for display and
+    ///     echoes the whole string back as a path.
+    /// </remarks>
+    internal const char ItemFenceSeparator = '';
+
+    /// <summary>
+    ///     Identifies the item an index referred to at the moment it was rendered.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         An index alone is not an identity. A drilldown names items positionally, and an
+    ///         action carrying that path is resolved by enumerating the collection again - so a
+    ///         host that removed an earlier item in between leaves the same index pointing at a
+    ///         DIFFERENT object, and the action lands on it silently. Only an index that runs off
+    ///         the end fails on its own.
+    ///     </para>
+    ///     <para>
+    ///         Carrying the identity in the name makes the mismatch a lookup failure, which is the
+    ///         behaviour the rest of this path already promises: a chain that no longer resolves is
+    ///         refused rather than answered with the wrong object. It is a fence, not a handle -
+    ///         nothing is retained on the agent, and a stale one simply fails to match.
+    ///     </para>
+    ///     <para>
+    ///         Reference identity for an object, because that is what "the same item" means for
+    ///         one; value hash for a scalar, because a scalar is rewrapped on every render and its
+    ///         reference would never match twice. Two equal scalars share a fence, which is correct
+    ///         - they are interchangeable. A hash collision degrades to the behaviour that existed
+    ///         before the fence rather than to something worse.
+    ///     </para>
+    /// </remarks>
+    private static string ItemFence(object item)
+    {
+        if (item == null)
+        {
+            return "0";
+        }
+
+        int fence = IsDrillDownValue(item) ? RuntimeHelpers.GetHashCode(item) : item.GetHashCode();
+        return fence.ToString("x8", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
     ///     Turns the resolved value into the registered objects a render walks: one for a single
     ///     object, one per item for a collection.
     /// </summary>
@@ -2018,7 +2095,8 @@ public static class DiagnosticManager
             // Registered as Derived: the wrapper exists only for this response, and held weakly it
             // could be collected between here and the render, leaving the item silently absent.
             object item = IsDrillDownValue(items[index]) ? items[index] : new DrillDownScalarValue(items[index]);
-            registered.Add(RegisteredObject.Derived(item, "Items", $"{target.ItemName ?? "Items"}[{index}]"));
+            string name = $"{target.ItemName ?? "Items"}[{index}]{ItemFenceSeparator}{ItemFence(items[index])}";
+            registered.Add(RegisteredObject.Derived(item, "Items", name));
         }
 
         int? totalCount;
