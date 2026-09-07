@@ -18,7 +18,6 @@ import {MessageService} from 'primeng/api';
 import {plainToInstance} from 'class-transformer';
 import {DiagHubService} from '../services/diag-hub.service';
 import {DatePipe} from '@angular/common';
-import {Level} from './Level';
 import {strEqCI} from '../util/util';
 import {DrillDownRequest} from './DrillDownRequest';
 

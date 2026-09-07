@@ -132,13 +132,23 @@ public class RateCounter
                 {
                     // Delegate.BeginInvoke throws PlatformNotSupportedException on .NET Core/5+.
                     // Task.Run gives the same fire-and-forget async dispatch portably.
-                    Task.Run(() => handler(this, args));
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            handler(this, args);
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.TraceError($"RateCounter.SampleCollected subscriber failed: {ex}");
+                        }
+                    });
                 }
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(ex);
+            Trace.TraceError($"RateCounter.SampleCollected dispatch failed: {ex}");
         }
     }
 
@@ -226,7 +236,7 @@ public class RateCounter
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(ex);
+                    Trace.TraceError($"RateCounter sampling failed: {ex}");
                 }
 
                 return;
