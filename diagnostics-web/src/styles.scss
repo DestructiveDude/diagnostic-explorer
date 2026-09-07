@@ -239,6 +239,17 @@ input.p-inputtext:focus,
   background: var(--topbar);
 }
 
+// Appended to body so previews can extend beyond a collapsed-panel container or dialog.
+.property-preview-tooltip {
+  max-width: min(32rem, 75vw);
+  .p-tooltip-text {
+    max-height: 20rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
 .alert-pill {
   border-radius: var(--radius-pill);
 }

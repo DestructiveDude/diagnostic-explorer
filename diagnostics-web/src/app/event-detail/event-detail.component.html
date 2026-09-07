@@ -3,7 +3,7 @@
     <p-tablist>
       <p-tab value="detail">Detail</p-tab>
       <p-tab value="trace">Trace Scope</p-tab>
-      <button class="ml-auto mr-2 text-[color:var(--label)] hover:text-white" (click)="closed.emit()">&#x2715;</button>
+      <button type="button" aria-label="Close event detail" class="ml-auto mr-2 text-[color:var(--label)] hover:text-white" (click)="closed.emit()">&#x2715;</button>
     </p-tablist>
     <p-tabpanels class="flex-1 min-h-0">
       <p-tabpanel value="detail">

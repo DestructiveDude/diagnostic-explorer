@@ -9,6 +9,19 @@ export class SubCat {
     groups: PropGroup[] = [];
     isExpanded = true;
     operationSet = '';
+    canDrillDown = false;
+
+    get displayName(): string {
+        return this.name.split('\u001f')[0];
+    }
+
+    get isCollectionItem(): boolean {
+        return this.name.includes('\u001f');
+    }
+
+    getPropertyPath(): string {
+        return [this.cat.name, this.name].join('|');
+    }
 
     constructor(cat: CategoryModel, bag: PropertyBag) {
         this.cat = cat;
@@ -18,6 +31,7 @@ export class SubCat {
 
     update(bag: PropertyBag) {
         this.operationSet = bag.operationSet;
+        this.canDrillDown = bag.canDrillDown ?? false;
 
         this.groups = customMerge(bag.categories,
             this.groups,

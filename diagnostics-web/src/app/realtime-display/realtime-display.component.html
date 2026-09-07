@@ -5,7 +5,7 @@
       <ng-template #panel>
         <div class="h-full flex overflow-hidden">
           <div class="flex-1 overflow-auto p-[9px]">
-            <app-realtime-category [category]="model.categories[model.selectedIndex]" />
+            <app-realtime-category [category]="model.categories[model.selectedIndex]" (inspect)="openDrillDown($event)" />
           </div>
           <app-category-nav class="flex-none" [categories]="model.categories"
                             [selectedIndex]="model.selectedIndex"
