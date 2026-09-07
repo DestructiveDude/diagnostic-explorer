@@ -23,12 +23,6 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     /// <summary>How many log events one StreamLogEvents frame may carry.</summary>
     private const int MaxEventsPerFrame = 100;
 
-    /// <summary>
-    ///     How many live events may queue while a frame is in flight, matched to the store's
-    ///     default retention window so a replay cannot overflow its own recovery.
-    /// </summary>
-    private const int LiveSubscriptionCapacity = LogEventRetentionOptions.DefaultMaxEvents;
-
     // _requestGate serializes the three client results against each other. See Run.
     //
     // Deliberately never disposed. RegistrationHandler.DisposeConnection disposes the adapter
@@ -334,11 +328,13 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     /// </remarks>
     private async Task SendOneSubscription(CancellationToken cancel)
     {
-        // Sized to the retention window rather than the default. The replay below is up to 50
-        // sequential round trips, and the live channel has to absorb everything the process logs
-        // meanwhile; a channel smaller than the window would drop the subscription during its own
-        // recovery and start the cycle again.
-        using var stream = EventStore.CreateSubscription(LiveSubscriptionCapacity);
+        // The store sizes the live channel from its own retention. That widens the gap this
+        // replay can survive - it is up to one round trip per hundred retained events, and the
+        // channel has to absorb everything the process logs meanwhile - but it does not close it:
+        // a process logging faster than the frames drain still overflows, is dropped, and is
+        // recovered by the outer loop's re-subscribe rather than lost, provided the gap stays
+        // inside the retained window.
+        using var stream = EventStore.CreateSubscription();
 
         // CreateSubscription always sets this before returning; the property is nullable only
         // because the subscription is constructed before its snapshot is taken. The fallback still

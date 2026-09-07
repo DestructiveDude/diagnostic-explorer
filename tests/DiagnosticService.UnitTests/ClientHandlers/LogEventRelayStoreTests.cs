@@ -54,9 +54,8 @@ public sealed class LogEventRelayStoreTests
         store.MergeInitialization(Initialization("stream-1"));
         store.Append([Event("stream-1", 1), Event("stream-1", 2)]);
 
-        var replaced = store.MergeInitialization(Initialization("stream-2", Event("stream-2", 1)));
+        store.MergeInitialization(Initialization("stream-2", Event("stream-2", 1)));
 
-        replaced.Should().BeTrue();
         var snapshot = store.CreateInitialization();
         snapshot.StreamId.Should().Be("stream-2");
         snapshot.ReplayEvents.Select(e => e.Sequence).Should().Equal(1);
@@ -173,9 +172,8 @@ public sealed class LogEventRelayStoreTests
 
         var stale = Initialization("stream-1", Event("stream-1", 1));
         stale.HighWatermark = 1;
-        var replaced = store.MergeInitialization(stale);
+        store.MergeInitialization(stale);
 
-        replaced.Should().BeFalse();
         store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1, 40, 41);
     }
 
@@ -191,9 +189,8 @@ public sealed class LogEventRelayStoreTests
 
         var reconnected = Initialization("stream-1", Event("stream-1", 2));
         reconnected.HighWatermark = 2;
-        var replaced = store.MergeInitialization(reconnected);
+        store.MergeInitialization(reconnected);
 
-        replaced.Should().BeFalse();
         store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1, 2);
     }
 
@@ -262,5 +259,29 @@ public sealed class LogEventRelayStoreTests
             Level = 2,
             Message = $"event-{sequence}",
         };
+    }
+
+    /// <summary>
+    ///     A stale initialization must not put an older routing snapshot back in force.
+    /// </summary>
+    /// <remarks>
+    ///     Events are keyed by sequence so a late one is simply dropped, but routing and retention
+    ///     are last-write-wins, and routing is what the browser places every event with.
+    /// </remarks>
+    [Fact]
+    public void MergeInitialization_WithAStaleWatermark_KeepsTheNewerRouting()
+    {
+        var store = CreateStore();
+        var current = Initialization("stream-1");
+        current.HighWatermark = 40;
+        current.Routing = new LogStreamRoutingConfiguration { MatchMode = EventSinkRouteMatchMode.FirstMatch };
+        store.MergeInitialization(current);
+
+        var stale = Initialization("stream-1");
+        stale.HighWatermark = 1;
+        stale.Routing = new LogStreamRoutingConfiguration { MatchMode = EventSinkRouteMatchMode.AllMatches };
+        store.MergeInitialization(stale);
+
+        store.CreateInitialization().Routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
     }
 }
