@@ -1,7 +1,6 @@
 using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using DiagnosticExplorer.Logging;
-using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace DiagnosticService.UnitTests.ClientHandlers;
@@ -114,12 +113,13 @@ public sealed class LogEventRelayStoreTests
         store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(2, 3);
     }
 
-    /// <summary>Retention also drops by age, measured on the injected clock rather than the wall.</summary>
+    /// <summary>
+    ///     Retention drops by age, measured from the newest event held rather than a clock.
+    /// </summary>
     [Fact]
     public void Append_WithEventsOlderThanTheAgeLimit_DropsThem()
     {
-        FakeTimeProvider clock = new(Now);
-        LogEventRelayStore store = new(clock);
+        var store = CreateStore();
         var initialization = Initialization("stream-1");
         initialization.MaxAgeMinutes = 10;
         store.MergeInitialization(initialization);
@@ -127,6 +127,74 @@ public sealed class LogEventRelayStoreTests
         store.Append([Event("stream-1", 1, Now.AddMinutes(-30)), Event("stream-1", 2, Now.AddMinutes(-1))]);
 
         store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(2);
+    }
+
+    /// <summary>
+    ///     Age is relative to the stream, not to this service's wall clock.
+    /// </summary>
+    /// <remarks>
+    ///     The timestamps are stamped by the agent. Measuring their age against the service's clock
+    ///     would make retention depend on the skew between two machines: a service running a few
+    ///     minutes ahead would age out every event as it arrived, so a browser attaching later got
+    ///     an empty replay while a browser already watching saw the same events live. Every event
+    ///     here is hours away from any plausible "now", and all of them must survive.
+    /// </remarks>
+    [Fact]
+    public void Append_WithEventsFarFromTheServiceClock_KeepsThemAnyway()
+    {
+        var store = CreateStore();
+        var initialization = Initialization("stream-1");
+        initialization.MaxAgeMinutes = 10;
+        store.MergeInitialization(initialization);
+
+        var agentTime = Now.AddDays(-3);
+        store.Append([Event("stream-1", 1, agentTime), Event("stream-1", 2, agentTime.AddMinutes(1))]);
+
+        store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1, 2);
+    }
+
+    /// <summary>
+    ///     A restart that reuses the stream id is still a restart.
+    /// </summary>
+    /// <remarks>
+    ///     A host can supply its own stream id, and then a restarted process sends the same id with
+    ///     its sequence counter back at the beginning. Merging that would let the dead process's
+    ///     events win every sequence collision, and suppress the live process's events as
+    ///     "duplicates" until its counter caught up — so the browser would be shown the previous
+    ///     incarnation's log under the new process. A watermark below what is already held is what
+    ///     gives it away.
+    /// </remarks>
+    [Fact]
+    public void MergeInitialization_WithTheSameStreamIdButALowerWatermark_DiscardsTheOldHistory()
+    {
+        var store = CreateStore();
+        store.MergeInitialization(Initialization("stream-1"));
+        store.Append([Event("stream-1", 40), Event("stream-1", 41)]);
+
+        var restarted = Initialization("stream-1", Event("stream-1", 1));
+        restarted.HighWatermark = 1;
+        var replaced = store.MergeInitialization(restarted);
+
+        replaced.Should().BeTrue();
+        store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1);
+    }
+
+    /// <summary>
+    ///     An ordinary reconnect on the same stream is NOT a restart and must merge.
+    /// </summary>
+    [Fact]
+    public void MergeInitialization_WithTheSameStreamIdAndAHigherWatermark_Merges()
+    {
+        var store = CreateStore();
+        store.MergeInitialization(Initialization("stream-1"));
+        store.Append([Event("stream-1", 1)]);
+
+        var reconnected = Initialization("stream-1", Event("stream-1", 2));
+        reconnected.HighWatermark = 2;
+        var replaced = store.MergeInitialization(reconnected);
+
+        replaced.Should().BeFalse();
+        store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1, 2);
     }
 
     /// <summary>The high watermark tracks the furthest sequence seen, however it arrived.</summary>
@@ -141,7 +209,7 @@ public sealed class LogEventRelayStoreTests
         store.CreateInitialization().HighWatermark.Should().Be(7);
     }
 
-    private static LogEventRelayStore CreateStore() => new(new FakeTimeProvider(Now));
+    private static LogEventRelayStore CreateStore() => new();
 
     private static LogStreamInitialization Initialization(string streamId, params LogStreamEvent[] replay)
     {
@@ -150,7 +218,9 @@ public sealed class LogEventRelayStoreTests
             StreamId = streamId,
             Routing = new LogStreamRoutingConfiguration(),
             ReplayEvents = replay,
-            HighWatermark = 0,
+            // As a real agent reports it: the furthest sequence it has published. A test that needs
+            // a specific watermark sets it explicitly.
+            HighWatermark = replay.Length == 0 ? 0 : replay.Max(e => e.Sequence),
             MaxEvents = 100,
             MaxAgeMinutes = 60,
         };

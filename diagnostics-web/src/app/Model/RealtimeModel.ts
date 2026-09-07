@@ -3,7 +3,7 @@ import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
 import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
-import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations} from './LogStream';
+import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations, toDisplayLevel} from './LogStream';
 import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
 import {customMerge, simpleMerge} from '../util/Merge';
@@ -401,19 +401,12 @@ export class RealtimeModel {
         systemEvent.date = Date.parse(event.timestampUtc);
         systemEvent.message = event.message ?? '';
         systemEvent.detail = event.detail ?? '';
-        systemEvent.level = event.level;
+        // Mapped, not copied: the wire level is a Microsoft.Extensions.Logging ordinal and the
+        // grid reads log4net's scale. See toDisplayLevel.
+        systemEvent.level = toDisplayLevel(event.level);
         systemEvent.sinkCategory = sinkCategory;
         systemEvent.sinkName = sinkName;
-        this.setEventLevel(systemEvent);
         return systemEvent;
-    }
-
-    private setEventLevel(evt: SystemEvent): void {
-        // The server always populates level (log4net Level.Value), so this fallback only fires for
-        // an event that arrives without one — default it to ERROR so it stays visible. (Previously
-        // derived from evt.severity, which the server never sent; that dead field has been removed.)
-        if (!evt.level)
-            evt.level = Level.ERROR;
     }
 
     private getCat(name: string): CategoryModel {

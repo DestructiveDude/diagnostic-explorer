@@ -103,7 +103,42 @@ export function resolveDestinations(
 }
 
 export function destinationKey(category: string, name: string): string {
-    return `${category}${name}`.toLocaleLowerCase();
+    // Written as an escape rather than a literal control character so it survives an edit that
+    // strips non-printables. Without a separator ('ab','c') and ('a','bc') would be one key.
+    return `${category}\u001f${name}`.toLocaleLowerCase();
+}
+
+/**
+ * Converts a wire level to the scale the UI displays on.
+ *
+ * These are two different vocabularies and neither is wrong. The wire carries a
+ * Microsoft.Extensions.Logging ordinal (0..6), because that is what every adapter produces and
+ * what a route's minLevel/maxLevel are compared against on both sides. The UI's `Level` is
+ * log4net's scale (10 000..120 000), which is what the severity colours, the category roll-up and
+ * the filter all read.
+ *
+ * Passing the ordinal through unmapped puts every event below `Level.VERBOSE`, so it renders as
+ * 'Unknown' with no severity at all - and Trace, being 0, reads as "no level set" and was being
+ * shown as an Error.
+ *
+ * This is the inverse of LogLevelMap.ToMicrosoftOrdinal on the agent, which collapses log4net's
+ * twelve levels into seven. That collapse is lossy, so each ordinal maps back to the
+ * representative level of its band rather than to whatever it started as.
+ */
+export function toDisplayLevel(wireLevel: number | undefined | null): number {
+    switch (wireLevel) {
+        case 0: return 20_000;  // Trace       (band: All/Verbose/Trace)
+        case 1: return 30_000;  // Debug
+        case 2: return 40_000;  // Information (band: Info/Notice)
+        case 3: return 60_000;  // Warning
+        case 4: return 70_000;  // Error
+        case 5: return 90_000;  // Critical    (band: Severe/Critical/Alert/Fatal/Emergency)
+        case 6: return 40_000;  // None - nothing logs at this level; show it rather than hide it.
+        default:
+            // Not a level this contract defines. Surface it rather than let it sink to the bottom
+            // of the scale and disappear.
+            return 70_000;      // Error
+    }
 }
 
 function routeMatches(route: LogStreamRoute, event: LogStreamEvent): boolean {

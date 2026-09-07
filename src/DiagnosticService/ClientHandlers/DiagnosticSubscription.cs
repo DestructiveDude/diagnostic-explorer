@@ -9,7 +9,7 @@ namespace Diagnostic.Service.ClientHandlers;
 
 public class DiagnosticSubscription
 {
-    private readonly LogEventRelayStore _eventStore;
+    private readonly LogEventRelayStore _eventStore = new();
     private readonly object _startStopLock = new();
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
@@ -27,7 +27,6 @@ public class DiagnosticSubscription
     {
         Process = process;
         _timeProvider = timeProvider;
-        _eventStore = new LogEventRelayStore(timeProvider);
     }
 
     public DiagProcess Process { get; set; }
