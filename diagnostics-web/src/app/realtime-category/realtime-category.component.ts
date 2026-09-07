@@ -103,7 +103,9 @@ export class RealtimeCategoryComponent implements OnDestroy {
 
         model.finished.subscribe(_ => ref?.close());
         let closed = false;
+        let executed = false;
         const subscription = model.completed.subscribe(() => {
+            executed = true;
             if (closed) {
                 subscription.unsubscribe();
                 this.actionCompleted.emit();
@@ -114,7 +116,7 @@ export class RealtimeCategoryComponent implements OnDestroy {
             // A pending operation may still mutate the object after its dialog closes.
             if (!model.executing) {
                 subscription.unsubscribe();
-                this.actionCompleted.emit();
+                if (executed) this.actionCompleted.emit();
             }
         });
     }

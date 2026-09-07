@@ -247,6 +247,17 @@ describe('drilldown UI', () => {
         expect(refresh).toHaveBeenCalledTimes(1);
     });
 
+    it('does not refresh when the operations dialog closes without executing', async () => {
+        const fixture = await render();
+        const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;
+        const closed = new Subject();
+        dialogs.open.mockReturnValue({onClose: closed, close: jest.fn()});
+        const refresh = jest.spyOn(fixture.componentInstance, 'refresh');
+        grid.showOperationsDialog(new MouseEvent('click'), grid.category!.subCats[0]);
+        closed.next(undefined);
+        expect(refresh).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])('refreshes after an in-flight operation settles even if closed early, success=%s', async isSuccess => {
         const fixture = await render();
         const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;
