@@ -154,33 +154,33 @@ public sealed class LogEventRelayStoreTests
     }
 
     /// <summary>
-    ///     A restart that reuses the stream id is still a restart.
+    ///     A late initialization carrying an older position must NOT wipe the history.
     /// </summary>
     /// <remarks>
-    ///     A host can supply its own stream id, and then a restarted process sends the same id with
-    ///     its sequence counter back at the beginning. Merging that would let the dead process's
-    ///     events win every sequence collision, and suppress the live process's events as
-    ///     "duplicates" until its counter caught up — so the browser would be shown the previous
-    ///     incarnation's log under the new process. A watermark below what is already held is what
-    ///     gives it away.
+    ///     An agent's previous send loop can still have an initialization in flight when a new one
+    ///     starts, and the hub runs several invocations per connection concurrently, so the older
+    ///     one can land second with an older watermark. Treating that as a restarted stream clears
+    ///     the relay and hands every browser an empty snapshot — and because an initialization no
+    ///     longer carries its own replay, the wipe sticks until the next subscribe cycle. The
+    ///     stream id is the only restart signal for exactly this reason.
     /// </remarks>
     [Fact]
-    public void MergeInitialization_WithTheSameStreamIdButALowerWatermark_DiscardsTheOldHistory()
+    public void MergeInitialization_WithAStaleWatermarkForTheSameStream_KeepsTheHistory()
     {
         var store = CreateStore();
         store.MergeInitialization(Initialization("stream-1"));
         store.Append([Event("stream-1", 40), Event("stream-1", 41)]);
 
-        var restarted = Initialization("stream-1", Event("stream-1", 1));
-        restarted.HighWatermark = 1;
-        var replaced = store.MergeInitialization(restarted);
+        var stale = Initialization("stream-1", Event("stream-1", 1));
+        stale.HighWatermark = 1;
+        var replaced = store.MergeInitialization(stale);
 
-        replaced.Should().BeTrue();
-        store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1);
+        replaced.Should().BeFalse();
+        store.CreateInitialization().ReplayEvents.Select(e => e.Sequence).Should().Equal(1, 40, 41);
     }
 
     /// <summary>
-    ///     An ordinary reconnect on the same stream is NOT a restart and must merge.
+    ///     An ordinary reconnect on the same stream merges rather than replacing.
     /// </summary>
     [Fact]
     public void MergeInitialization_WithTheSameStreamIdAndAHigherWatermark_Merges()

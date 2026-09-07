@@ -1,9 +1,11 @@
 using System.Net;
 using AwesomeAssertions;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -22,6 +24,7 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class HubServerAdapterFailureTests
 {
+    private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(10);
     private static readonly Type AdapterType =
         typeof(RegistrationHandler).Assembly.GetType("DiagnosticExplorer.HubServerAdapter")
         ?? throw new InvalidOperationException("DiagnosticExplorer.HubServerAdapter not found");
@@ -120,6 +123,80 @@ public class HubServerAdapterFailureTests
         Func<Task> act = () => invocation;
 
         await act.Should().NotThrowAsync();
+    }
+
+    /// <summary>
+    ///     The initialization goes out without its replay, and the replay follows in frames.
+    /// </summary>
+    /// <remarks>
+    ///     Sending the replay inside the initialization put the agent's whole retained window —
+    ///     5 000 events by default — into one hub message against a 10 MB receive cap. Measured at
+    ///     2 000-byte details that is 10.43 MB, and the burst that fills the window is the one
+    ///     carrying stack traces, so the frame was largest exactly when it was needed. Over the cap
+    ///     the invocation faults, and a fault there is not cancellation, so delivery ends for the
+    ///     life of the connection.
+    /// </remarks>
+    [Fact]
+    public async Task SubscribeEvents_SendsTheInitializationWithoutItsReplay()
+    {
+        HubConnection hub = CreateHubSubstitute();
+        List<(string Method, object?[] Args)> sends = [];
+        hub.InvokeCoreAsync(Arg.Any<string>(), Arg.Any<Type>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                lock (sends)
+                {
+                    sends.Add((callInfo.ArgAt<string>(0), callInfo.ArgAt<object?[]>(2)));
+                }
+
+                return Task.FromResult<object?>(null);
+            });
+
+        // More than one frame's worth, so the batching is exercised rather than assumed.
+        const int retained = 250;
+        DiagnosticManager.LogEventStore.Configure(new LogEventRetentionOptions(), new LogStreamRoutingConfiguration());
+        foreach (var index in Enumerable.Range(0, retained))
+        {
+            DiagnosticManager.LogEventStore.Publish(
+                new EventSinkLogEvent("App", LogLevel.Information, $"event-{index}")
+            );
+        }
+
+        using IDisposable adapter = CreateAdapter(hub);
+        await (Task)AdapterType.GetMethod("SubscribeEvents")!.Invoke(adapter, [])!;
+
+        await WaitUntil(() => SendsOf(sends, nameof(IDiagnosticHubServer.StreamLogEvents)).Count >= 3);
+
+        var initializations = SendsOf(sends, nameof(IDiagnosticHubServer.InitializeLogStream));
+        initializations.Should().ContainSingle();
+        ((LogStreamInitialization)initializations[0].Args[0]!)
+            .ReplayEvents.Should()
+            .BeEmpty("the replay travels as StreamLogEvents frames, not inside the initialization");
+
+        var frames = SendsOf(sends, nameof(IDiagnosticHubServer.StreamLogEvents));
+        frames.Should().HaveCountGreaterThanOrEqualTo(3, "250 events cannot fit in one 100-event frame");
+        frames.Should().OnlyContain(send => ((LogStreamEvent[])send.Args[0]!).Length <= 100);
+    }
+
+    private static List<(string Method, object?[] Args)> SendsOf(
+        List<(string Method, object?[] Args)> sends,
+        string method
+    )
+    {
+        lock (sends)
+        {
+            return [.. sends.Where(send => send.Method == method)];
+        }
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.Add(SignalTimeout);
+        while (!condition())
+        {
+            DateTime.UtcNow.Should().BeBefore(deadline, "the adapter should have sent its frames");
+            await Task.Delay(TimeSpan.FromMilliseconds(10), TestContext.Current.CancellationToken);
+        }
     }
 
     // HubConnection (SignalR.Client 8.x) is concrete with virtual RPC methods and no

@@ -46,16 +46,23 @@ internal sealed class LogEventRelayStore
 
         lock (_sync)
         {
-            // A different id is the ordinary restart signal. The same id with a watermark
-            // BELOW what is already held is the awkward one: a host that supplies its own fixed
-            // stream id and restarts sends the same id with its sequence counter back at the
-            // beginning, and merging that would let the dead process's events win every collision
-            // and suppress the new process's until its counter caught up.
-            // A zero watermark means the agent did not state a position, not that it went
-            // backwards, so it is not treated as a restart.
-            var streamReplaced =
-                !string.Equals(_streamId, initialization.StreamId, StringComparison.Ordinal)
-                || initialization.HighWatermark > 0 && initialization.HighWatermark < _highWatermark;
+            // The stream id is the only restart signal, deliberately.
+            //
+            // A watermark below the one held looks like a restarted process whose sequence counter
+            // began again, and this used to treat it as one. But it is indistinguishable from a
+            // STALE initialization: an agent's previous send loop can still have an
+            // InitializeLogStream in flight when a new one starts, and the hub runs several
+            // invocations per connection concurrently, so the older one can land second carrying
+            // an older watermark. Clearing on that wipes the relay and every browser is sent an
+            // empty snapshot — and since the initialization no longer carries its own replay, the
+            // wipe sticks until the next subscribe cycle. Merging a stale one instead costs
+            // nothing, because it is keyed by sequence like everything else.
+            //
+            // Nothing is lost by dropping the restart case: every agent's id is a fresh Guid per
+            // process (LogEventStore's constructor), so a real restart always arrives with a
+            // different id. A caller that supplies its OWN fixed id and restarts would merge the
+            // two incarnations, which is the documented cost of choosing a fixed id.
+            var streamReplaced = !string.Equals(_streamId, initialization.StreamId, StringComparison.Ordinal);
             if (streamReplaced)
             {
                 _events.Clear();
