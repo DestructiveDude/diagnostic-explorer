@@ -282,11 +282,20 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         {
             while (!cancel.IsCancellationRequested)
             {
-                await SendOneSubscription(cancel);
+                var endReason = await SendOneSubscription(cancel);
 
                 if (cancel.IsCancellationRequested)
                 {
                     break;
+                }
+
+                if (endReason == SubscriptionEndReason.Superseded)
+                {
+                    // Routine, and the reason the store ends the subscription at all: the routing
+                    // changed, so this stream's snapshot no longer says where events belong. Take a
+                    // fresh one immediately - delaying would leave the consumer placing events
+                    // against routes that are already gone.
+                    continue;
                 }
 
                 System.Diagnostics.Trace.TraceWarning(
@@ -315,6 +324,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     }
 
     /// <summary>Runs one subscription until its channel completes or the token is cancelled.</summary>
+    /// <returns>Why it ended, so the caller can tell a routine re-init from a dropped subscriber.</returns>
     /// <remarks>
     ///     The initialization is sent WITHOUT its replay events, and the replay follows through the
     ///     ordinary StreamLogEvents path. Sending it whole would put the entire retained window
@@ -326,7 +336,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     ///     tuning its size. The service keys on sequence, so a replayed event it already holds is
     ///     dropped either way.
     /// </remarks>
-    private async Task SendOneSubscription(CancellationToken cancel)
+    private async Task<SubscriptionEndReason> SendOneSubscription(CancellationToken cancel)
     {
         // The store sizes the live channel from its own retention. That widens the gap this
         // replay can survive - it is up to one round trip per hundred retained events, and the
@@ -383,6 +393,8 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
                 cancel
             );
         }
+
+        return stream.EndReason;
     }
 
     public async Task<RegistrationResponse> Register(Registration registration, CancellationToken cancel = default)

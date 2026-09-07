@@ -131,3 +131,23 @@ public sealed class LogStreamInitialization
     [DataMember(Order = 6)]
     public double MaxAgeMinutes { get; set; }
 }
+
+/// <summary>Why a <c>LogEventStore</c> subscription stopped delivering.</summary>
+public enum SubscriptionEndReason
+{
+    /// <summary>The reader disposed it.</summary>
+    Disposed,
+
+    /// <summary>
+    ///     The subscriber fell behind its channel capacity and was dropped rather than allowed to
+    ///     stall the caller's logging thread. Events were lost; the reader recovers them from the
+    ///     next subscription's replay if they are still inside the retained window.
+    /// </summary>
+    Overrun,
+
+    /// <summary>
+    ///     The store's routing changed, so this subscription's snapshot no longer describes where
+    ///     events belong. Nothing was lost: a fresh subscription carries the new routing.
+    /// </summary>
+    Superseded,
+}

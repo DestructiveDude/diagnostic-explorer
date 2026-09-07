@@ -9,6 +9,11 @@ namespace Diagnostic.Service.ClientHandlers;
 
 public class DiagnosticSubscription
 {
+    /// <summary>
+    ///     How many replayed events one frame to a browser may carry. Matches the agent's frame
+    ///     size; the reason is the same, and having the two agree keeps one number to reason about.
+    /// </summary>
+    private const int MaxEventsPerFrame = 100;
     private readonly LogEventRelayStore _eventStore = new();
     private readonly object _startStopLock = new();
     private readonly TimeProvider _timeProvider;
@@ -74,7 +79,7 @@ public class DiagnosticSubscription
             // picture as one that was watching all along.
             if (added)
             {
-                webClient.InitializeLogStream(ProcessId, _eventStore.CreateInitialization());
+                SendInitialization(webClient, _eventStore.CreateInitialization());
             }
 
             StartIfRequired();
@@ -318,8 +323,46 @@ public class DiagnosticSubscription
             var merged = _eventStore.CreateInitialization();
             foreach (var handler in _webClients.Values)
             {
-                handler.InitializeLogStream(Process.Id, merged);
+                SendInitialization(handler, merged);
             }
+        }
+    }
+
+    /// <summary>
+    ///     Sends a snapshot to one web client, in frames rather than as one message.
+    /// </summary>
+    /// <remarks>
+    ///     The snapshot is the whole retained window - up to five thousand events by default - and
+    ///     sending it as a single InitializeLogStream is the same shape that broke the agent leg
+    ///     against its receive cap, one hop further on and multiplied by the number of browsers
+    ///     watching. So the initialization carries the routing and the watermark, and the events
+    ///     follow as StreamLogEvents frames of the same size the live path uses. Both go through
+    ///     the client's send chain, which keeps the initialization ahead of them; a browser applies
+    ///     an initialization by replacing what it holds, so one arriving after its own events would
+    ///     discard them.
+    /// </remarks>
+    private void SendInitialization(WebClientHandler handler, LogStreamInitialization snapshot)
+    {
+        var replay = snapshot.ReplayEvents ?? [];
+
+        // A copy: the caller may be broadcasting one snapshot to several handlers, so the replay
+        // cannot be cleared in place.
+        handler.InitializeLogStream(
+            ProcessId,
+            new LogStreamInitialization
+            {
+                StreamId = snapshot.StreamId,
+                Routing = snapshot.Routing,
+                ReplayEvents = [],
+                HighWatermark = snapshot.HighWatermark,
+                MaxEvents = snapshot.MaxEvents,
+                MaxAgeMinutes = snapshot.MaxAgeMinutes,
+            }
+        );
+
+        for (var sent = 0; sent < replay.Length; sent += MaxEventsPerFrame)
+        {
+            handler.StreamLogEvents(ProcessId, [.. replay.Skip(sent).Take(MaxEventsPerFrame)]);
         }
     }
 

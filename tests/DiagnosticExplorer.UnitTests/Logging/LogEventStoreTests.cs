@@ -250,4 +250,94 @@ public class LogEventStoreTests
         new LogEventStore(streamId: "explicit").StreamId.Should().Be("explicit");
         new LogEventStore().StreamId.Should().NotBeNullOrWhiteSpace();
     }
+
+    /// <summary>
+    ///     An oversize Detail is bounded here, not left to fault a wire frame later.
+    /// </summary>
+    /// <remarks>
+    ///     Detail is where a stack trace lands and nothing upstream bounds it. A frame carries up
+    ///     to a hundred events against a 10 MB hub receive cap, so one oversize event faults the
+    ///     invocation — and because that fault is not cancellation it ends delivery for the
+    ///     connection's life, while the event sits in the retained window and is replayed on every
+    ///     re-subscribe. Bounding it at publish keeps it out of the window entirely.
+    /// </remarks>
+    [Fact]
+    public void Publish_WithAnOversizeDetail_TruncatesItAndSaysSo()
+    {
+        var store = new LogEventStore();
+        var detail = new string('x', LogEventStore.MaxDetailLength * 2);
+
+        store.Publish(new EventSinkLogEvent("App", LogLevel.Error, "boom", detail));
+
+        var published = store.CreateInitialization().ReplayEvents.Should().ContainSingle().Subject;
+        published.Detail!.Length.Should().Be(LogEventStore.MaxDetailLength);
+        published.Detail.Should().EndWith("[truncated]");
+    }
+
+    [Fact]
+    public void Publish_WithAnOversizeMessage_TruncatesIt()
+    {
+        var store = new LogEventStore();
+        var message = new string('x', LogEventStore.MaxMessageLength * 2);
+
+        store.Publish(new EventSinkLogEvent("App", LogLevel.Error, message));
+
+        var published = store.CreateInitialization().ReplayEvents.Should().ContainSingle().Subject;
+        published.Message!.Length.Should().Be(LogEventStore.MaxMessageLength);
+    }
+
+    [Fact]
+    public void Publish_WithTextInsideTheBounds_LeavesItAlone()
+    {
+        var store = new LogEventStore();
+
+        store.Publish(new EventSinkLogEvent("App", LogLevel.Error, "boom", "detail"));
+
+        var published = store.CreateInitialization().ReplayEvents.Should().ContainSingle().Subject;
+        published.Message.Should().Be("boom");
+        published.Detail.Should().Be("detail");
+    }
+
+    /// <summary>
+    ///     A routing change must reach a subscriber that is already streaming.
+    /// </summary>
+    /// <remarks>
+    ///     A subscriber resolves each event's destination from the routing snapshot it was handed
+    ///     at subscribe time. Changing the routing without telling it leaves it filing events under
+    ///     routes that no longer exist, and silently: an event only a new route admits resolves to
+    ///     no destination and is simply not shown. Ending the subscription is the signal — the
+    ///     reader's loop already treats completion as "take a fresh one".
+    /// </remarks>
+    [Fact]
+    public async Task ConfigureRouting_WithALiveSubscription_EndsItAsSuperseded()
+    {
+        var store = new LogEventStore();
+        using var subscription = store.CreateSubscription();
+
+        store.ConfigureRouting(new LogStreamRoutingConfiguration { MatchMode = EventSinkRouteMatchMode.FirstMatch });
+
+        await subscription.Events.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        subscription.EndReason.Should().Be(SubscriptionEndReason.Superseded);
+        store
+            .CreateSubscription()
+            .Initialization!.Routing.MatchMode.Should()
+            .Be(EventSinkRouteMatchMode.FirstMatch, "a fresh subscription carries the new routing");
+    }
+
+    /// <summary>A dropped subscriber is reported as an overrun, which is not routine.</summary>
+    [Fact]
+    public async Task Publish_WhenASubscriberCannotKeepUp_EndsItAsOverrun()
+    {
+        var store = new LogEventStore();
+        using var subscription = store.CreateSubscription(liveSubscriptionCapacity: 1);
+
+        store.Publish(new EventSinkLogEvent("App", LogLevel.Information, "one"));
+        store.Publish(new EventSinkLogEvent("App", LogLevel.Information, "two"));
+
+        // Completion means completed AND drained, so the one queued event has to be taken first.
+        _ = await subscription.Events.ReadAsync(TestContext.Current.CancellationToken);
+
+        await subscription.Events.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        subscription.EndReason.Should().Be(SubscriptionEndReason.Overrun);
+    }
 }
