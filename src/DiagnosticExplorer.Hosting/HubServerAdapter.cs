@@ -1,4 +1,4 @@
-﻿#nullable enable annotations
+#nullable enable annotations
 
 using System;
 using System.Collections.Generic;
@@ -252,44 +252,40 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     ///         The batching is the store's, not a sleep: WaitToReadAsync blocks until there is
     ///         something, then the drain takes whatever else has arrived, up to a frame's worth.
     ///     </para>
+    ///     <para>
+    ///         The outer loop is what makes a dropped subscription recoverable. LogEventStore drops
+    ///         a subscriber whose bounded channel is full rather than stall the caller's logging
+    ///         thread, and completes its channel; a burst that outruns delivery therefore ends the
+    ///         inner loop normally, with no exception. Without re-subscribing, that would silently
+    ///         end event delivery for the life of the process, and every browser would sit on a
+    ///         stale view with nothing to say why. Re-subscribing costs a fresh initialization,
+    ///         which the service merges into what it already holds, so the gap closes rather than
+    ///         the history resetting.
+    ///     </para>
     /// </remarks>
     private async Task SendEventStream(CancellationToken cancel)
     {
-        using var stream = DiagnosticManager.LogEventStore.CreateSubscription();
-
-        // CreateSubscription always sets this before returning; the property is nullable only
-        // because the subscription is constructed before its snapshot is taken. Send an empty
-        // initialization rather than nothing, so a subscriber is never left waiting for one.
-        var initialization = stream.Initialization ?? new LogStreamInitialization();
-
         try
         {
-            await _hubConn.InvokeCoreAsync(
-                nameof(IDiagnosticHubServer.InitializeLogStream),
-                typeof(object),
-                new object[] { initialization },
-                cancel
-            );
-
-            while (await stream.Events.WaitToReadAsync(cancel))
+            while (!cancel.IsCancellationRequested)
             {
-                List<LogStreamEvent> batch = [];
-                while (batch.Count < MaxEventsPerFrame && stream.Events.TryRead(out var streamEvent))
+                await SendOneSubscription(cancel);
+
+                if (cancel.IsCancellationRequested)
                 {
-                    batch.Add(streamEvent);
+                    break;
                 }
 
-                if (batch.Count == 0)
-                {
-                    continue;
-                }
-
-                await _hubConn.InvokeCoreAsync(
-                    nameof(IDiagnosticHubServer.StreamLogEvents),
-                    typeof(object),
-                    new object[] { batch.ToArray() },
-                    cancel
+                System.Diagnostics.Trace.TraceWarning(
+                    "HubServerAdapter.SendEventStream: the log event subscription was dropped, most "
+                        + "likely because events were published faster than they could be delivered. "
+                        + "Re-subscribing; events published during the gap are recovered from the "
+                        + "agent's retained window."
                 );
+
+                // Not a throughput knob: it stops a store that drops every subscription instantly
+                // from turning this into a hot loop.
+                await Task.Delay(TimeSpan.FromSeconds(1), cancel);
             }
         }
         catch (OperationCanceledException)
@@ -302,6 +298,48 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             // fire-and-forget (Task.Run in SubscribeEvents; the disposal continuation discards it), so
             // without this catch the exception would go unobserved. Surface it rather than swallow it.
             System.Diagnostics.Trace.TraceError($"HubServerAdapter.SendEventStream failed: {ex}");
+        }
+    }
+
+    /// <summary>Runs one subscription until its channel completes or the token is cancelled.</summary>
+    private async Task SendOneSubscription(CancellationToken cancel)
+    {
+        using var stream = DiagnosticManager.LogEventStore.CreateSubscription();
+
+        // CreateSubscription always sets this before returning; the property is nullable only
+        // because the subscription is constructed before its snapshot is taken. The fallback still
+        // carries the store's own stream id, because an initialization without one is not something
+        // the service can key events against - it rejects it.
+        var initialization =
+            stream.Initialization
+            ?? new LogStreamInitialization { StreamId = DiagnosticManager.LogEventStore.StreamId };
+
+        await _hubConn.InvokeCoreAsync(
+            nameof(IDiagnosticHubServer.InitializeLogStream),
+            typeof(object),
+            new object[] { initialization },
+            cancel
+        );
+
+        while (await stream.Events.WaitToReadAsync(cancel))
+        {
+            List<LogStreamEvent> batch = [];
+            while (batch.Count < MaxEventsPerFrame && stream.Events.TryRead(out var streamEvent))
+            {
+                batch.Add(streamEvent);
+            }
+
+            if (batch.Count == 0)
+            {
+                continue;
+            }
+
+            await _hubConn.InvokeCoreAsync(
+                nameof(IDiagnosticHubServer.StreamLogEvents),
+                typeof(object),
+                new object[] { batch.ToArray() },
+                cancel
+            );
         }
     }
 

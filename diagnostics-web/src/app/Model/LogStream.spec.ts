@@ -3,7 +3,9 @@ import {
     LogStreamRoute,
     LogStreamRouteValue,
     LogStreamRoutingConfiguration,
+    destinationKey,
     resolveDestinations,
+    toDisplayLevel,
 } from './LogStream';
 import {Level} from './Level';
 
@@ -12,6 +14,13 @@ import {Level} from './Level';
  * same rules independently — the agent to decide whether to publish, the browser to decide where
  * to display — so a rule that drifts on one side silently misplaces events rather than failing.
  */
+
+/**
+ * Wire levels are Microsoft.Extensions.Logging ordinals, NOT the display scale. Using
+ * `Level.INFO` (40 000) for an event's level is what hid the display-mapping bug, because no agent
+ * can produce that value.
+ */
+const Wire = {TRACE: 0, DEBUG: 1, INFO: 2, WARN: 3, ERROR: 4, CRITICAL: 5} as const;
 
 const fixed = (value: string): LogStreamRouteValue => ({source: 'Fixed', value});
 const suffix: LogStreamRouteValue = {source: 'LoggerSuffix'};
@@ -37,7 +46,7 @@ function event(over: Partial<LogStreamEvent> = {}): LogStreamEvent {
         sequence: 1,
         timestampUtc: '2026-01-01T00:00:00.000Z',
         loggerCategory: 'App.Worker',
-        level: Level.INFO,
+        level: Wire.INFO,
         eventId: 0,
         ...over,
     };
@@ -76,17 +85,19 @@ describe('resolveDestinations', () => {
 
     describe('level range', () => {
         it('excludes an event outside the route levels', () => {
-            const config = routing([route({minLevel: Level.WARN, maxLevel: Level.ERROR})]);
+            // Route bounds are wire ordinals too - they are compared against the event's own level
+            // on both sides of the hop.
+            const config = routing([route({minLevel: Wire.WARN, maxLevel: Wire.ERROR})]);
 
-            expect(resolveDestinations(config, event({level: Level.INFO}))).toHaveLength(0);
-            expect(resolveDestinations(config, event({level: Level.WARN}))).toHaveLength(1);
-            expect(resolveDestinations(config, event({level: Level.ERROR}))).toHaveLength(1);
+            expect(resolveDestinations(config, event({level: Wire.INFO}))).toHaveLength(0);
+            expect(resolveDestinations(config, event({level: Wire.WARN}))).toHaveLength(1);
+            expect(resolveDestinations(config, event({level: Wire.ERROR}))).toHaveLength(1);
         });
 
         it('treats an absent bound as unbounded', () => {
             const config = routing([route({minLevel: null, maxLevel: null})]);
 
-            expect(resolveDestinations(config, event({level: Level.DEBUG}))).toHaveLength(1);
+            expect(resolveDestinations(config, event({level: Wire.DEBUG}))).toHaveLength(1);
         });
     });
 
@@ -164,5 +175,36 @@ describe('resolveDestinations', () => {
 
     it('places nothing when there is no routing at all', () => {
         expect(resolveDestinations(undefined, event())).toHaveLength(0);
+    });
+});
+
+describe('toDisplayLevel', () => {
+    /**
+     * The wire carries a Microsoft.Extensions.Logging ordinal; the grid reads log4net's scale.
+     * Unmapped, every event sits below Level.VERBOSE and renders as 'Unknown' with no severity,
+     * and Trace (0) reads as "no level set". These are the values an agent can actually send.
+     */
+    it.each([
+        [0, Level.TRACE],
+        [1, Level.DEBUG],
+        [2, Level.INFO],
+        [3, Level.WARN],
+        [4, Level.ERROR],
+        [5, Level.CRITICAL],
+    ])('maps wire level %i onto the display scale', (wire, expected) => {
+        expect(toDisplayLevel(wire)).toBe(expected);
+    });
+    it('keeps Trace visible rather than reading it as an absent level', () => {
+        // 0 is falsy; the old guard turned it into an Error.
+        expect(toDisplayLevel(0)).toBe(Level.TRACE);
+    });
+    it('surfaces a level the contract does not define rather than hiding it', () => {
+        expect(toDisplayLevel(undefined)).toBe(Level.ERROR);
+        expect(toDisplayLevel(99)).toBe(Level.ERROR);
+    });
+});
+describe('destinationKey', () => {
+    it('separates the two parts so adjacent splits do not collide', () => {
+        expect(destinationKey('ab', 'c')).not.toBe(destinationKey('a', 'bc'));
     });
 });

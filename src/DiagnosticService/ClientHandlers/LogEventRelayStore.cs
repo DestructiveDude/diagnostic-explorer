@@ -22,7 +22,7 @@ namespace Diagnostic.Service.ClientHandlers;
 ///         discarded rather than interleaved with numbers that no longer mean the same thing.
 ///     </para>
 /// </remarks>
-internal sealed class LogEventRelayStore(TimeProvider timeProvider)
+internal sealed class LogEventRelayStore
 {
     private readonly Dictionary<long, LogStreamEvent> _events = [];
     private readonly Lock _sync = new();
@@ -46,7 +46,16 @@ internal sealed class LogEventRelayStore(TimeProvider timeProvider)
 
         lock (_sync)
         {
-            var streamReplaced = !string.Equals(_streamId, initialization.StreamId, StringComparison.Ordinal);
+            // A different id is the ordinary restart signal. The same id with a watermark
+            // BELOW what is already held is the awkward one: a host that supplies its own fixed
+            // stream id and restarts sends the same id with its sequence counter back at the
+            // beginning, and merging that would let the dead process's events win every collision
+            // and suppress the new process's until its counter caught up.
+            // A zero watermark means the agent did not state a position, not that it went
+            // backwards, so it is not treated as a restart.
+            var streamReplaced =
+                !string.Equals(_streamId, initialization.StreamId, StringComparison.Ordinal)
+                || initialization.HighWatermark > 0 && initialization.HighWatermark < _highWatermark;
             if (streamReplaced)
             {
                 _events.Clear();
@@ -142,9 +151,28 @@ internal sealed class LogEventRelayStore(TimeProvider timeProvider)
         return [.. added.OrderBy(streamEvent => streamEvent.Sequence)];
     }
 
+    /// <summary>
+    ///     Applies retention: by age first, then by count.
+    /// </summary>
+    /// <remarks>
+    ///     Age is measured from the newest event held, NOT from this service's clock. The
+    ///     timestamps are stamped by the agent, so comparing them against the service's wall clock
+    ///     makes retention depend on the skew between two machines: a service a few minutes ahead
+    ///     would age out every event as it arrived, and a late-attaching browser would be handed an
+    ///     empty replay while a watching one saw events live. Measuring within the stream's own
+    ///     time makes the window mean "the last N minutes of this process's logging", which is also
+    ///     the more useful reading — a process that stopped logging an hour ago still shows what it
+    ///     said before it stopped.
+    /// </remarks>
     private void Prune()
     {
-        var minimumTimestamp = timeProvider.GetUtcNow().UtcDateTime - TimeSpan.FromMinutes(_retention.MaxAgeMinutes);
+        if (_events.Count == 0)
+        {
+            return;
+        }
+
+        var newest = _events.Values.Max(streamEvent => streamEvent.TimestampUtc);
+        var minimumTimestamp = newest - TimeSpan.FromMinutes(_retention.MaxAgeMinutes);
         foreach (
             var sequence in _events
                 .Where(pair => pair.Value.TimestampUtc < minimumTimestamp)

@@ -53,6 +53,12 @@ function evt(over: Partial<SystemEvent>): SystemEvent {
     return Object.assign(new SystemEvent(), over);
 }
 
+/**
+ * Microsoft.Extensions.Logging ordinals, which is what an agent actually puts on the wire. The
+ * grid's `Level` scale is the DISPLAY scale and the two are mapped, not equal.
+ */
+const WireLevel = {TRACE: 0, DEBUG: 1, INFO: 2, WARN: 3, ERROR: 4, CRITICAL: 5} as const;
+
 let nextSequence = 1;
 
 /**
@@ -68,7 +74,7 @@ function logEvt(over: Partial<LogStreamEvent> = {}): LogStreamEvent {
         sequence: nextSequence++,
         timestampUtc: '2026-01-01T00:00:00.000Z',
         loggerCategory: 'App.Worker',
-        level: Level.INFO,
+        level: WireLevel.INFO,
         eventId: 0,
         ...over,
     };
@@ -319,8 +325,8 @@ describe('RealtimeModel', () => {
             ]));
 
             connection.handlers['StreamLogEvents']('active', [
-                logEvt({loggerCategory: 'App.Disk.Reader', level: Level.WARN}),
-                logEvt({loggerCategory: 'App.Net.Client', level: Level.INFO}),
+                logEvt({loggerCategory: 'App.Disk.Reader', level: WireLevel.WARN}),
+                logEvt({loggerCategory: 'App.Net.Client', level: WireLevel.INFO}),
             ]);
 
             expect(model.categories.map(c => c.name).sort()).toEqual(['Disk', 'Net']);
@@ -358,15 +364,30 @@ describe('RealtimeModel', () => {
             expect(model.categories).toHaveLength(0);
         });
 
-        it('defaults the level to ERROR when an event arrives without one', () => {
+        it('shows a Trace event as Trace, not as an error', () => {
+            // Wire level 0 is falsy. It used to trip a "no level set, default it to ERROR" guard,
+            // so the quietest events in the system rendered as the loudest.
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
             connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')]));
 
-            connection.handlers['StreamLogEvents']('active', [logEvt({level: 0})]);
+            connection.handlers['StreamLogEvents']('active', [logEvt({level: WireLevel.TRACE})]);
 
+            expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.TRACE);
+        });
+
+        it('maps a wire level onto the display scale the grid reads', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')]));
+
+            connection.handlers['StreamLogEvents']('active', [logEvt({level: WireLevel.ERROR})]);
+
+            // Unmapped this would be 4, far below Level.VERBOSE, and render as 'Unknown'.
             expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.ERROR);
         });
 
@@ -394,7 +415,7 @@ describe('RealtimeModel', () => {
 
             connection.handlers['InitializeLogStream'](
                 'active',
-                initialization([routeTo('Disk', 'IO')], [logEvt({level: Level.WARN})])
+                initialization([routeTo('Disk', 'IO')], [logEvt({level: WireLevel.WARN})])
             );
 
             expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.WARN);
