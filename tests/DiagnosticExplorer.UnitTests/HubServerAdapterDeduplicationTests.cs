@@ -97,6 +97,49 @@ public sealed class HubServerAdapterDeduplicationTests : IDisposable
         _target.CallCount.Should().Be(2);
     }
 
+    /// <summary>
+    ///     Two different actions sharing an id are still two actions.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing in the protocol says an id is unique across methods - only that a retry carries
+    ///     the id of the attempt it repeats. An unscoped key would let the second action join the
+    ///     first and hand back ITS result, so the caller is told the edit succeeded while the edit
+    ///     never ran. Silent and wrong, which is worse than running twice.
+    /// </remarks>
+    [Fact]
+    public async Task SetPropertyAndExecuteOperation_SharingARequestId_EachRunOnItsOwn()
+    {
+        using IDisposable adapter = CreateAdapter();
+        _target.Release();
+
+        OperationResponse operation = await ExecuteOperation(adapter, "shared-id")
+            .WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
+        OperationResponse edit = await SetProperty(adapter, "shared-id", "42")
+            .WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
+
+        operation.IsSuccess.Should().BeTrue();
+        edit.IsSuccess.Should().BeTrue();
+        _target.CallCount.Should().Be(1);
+        _target.Threshold.Should().Be(42);
+    }
+
+    private static Task<OperationResponse> SetProperty(IDisposable adapter, string requestId, string value)
+    {
+        object?[] args =
+        [
+            requestId,
+            Array.Empty<string>(),
+            $"HubServerAdapterDeduplicationTests|Dedup||{nameof(SlowOperation.Threshold)}",
+            value,
+            CancellationToken.None,
+        ];
+
+        return (Task<OperationResponse>)(
+            AdapterType.GetMethod("SetProperty")!.Invoke(adapter, args)
+            ?? throw new InvalidOperationException("SetProperty returned null")
+        );
+    }
+
     private static Task<OperationResponse> ExecuteOperation(IDisposable adapter, string requestId)
     {
         object?[] args =
@@ -139,6 +182,9 @@ public sealed class HubServerAdapterDeduplicationTests : IDisposable
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int CallCount => Volatile.Read(ref _callCount);
+
+        [DiagnosticProperty(AllowSet = true)]
+        public int Threshold { get; set; }
 
         public void Release() => _release.Set();
 

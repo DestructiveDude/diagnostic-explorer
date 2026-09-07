@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using DiagnosticExplorer.Logging;
@@ -206,7 +207,11 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     ///         pruned only once complete, so an id is never dropped while its work is in flight.
     ///     </para>
     /// </remarks>
-    private Task<OperationResponse> RunOnce(string requestId, Func<OperationResponse> work)
+    private Task<OperationResponse> RunOnce(
+        string requestId,
+        Func<OperationResponse> work,
+        [CallerMemberName] string scope = ""
+    )
     {
         if (string.IsNullOrEmpty(requestId))
         {
@@ -215,11 +220,18 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
         PruneRequests();
 
+        // Scoped by the calling method, so an id reused across two different actions cannot make
+        // one of them return the other's result while never running its own body. Nothing in the
+        // protocol says an id is unique per method - only that a RETRY carries the id of the
+        // attempt it repeats - so the id space is namespaced here rather than trusted. Filled in
+        // by the compiler so a later caller cannot forget it.
+        string key = scope + ":" + requestId;
+
         // Lazy with ExecutionAndPublication, not a bare Task: GetOrAdd may run its factory more
         // than once under contention, and a factory that started the work would then have started
         // it twice - the exact thing being prevented.
         DeduplicatedRequest request = _requests.GetOrAdd(
-            requestId,
+            key,
             _ => new DeduplicatedRequest(
                 new Lazy<Task<OperationResponse>>(() => Run(work), LazyThreadSafetyMode.ExecutionAndPublication),
                 _clock.ElapsedMilliseconds
