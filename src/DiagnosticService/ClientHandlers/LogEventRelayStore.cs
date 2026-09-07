@@ -110,17 +110,29 @@ internal sealed class LogEventRelayStore
         }
     }
 
+    /// <summary>Reads the retention an agent asked for, defaulting and clamping what it sent.</summary>
+    /// <remarks>
+    ///     These values arrive over the wire, so they are an agent's claim rather than this
+    ///     service's configuration. A zero means "not stated", not "retain nothing". The upper
+    ///     bound is the one that matters: Prune does TimeSpan.FromMinutes on this, which throws for
+    ///     infinity or anything past TimeSpan's range, and it would throw AFTER the value had been
+    ///     stored — so every later append, merge and snapshot for that process would throw too, and
+    ///     AddWebClient would fault inside the subscription lock. One malformed number would make a
+    ///     process unwatchable until the service restarted. The agent applies the same rule to its
+    ///     own configuration in LogEventRetentionOptions.CloneAndValidate; the difference is that a
+    ///     misconfigured agent should fail loudly at startup, whereas the service should not let a
+    ///     misbehaving agent take a process down, so this falls back instead of throwing.
+    /// </remarks>
     private static LogEventRetentionOptions GetRetention(LogStreamInitialization initialization)
     {
-        // A zero means the agent did not state a limit, not that it wants to retain nothing.
+        var maxAge = initialization.MaxAgeMinutes;
+        var maxAgeUsable = maxAge > 0 && !double.IsNaN(maxAge) && maxAge <= TimeSpan.MaxValue.TotalMinutes;
+
         return new LogEventRetentionOptions
         {
             MaxEvents =
                 initialization.MaxEvents > 0 ? initialization.MaxEvents : LogEventRetentionOptions.DefaultMaxEvents,
-            MaxAgeMinutes =
-                initialization.MaxAgeMinutes > 0
-                    ? initialization.MaxAgeMinutes
-                    : LogEventRetentionOptions.DefaultMaxAgeMinutes,
+            MaxAgeMinutes = maxAgeUsable ? maxAge : LogEventRetentionOptions.DefaultMaxAgeMinutes,
         };
     }
 

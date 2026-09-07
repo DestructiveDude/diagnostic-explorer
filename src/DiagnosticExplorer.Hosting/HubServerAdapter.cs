@@ -302,6 +302,17 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     }
 
     /// <summary>Runs one subscription until its channel completes or the token is cancelled.</summary>
+    /// <remarks>
+    ///     The initialization is sent WITHOUT its replay events, and the replay follows through the
+    ///     ordinary StreamLogEvents path. Sending it whole would put the entire retained window
+    ///     (5 000 events by default) into a single hub message against a 10 MB receive cap, and the
+    ///     burst that fills that window is the one carrying stack traces — so the frame would be
+    ///     largest exactly when it is needed. Over the cap, the invocation faults, and a fault here
+    ///     is not cancellation, so it ends delivery for the life of the connection. Batching it
+    ///     through the same bounded path as live events removes the unbounded frame instead of
+    ///     tuning its size. The service keys on sequence, so a replayed event it already holds is
+    ///     dropped either way.
+    /// </remarks>
     private async Task SendOneSubscription(CancellationToken cancel)
     {
         using var stream = DiagnosticManager.LogEventStore.CreateSubscription();
@@ -314,12 +325,26 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             stream.Initialization
             ?? new LogStreamInitialization { StreamId = DiagnosticManager.LogEventStore.StreamId };
 
+        var replay = initialization.ReplayEvents ?? [];
+        initialization.ReplayEvents = [];
+
         await _hubConn.InvokeCoreAsync(
             nameof(IDiagnosticHubServer.InitializeLogStream),
             typeof(object),
             new object[] { initialization },
             cancel
         );
+
+        for (var sent = 0; sent < replay.Length; sent += MaxEventsPerFrame)
+        {
+            var frame = replay.Skip(sent).Take(MaxEventsPerFrame).ToArray();
+            await _hubConn.InvokeCoreAsync(
+                nameof(IDiagnosticHubServer.StreamLogEvents),
+                typeof(object),
+                new object[] { frame },
+                cancel
+            );
+        }
 
         while (await stream.Events.WaitToReadAsync(cancel))
         {

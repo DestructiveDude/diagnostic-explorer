@@ -209,6 +209,31 @@ public sealed class LogEventRelayStoreTests
         store.CreateInitialization().HighWatermark.Should().Be(7);
     }
 
+    /// <summary>
+    ///     A malformed retention figure from an agent must not take the process down.
+    /// </summary>
+    /// <remarks>
+    ///     MaxAgeMinutes arrives over the wire. Prune does TimeSpan.FromMinutes on it, which throws
+    ///     past TimeSpan's range — and it throws AFTER the value has been stored, so every later
+    ///     append, merge and snapshot for that process throws too, and AddWebClient faults inside
+    ///     the subscription lock. One bad number would make a process unwatchable until restart.
+    /// </remarks>
+    [Theory]
+    [InlineData(double.MaxValue)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NaN)]
+    [InlineData(-1d)]
+    public void MergeInitialization_WithAnUnusableMaxAge_FallsBackInsteadOfPoisoningTheStore(double maxAgeMinutes)
+    {
+        var store = CreateStore();
+        var initialization = Initialization("stream-1");
+        initialization.MaxAgeMinutes = maxAgeMinutes;
+        store.MergeInitialization(initialization);
+        var act = () => store.Append([Event("stream-1", 1)]);
+        act.Should().NotThrow();
+        store.CreateInitialization().MaxAgeMinutes.Should().Be(LogEventRetentionOptions.DefaultMaxAgeMinutes);
+    }
+
     private static LogEventRelayStore CreateStore() => new();
 
     private static LogStreamInitialization Initialization(string streamId, params LogStreamEvent[] replay)

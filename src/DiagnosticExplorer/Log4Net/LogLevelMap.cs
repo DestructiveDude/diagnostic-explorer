@@ -5,11 +5,24 @@ namespace DiagnosticExplorer.Log4Net;
 
 /// <summary>
 ///     Maps log4net level values (spaced in multiples of 10,000) down to
-///     Microsoft.Extensions.Logging.LogLevel ordinals (Trace=0 to None=6), which is the canonical
-///     numeric scheme carried on <see cref="SystemEvent" /> and <see cref="DiagnosticMsg" />.
-///     log4net is on its way out; this is the single boundary where its richer level set is folded
-///     into the Microsoft scheme.
+///     Microsoft.Extensions.Logging.LogLevel ordinals (Trace=0 to None=6).
 /// </summary>
+/// <remarks>
+///     <para>
+///         This is the scheme the LOG STREAM carries — <c>LogStreamEvent.Level</c>, and the
+///         MinLevel/MaxLevel a route is matched on. log4net is on its way out, and this is the
+///         single boundary where its richer level set is folded into the Microsoft scheme.
+///     </para>
+///     <para>
+///         It is NOT the scheme <see cref="DiagnosticMsg" /> carries. The retro feed is a separate
+///         path: <c>DiagnosticRetroAppender</c> writes <c>loggingEvent.Level.Value</c> straight
+///         through, so retro messages hold raw log4net values (10 000..120 000) and the web client
+///         reads them with its own log4net-scaled <c>Level</c>. Do not "make it consistent" by
+///         folding retro through here — that would silently drop every retro event to the bottom of
+///         the display scale, which is exactly the bug the realtime feed had before its display
+///         mapping was added.
+///     </para>
+/// </remarks>
 public static class LogLevelMap
 {
     /// <summary>Map a log4net <see cref="Level" /> to a Microsoft LogLevel ordinal.</summary>
