@@ -1,9 +1,11 @@
 ﻿#nullable enable annotations
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Util;
 using log4net;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -17,6 +19,9 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     // _eventLock serializes subscribe/unsubscribe so a re-subscribe can't orphan the prior
     // CancellationTokenSource and its still-running SendEventStream loop.
     private readonly object _eventLock = new();
+
+    /// <summary>How many log events one StreamLogEvents frame may carry.</summary>
+    private const int MaxEventsPerFrame = 100;
 
     // _requestGate serializes the three client results against each other. See Run.
     //
@@ -226,25 +231,63 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         }
     }
 
+    /// <summary>
+    ///     Streams this process's log events to the service, from
+    ///     <see cref="DiagnosticManager.LogEventStore" />.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The source is the log-event store, not EventSinkRepo. The store carries the routing
+    ///         in force and a sequence number per event, which is what lets the service replay a
+    ///         reconnecting subscriber rather than starting it blank; a sink stream carried neither.
+    ///     </para>
+    ///     <para>
+    ///         The consequence is that the legacy log4net DiagnosticAppender, which writes only to
+    ///         EventSinkRepo, no longer feeds the realtime view. That is deliberate for 4.0.0: the
+    ///         release already requires agents to be rebuilt, so a host wanting realtime events
+    ///         moves to RoutingDiagnosticAppender or one of the NLog / Serilog /
+    ///         Microsoft.Extensions.Logging adapters at the same time.
+    ///     </para>
+    ///     <para>
+    ///         The batching is the store's, not a sleep: WaitToReadAsync blocks until there is
+    ///         something, then the drain takes whatever else has arrived, up to a frame's worth.
+    ///     </para>
+    /// </remarks>
     private async Task SendEventStream(CancellationToken cancel)
     {
-        using var stream = EventSinkRepo.Default.CreateSinkStream(TimeSpan.FromMilliseconds(50), 100);
+        using var stream = DiagnosticManager.LogEventStore.CreateSubscription();
+
+        // CreateSubscription always sets this before returning; the property is nullable only
+        // because the subscription is constructed before its snapshot is taken. Send an empty
+        // initialization rather than nothing, so a subscriber is never left waiting for one.
+        var initialization = stream.Initialization ?? new LogStreamInitialization();
 
         try
         {
-            var initial = stream.InitialEvents;
-            await _hubConn.InvokeCoreAsync<string>(
-                nameof(IDiagnosticHubServer.SetEvents),
-                new object[] { initial },
+            await _hubConn.InvokeCoreAsync(
+                nameof(IDiagnosticHubServer.InitializeLogStream),
+                typeof(object),
+                new object[] { initialization },
                 cancel
             );
 
-            while (await stream.EventChannel.Reader.WaitToReadAsync(cancel))
+            while (await stream.Events.WaitToReadAsync(cancel))
             {
-                var item = await stream.EventChannel.Reader.ReadAsync(cancel);
-                await _hubConn.InvokeCoreAsync<string>(
-                    nameof(IDiagnosticHubServer.StreamEvents),
-                    new object[] { item },
+                List<LogStreamEvent> batch = [];
+                while (batch.Count < MaxEventsPerFrame && stream.Events.TryRead(out var streamEvent))
+                {
+                    batch.Add(streamEvent);
+                }
+
+                if (batch.Count == 0)
+                {
+                    continue;
+                }
+
+                await _hubConn.InvokeCoreAsync(
+                    nameof(IDiagnosticHubServer.StreamLogEvents),
+                    typeof(object),
+                    new object[] { batch.ToArray() },
                     cancel
                 );
             }

@@ -3,12 +3,13 @@ using System.Diagnostics;
 using System.Reactive.Disposables;
 using Diagnostic.Service.Common;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 
 namespace Diagnostic.Service.ClientHandlers;
 
 public class DiagnosticSubscription
 {
-    private readonly EventSinkRepo _eventRepo = new();
+    private readonly LogEventRelayStore _eventStore;
     private readonly object _startStopLock = new();
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, WebClientHandler> _webClients = new();
@@ -21,12 +22,12 @@ public class DiagnosticSubscription
     private DiagnosticResponse? _lastResponse;
     private Task? _requestLoop;
     private CancellationTokenSource? _requestLoopCancelSource;
-    private bool _streamingStarted;
 
     public DiagnosticSubscription(DiagProcess process, TimeProvider timeProvider)
     {
         Process = process;
         _timeProvider = timeProvider;
+        _eventStore = new LogEventRelayStore(timeProvider);
     }
 
     public DiagProcess Process { get; set; }
@@ -45,29 +46,16 @@ public class DiagnosticSubscription
                 StopRequestLoop();
             }
 
+            // No matching StopWebClientEvents any more. The web clients keep the history the
+            // relay store holds; an agent swapping out is reported to them as a process state
+            // change, not by blanking their grid.
             StopDiagClientEvents(previousClient);
-            StopWebClientEvents();
             lock (_startStopLock)
             {
                 _eventSubscriptionRestartBlocked = false;
             }
 
             StartIfRequired();
-        }
-    }
-
-    private void StopWebClientEvents()
-    {
-        WebClientHandler[] handlers;
-        lock (_startStopLock)
-        {
-            _streamingStarted = false;
-            handlers = _webClients.Values.ToArray();
-        }
-
-        foreach (var handler in handlers)
-        {
-            handler.StopStreamingEvents(ProcessId);
         }
     }
 
@@ -78,18 +66,16 @@ public class DiagnosticSubscription
             await TrySend(webClient, _lastResponse);
         }
 
-        if (DiagnosticClient == null)
-        {
-            await webClient.SetEvents(ProcessId, _eventRepo.GetEvents());
-        }
-
         lock (_startStopLock)
         {
             var added = _webClients.TryAdd(webClient.ConnectionId, webClient);
 
-            if (added && _streamingStarted)
+            // Whatever this process's stream holds so far, whether or not an agent is attached
+            // right now. A browser that opens a process late, or reloads, starts from the same
+            // picture as one that was watching all along.
+            if (added)
             {
-                webClient.StartStreamingEvents(Process.Id, _eventRepo);
+                webClient.InitializeLogStream(ProcessId, _eventStore.CreateInitialization());
             }
 
             StartIfRequired();
@@ -100,8 +86,6 @@ public class DiagnosticSubscription
     {
         if (_webClients.ContainsKey(webClient.ConnectionId))
         {
-            webClient.StopStreamingEvents(ProcessId);
-
             lock (_startStopLock)
             {
                 _webClients.TryRemove(webClient.ConnectionId, out _);
@@ -153,15 +137,14 @@ public class DiagnosticSubscription
 
     private void StartDiagClientEvents()
     {
-        _eventRepo.Clear();
         var diagnosticClient = DiagnosticClient!;
         SingleAssignmentDisposable eventSetSubscription = new();
         SingleAssignmentDisposable eventStreamSubscription = new();
-        eventStreamSubscription.Disposable = diagnosticClient.EventsStreamed.Subscribe(evt =>
-            HandleStreamedEventsArrived(diagnosticClient, eventSetSubscription, eventStreamSubscription, evt)
+        eventStreamSubscription.Disposable = diagnosticClient.LogStreamEvents.Subscribe(events =>
+            HandleStreamedEventsArrived(diagnosticClient, eventSetSubscription, eventStreamSubscription, events)
         );
-        eventSetSubscription.Disposable = diagnosticClient.EventsSet.Subscribe(events =>
-            HandleInitialEventsArrived(diagnosticClient, eventSetSubscription, eventStreamSubscription, events)
+        eventSetSubscription.Disposable = diagnosticClient.LogStreamInitialized.Subscribe(initialization =>
+            HandleInitialEventsArrived(diagnosticClient, eventSetSubscription, eventStreamSubscription, initialization)
         );
         _eventSubscriptionOwnerClient = diagnosticClient;
         _eventSetSubscription = eventSetSubscription;
@@ -187,7 +170,6 @@ public class DiagnosticSubscription
             eventSetSubscription = _eventSetSubscription;
             eventStreamSubscription = _eventStreamSubscription;
             diagnosticClient = diagnosticClientToUnsubscribe ?? _eventSubscriptionOwnerClient;
-            _streamingStarted = false;
             _eventSubscriptionOwnerClient = null;
             _eventSetSubscription = null;
             _eventStreamSubscription = null;
@@ -259,7 +241,6 @@ public class DiagnosticSubscription
             _eventSubscriptionOwnerClient = null;
             _eventSetSubscription = null;
             _eventStreamSubscription = null;
-            _streamingStarted = false;
         }
 
         Trace.TraceError($"DiagnosticSubscription {Process.Id} failed to subscribe events: {ex.Message}");
@@ -309,11 +290,21 @@ public class DiagnosticSubscription
             && ReferenceEquals(_eventStreamSubscription, eventStreamSubscription);
     }
 
+    /// <summary>
+    ///     An agent sent its stream snapshot: merge it and give every web client the merged view.
+    /// </summary>
+    /// <remarks>
+    ///     Every initialization is merged, not just the first. An agent that reconnects sends a
+    ///     fresh one, and that is exactly when the browsers need telling: either the stream id is
+    ///     unchanged and the merge fills the gap they missed, or it changed because the process
+    ///     restarted and the old history no longer belongs to the sequence numbers now arriving.
+    ///     The old first-snapshot-wins flag this replaced would have suppressed both.
+    /// </remarks>
     private void HandleInitialEventsArrived(
         IDiagnosticClient diagnosticClient,
         IDisposable eventSetSubscription,
         IDisposable eventStreamSubscription,
-        SystemEvent[] events
+        LogStreamInitialization initialization
     )
     {
         lock (_startStopLock)
@@ -323,26 +314,26 @@ public class DiagnosticSubscription
                 return;
             }
 
-            if (_streamingStarted)
-            {
-                return;
-            }
+            _eventStore.MergeInitialization(initialization);
 
-            _eventRepo.LogEvents(events);
-            _streamingStarted = true;
-
+            var merged = _eventStore.CreateInitialization();
             foreach (var handler in _webClients.Values)
             {
-                handler.StartStreamingEvents(Process.Id, _eventRepo);
+                handler.InitializeLogStream(Process.Id, merged);
             }
         }
     }
 
+    /// <summary>Relays live events, each exactly once.</summary>
+    /// <remarks>
+    ///     Append returns only what the store had not already seen, so a reconnect that replays
+    ///     events through the initialization does not send them to the browser a second time.
+    /// </remarks>
     private void HandleStreamedEventsArrived(
         IDiagnosticClient diagnosticClient,
         IDisposable eventSetSubscription,
         IDisposable eventStreamSubscription,
-        SystemEvent[] events
+        LogStreamEvent[] events
     )
     {
         lock (_startStopLock)
@@ -352,7 +343,16 @@ public class DiagnosticSubscription
                 return;
             }
 
-            _eventRepo.LogEvents(events);
+            var added = _eventStore.Append(events);
+            if (added.Length == 0)
+            {
+                return;
+            }
+
+            foreach (var handler in _webClients.Values)
+            {
+                handler.StreamLogEvents(Process.Id, added);
+            }
         }
     }
 

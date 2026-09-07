@@ -3,6 +3,7 @@ import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
 import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
+import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations} from './LogStream';
 import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
 import {customMerge, simpleMerge} from '../util/Merge';
@@ -35,6 +36,14 @@ export class RealtimeModel {
     categories: CategoryModel[] = [];
     operationSets: OperationSet[] = [];
     severityCheckSubscription?: Subscription;
+
+    /**
+     * The routing in force for the selected process's log stream, as sent with its
+     * initialization. Every arriving event is placed against it, so an event that arrives before
+     * any initialization has no destination and is not shown — which is correct: the
+     * initialization that follows carries the agent's own replay of it.
+     */
+    private logStreamRouting?: LogStreamRoutingConfiguration;
 
     @Watch((_this: RealtimeModel) => _this.performProcessSearch())
     processSearch: Null<string> = null;
@@ -70,13 +79,13 @@ export class RealtimeModel {
                 if (id === this.activeProcess?.id)
                     this.messages.add({ severity: 'error', detail: message, life: 2000 });
             });
-            connection.on('SetEvents', (id: string, events: SystemEvent[]) => {
+            connection.on('InitializeLogStream', (id: string, initialization: LogStreamInitialization) => {
                 if (id === this.activeProcess?.id)
-                    this.setEvents(id, events);
+                    this.initializeLogStream(id, initialization);
             });
-            connection.on('StreamEvents', (id: string, evts: SystemEvent[]) => {
+            connection.on('StreamLogEvents', (id: string, events: LogStreamEvent[]) => {
                 if (id === this.activeProcess?.id)
-                    this.streamEvents(id, evts);
+                    this.streamLogEvents(id, events);
             });
         });
 
@@ -350,24 +359,53 @@ export class RealtimeModel {
     }
 
 
-    private setEvents(id: string, evts: SystemEvent[]): void {
-        if (this.activeProcess?.id === id) {
-            this.categories.forEach(c => c.eventSinks = []);
-            this.streamEvents(id, evts);
-        }
-    }
-
-    private streamEvents(id: string, evts: SystemEvent[]): void {
+    /**
+     * Replaces this process's events with the stream snapshot.
+     *
+     * An initialization is a whole picture, not an increment: it arrives when a browser attaches
+     * and again whenever an agent reconnects, and in the second case it may carry a different
+     * stream whose sequence numbers mean something else. Clearing first is what stops the two
+     * being interleaved. The routing it carries is kept, because every event that follows is
+     * placed with it.
+     */
+    private initializeLogStream(id: string, initialization: LogStreamInitialization): void {
         if (this.activeProcess?.id !== id) return;
 
-        evts.forEach(evt => this.setEventLevel(evt));
-        // Copy before reversing: evts is the array delivered by the SignalR handler; reversing it
-        // in place mutates a caller-owned array.
-        const ordered = [...evts].reverse();
+        this.logStreamRouting = initialization.routing;
+        this.categories.forEach(c => c.eventSinks = []);
+        this.streamLogEvents(id, initialization.replayEvents ?? []);
+    }
 
-        var grouped = _.groupBy<SystemEvent>(ordered, evt => evt.sinkCategory);
+    private streamLogEvents(id: string, events: LogStreamEvent[]): void {
+        if (this.activeProcess?.id !== id) return;
+
+        // Newest first, matching what the grid expects. Copy before reversing: the array belongs
+        // to the SignalR handler's caller.
+        const ordered = [...events].reverse();
+
+        const placed: SystemEvent[] = [];
+        for (const event of ordered) {
+            // One event can route to several destinations, and is shown under each of them.
+            for (const destination of resolveDestinations(this.logStreamRouting, event))
+                placed.push(this.toSystemEvent(event, destination.category, destination.name));
+        }
+
+        const grouped = _.groupBy<SystemEvent>(placed, evt => evt.sinkCategory);
         for (const cat in grouped)
             this.getCat(cat).addEvents(grouped[cat]);
+    }
+
+    private toSystemEvent(event: LogStreamEvent, sinkCategory: string, sinkName: string): SystemEvent {
+        const systemEvent = new SystemEvent();
+        systemEvent.id = event.sequence;
+        systemEvent.date = Date.parse(event.timestampUtc);
+        systemEvent.message = event.message ?? '';
+        systemEvent.detail = event.detail ?? '';
+        systemEvent.level = event.level;
+        systemEvent.sinkCategory = sinkCategory;
+        systemEvent.sinkName = sinkName;
+        this.setEventLevel(systemEvent);
+        return systemEvent;
     }
 
     private setEventLevel(evt: SystemEvent): void {

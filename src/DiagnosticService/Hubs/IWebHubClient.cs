@@ -1,5 +1,6 @@
 using Diagnostic.Service.Common;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 
 namespace Diagnostic.Service.Hubs;
 
@@ -10,8 +11,8 @@ public interface IWebHubClient
     Task SetProcesses(DiagProcess[] processes);
     Task UpdateProcess(DiagProcess processes);
     Task RemoveProcess(string id);
-    Task SetEvents(string id, SystemEvent[] events);
-    Task StreamEvents(string id, IList<SystemEvent> evt);
+    Task InitializeLogStream(string id, LogStreamInitialization initialization);
+    Task StreamLogEvents(string id, LogStreamEvent[] events);
     Task ProcessSearchResults(RetroSearchResult result);
     Task ProcessSearchEnd(int searchId);
     Task ProcessSearchError(int searchId, string message, string detail);

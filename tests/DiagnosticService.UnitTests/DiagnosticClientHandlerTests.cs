@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using Microsoft.AspNetCore.SignalR;
 using NSubstitute;
 using Xunit;
@@ -145,17 +146,18 @@ public class DiagnosticClientHandlerTests
     }
 
     [Fact]
-    public async Task SetEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
+    public async Task InitializeLogStream_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
         var handler = CreateHandler();
-        using OverlapDetectingObserver<SystemEvent[]> observer = new();
+        using OverlapDetectingObserver<LogStreamInitialization> observer = new();
 
-        using var subscription = handler.EventsSet.Subscribe(observer);
+        using var subscription = handler.LogStreamInitialized.Subscribe(observer);
 
         var publishes = StartConcurrentPublishes(
             24,
             handler,
-            static (target, index) => target.SetEvents(new[] { new SystemEvent { Message = $"set-{index}" } })
+            static (target, index) =>
+                target.InitializeLogStream(new LogStreamInitialization { StreamId = $"set-{index}" })
         );
 
         try
@@ -180,17 +182,18 @@ public class DiagnosticClientHandlerTests
     }
 
     [Fact]
-    public async Task StreamEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
+    public async Task StreamLogEvents_WhenPublishedConcurrently_DoesNotOverlapObserverCallbacks()
     {
         var handler = CreateHandler();
-        using OverlapDetectingObserver<SystemEvent[]> observer = new();
+        using OverlapDetectingObserver<LogStreamEvent[]> observer = new();
 
-        using var subscription = handler.EventsStreamed.Subscribe(observer);
+        using var subscription = handler.LogStreamEvents.Subscribe(observer);
 
         var publishes = StartConcurrentPublishes(
             24,
             handler,
-            static (target, index) => target.StreamEvents(new[] { new SystemEvent { Message = $"stream-{index}" } })
+            static (target, index) =>
+                target.StreamLogEvents(new[] { new LogStreamEvent { StreamId = $"stream-{index}" } })
         );
 
         try

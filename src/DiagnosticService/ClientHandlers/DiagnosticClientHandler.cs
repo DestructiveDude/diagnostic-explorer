@@ -2,6 +2,7 @@ using System.Reactive.Subjects;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Util;
 using Microsoft.AspNetCore.SignalR;
 
@@ -29,10 +30,10 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
 
     private readonly HubCallerContext _callerContext;
     private readonly IDiagnosticHubClient _client;
-    private readonly Subject<SystemEvent[]> _eventsSetSubject = new();
-    private readonly Subject<SystemEvent[]> _eventsStreamedSubject = new();
-    private readonly ISubject<SystemEvent[]> _eventsSet;
-    private readonly ISubject<SystemEvent[]> _eventsStreamed;
+    private readonly Subject<LogStreamInitialization> _logStreamInitializedSubject = new();
+    private readonly Subject<LogStreamEvent[]> _logStreamEventsSubject = new();
+    private readonly ISubject<LogStreamInitialization> _logStreamInitialized;
+    private readonly ISubject<LogStreamEvent[]> _logStreamEvents;
     private readonly TimeSpan _operationTimeout;
     private readonly TimeSpan _requestTimeout;
     private int _disposed;
@@ -48,14 +49,14 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
         _callerContext = callerContext;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
         _operationTimeout = operationTimeout ?? DefaultOperationTimeout;
-        _eventsSet = Subject.Synchronize(_eventsSetSubject);
-        _eventsStreamed = Subject.Synchronize(_eventsStreamedSubject);
+        _logStreamInitialized = Subject.Synchronize(_logStreamInitializedSubject);
+        _logStreamEvents = Subject.Synchronize(_logStreamEventsSubject);
         ConnectionId = callerContext.ConnectionId;
     }
 
     public string ConnectionId { get; }
-    public IObservable<SystemEvent[]> EventsSet => _eventsSet;
-    public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
+    public IObservable<LogStreamInitialization> LogStreamInitialized => _logStreamInitialized;
+    public IObservable<LogStreamEvent[]> LogStreamEvents => _logStreamEvents;
 
     // These three are SignalR client results. The request id and the shared response bucket are
     // gone: SignalR correlates the invocation itself and faults it when the AGENT's connection
@@ -163,17 +164,17 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
         _callerContext.ConnectionAborted.Register(() => Disconnected?.Invoke(this, EventArgs.Empty));
     }
 
-    // SetEvents/StreamEvents can be invoked concurrently for a single client under
-    // MaximumParallelInvocationsPerClient; the _eventsSet/_eventsStreamed subjects are wrapped in
-    // Subject.Synchronize (see field declarations) so their OnNext is already serialized. (A6)
-    public void SetEvents(SystemEvent[] events)
+    // InitializeLogStream/StreamLogEvents can be invoked concurrently for a single client under
+    // MaximumParallelInvocationsPerClient; both subjects are wrapped in Subject.Synchronize (see
+    // field declarations) so their OnNext is already serialized. (A6)
+    public void InitializeLogStream(LogStreamInitialization initialization)
     {
-        _eventsSet.OnNext(events);
+        _logStreamInitialized.OnNext(initialization);
     }
 
-    public void StreamEvents(SystemEvent[] evt)
+    public void StreamLogEvents(LogStreamEvent[] events)
     {
-        _eventsStreamed.OnNext(evt);
+        _logStreamEvents.OnNext(events);
     }
 
     public void CloseConnection()
@@ -188,7 +189,7 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
             return;
         }
 
-        _eventsSetSubject.Dispose();
-        _eventsStreamedSubject.Dispose();
+        _logStreamInitializedSubject.Dispose();
+        _logStreamEventsSubject.Dispose();
     }
 }

@@ -3,6 +3,7 @@ import {RealtimeModel} from './RealtimeModel';
 import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
 import {DiagProcess} from './DiagProcess';
 import {Level} from './Level';
+import {LogStreamEvent, LogStreamInitialization, LogStreamRoute} from './LogStream';
 
 /**
  * A fake hub connection that records the handlers RealtimeModel registers via
@@ -50,6 +51,52 @@ function proc(id: string, name: string, state = 'Online', machine = 'SRV', user 
 
 function evt(over: Partial<SystemEvent>): SystemEvent {
     return Object.assign(new SystemEvent(), over);
+}
+
+let nextSequence = 1;
+
+/**
+ * A log event that routes to one fixed destination.
+ *
+ * Events no longer carry their sink; the routing sent with the stream decides it. So a test that
+ * wants an event under Disk/IO says so through a route, which is also what the running system
+ * does.
+ */
+function logEvt(over: Partial<LogStreamEvent> = {}): LogStreamEvent {
+    return {
+        streamId: 'stream-1',
+        sequence: nextSequence++,
+        timestampUtc: '2026-01-01T00:00:00.000Z',
+        loggerCategory: 'App.Worker',
+        level: Level.INFO,
+        eventId: 0,
+        ...over,
+    };
+}
+
+function routeTo(category: string, name: string, over: Partial<LogStreamRoute> = {}): LogStreamRoute {
+    return {
+        order: 0,
+        loggerName: '*',
+        loggerNameMatchMode: 'Wildcard',
+        stopProcessing: false,
+        destinations: [{
+            category: {source: 'Fixed', value: category},
+            name: {source: 'Fixed', value: name},
+        }],
+        ...over,
+    };
+}
+
+function initialization(routes: LogStreamRoute[], events: LogStreamEvent[] = []): LogStreamInitialization {
+    return {
+        streamId: 'stream-1',
+        routing: {matchMode: 'AllMatches', routes},
+        replayEvents: events,
+        highWatermark: 0,
+        maxEvents: 1000,
+        maxAgeMinutes: 60,
+    };
 }
 
 describe('RealtimeModel', () => {
@@ -129,8 +176,8 @@ describe('RealtimeModel', () => {
             hub.emitReady(connection);
 
             expect(Object.keys(connection.handlers).sort()).toEqual([
-                'RemoveProcess', 'SetEvents', 'SetProcesses', 'ShowDiagnostics',
-                'ShowDiagnosticsError', 'StreamEvents', 'UpdateProcess',
+                'InitializeLogStream', 'RemoveProcess', 'SetProcesses', 'ShowDiagnostics',
+                'ShowDiagnosticsError', 'StreamLogEvents', 'UpdateProcess',
             ]);
         });
 
@@ -248,27 +295,32 @@ describe('RealtimeModel', () => {
         });
     });
 
-    describe('event streaming', () => {
+    describe('log stream', () => {
         it('ignores streamed events for a process that is not the active one', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Cat', 'Sink')]));
 
-            connection.handlers['StreamEvents']('other', [evt({sinkCategory: 'Cat', sinkName: 'Sink'})]);
+            connection.handlers['StreamLogEvents']('other', [logEvt()]);
 
             expect(model.categories).toHaveLength(0);
         });
 
-        it('creates a category per sinkCategory and uses each event\'s level', () => {
+        it('places an event under the destination its route resolves to', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([
+                routeTo('Disk', 'IO', {order: 0, loggerName: 'App.Disk', loggerNameMatchMode: 'Prefix'}),
+                routeTo('Net', 'Http', {order: 1, loggerName: 'App.Net', loggerNameMatchMode: 'Prefix'}),
+            ]));
 
-            connection.handlers['StreamEvents']('active', [
-                evt({sinkCategory: 'Disk', sinkName: 'IO', level: Level.WARN}),
-                evt({sinkCategory: 'Net', sinkName: 'Http', level: Level.INFO}),
+            connection.handlers['StreamLogEvents']('active', [
+                logEvt({loggerCategory: 'App.Disk.Reader', level: Level.WARN}),
+                logEvt({loggerCategory: 'App.Net.Client', level: Level.INFO}),
             ]);
 
             expect(model.categories.map(c => c.name).sort()).toEqual(['Disk', 'Net']);
@@ -277,33 +329,75 @@ describe('RealtimeModel', () => {
             expect(model.categories.find(c => c.name === 'Net')!.worstSev).toBe(Level.INFO);
         });
 
+        it('shows an event under every destination it routes to', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([
+                routeTo('Disk', 'IO', {order: 0}),
+                routeTo('All', 'Everything', {order: 1}),
+            ]));
+
+            connection.handlers['StreamLogEvents']('active', [logEvt()]);
+
+            expect(model.categories.map(c => c.name).sort()).toEqual(['All', 'Disk']);
+        });
+
+        it('drops an event that no route matches', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([
+                routeTo('Disk', 'IO', {loggerName: 'App.Disk', loggerNameMatchMode: 'Prefix'}),
+            ]));
+
+            connection.handlers['StreamLogEvents']('active', [logEvt({loggerCategory: 'App.Net'})]);
+
+            expect(model.categories).toHaveLength(0);
+        });
+
         it('defaults the level to ERROR when an event arrives without one', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')]));
 
-            connection.handlers['StreamEvents']('active', [
-                evt({sinkCategory: 'Disk', sinkName: 'IO'}),
-            ]);
+            connection.handlers['StreamLogEvents']('active', [logEvt({level: 0})]);
 
             expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.ERROR);
         });
 
-        it('clears existing event sinks for the active process before applying SetEvents', () => {
+        it('replaces the existing sinks when a new initialization arrives', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
 
-            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO'})]);
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt()]));
             const firstSink = model.categories.find(c => c.name === 'Disk')!.eventSinks[0];
 
-            connection.handlers['SetEvents']('active', [evt({sinkCategory: 'Disk', sinkName: 'IO'})]);
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt()]));
             const secondSink = model.categories.find(c => c.name === 'Disk')!.eventSinks[0];
 
-            // SetEvents resets eventSinks, so the sink is rebuilt rather than accumulated.
+            // An initialization is a whole picture, so the sink is rebuilt rather than accumulated.
             expect(secondSink).not.toBe(firstSink);
+        });
+
+        it('applies the events replayed with an initialization', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+
+            connection.handlers['InitializeLogStream'](
+                'active',
+                initialization([routeTo('Disk', 'IO')], [logEvt({level: Level.WARN})])
+            );
+
+            expect(model.categories.find(c => c.name === 'Disk')!.worstSev).toBe(Level.WARN);
         });
     });
 
