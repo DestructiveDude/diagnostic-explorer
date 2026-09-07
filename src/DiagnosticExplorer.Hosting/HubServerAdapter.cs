@@ -46,12 +46,25 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     private readonly SemaphoreSlim _requestGate = new(1, 1);
 
     private readonly HubConnection _hubConn;
+    private readonly LogEventStore? _eventStore;
     private CancellationTokenSource? _writeEventCancel;
     private Task? _writeEventTask;
 
-    public HubServerAdapter(HubConnection hubConn)
+    /// <summary>
+    ///     The store this adapter streams. Defaults to the process-wide one.
+    /// </summary>
+    /// <remarks>
+    ///     Resolved on use rather than captured, so the default follows DiagnosticManager rather
+    ///     than freezing whatever it held when this adapter was built. The parameter exists so a
+    ///     test can stream its own store instead of publishing into the process-wide singleton,
+    ///     which is the convention the rest of this assembly's tests already follow.
+    /// </remarks>
+    private LogEventStore EventStore => _eventStore ?? DiagnosticManager.LogEventStore;
+
+    public HubServerAdapter(HubConnection hubConn, LogEventStore? eventStore = null)
     {
         _hubConn = hubConn;
+        _eventStore = eventStore;
 
         // Registered through the value-returning On overloads, which is what makes these client
         // results rather than one-way notifications.
@@ -325,15 +338,13 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         // sequential round trips, and the live channel has to absorb everything the process logs
         // meanwhile; a channel smaller than the window would drop the subscription during its own
         // recovery and start the cycle again.
-        using var stream = DiagnosticManager.LogEventStore.CreateSubscription(LiveSubscriptionCapacity);
+        using var stream = EventStore.CreateSubscription(LiveSubscriptionCapacity);
 
         // CreateSubscription always sets this before returning; the property is nullable only
         // because the subscription is constructed before its snapshot is taken. The fallback still
         // carries the store's own stream id, because an initialization without one is not something
         // the service can key events against - it rejects it.
-        var initialization =
-            stream.Initialization
-            ?? new LogStreamInitialization { StreamId = DiagnosticManager.LogEventStore.StreamId };
+        var initialization = stream.Initialization ?? new LogStreamInitialization { StreamId = EventStore.StreamId };
 
         var replay = initialization.ReplayEvents ?? [];
         initialization.ReplayEvents = [];

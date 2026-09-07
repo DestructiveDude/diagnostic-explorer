@@ -154,15 +154,17 @@ public class HubServerAdapterFailureTests
 
         // More than one frame's worth, so the batching is exercised rather than assumed.
         const int retained = 250;
-        DiagnosticManager.LogEventStore.Configure(new LogEventRetentionOptions(), new LogStreamRoutingConfiguration());
+
+        // Its own store, not DiagnosticManager's. Publishing into the process-wide singleton would
+        // leak into any other test that reads it, which is why the rest of this assembly's tests
+        // build their own too.
+        LogEventStore store = new();
         foreach (var index in Enumerable.Range(0, retained))
         {
-            DiagnosticManager.LogEventStore.Publish(
-                new EventSinkLogEvent("App", LogLevel.Information, $"event-{index}")
-            );
+            store.Publish(new EventSinkLogEvent("App", LogLevel.Information, $"event-{index}"));
         }
 
-        using IDisposable adapter = CreateAdapter(hub);
+        using IDisposable adapter = CreateAdapter(hub, store);
         await (Task)AdapterType.GetMethod("SubscribeEvents")!.Invoke(adapter, [])!;
 
         await WaitUntil(() => SendsOf(sends, nameof(IDiagnosticHubServer.StreamLogEvents)).Count >= 3);
@@ -212,10 +214,10 @@ public class HubServerAdapterFailureTests
         );
     }
 
-    private static IDisposable CreateAdapter(HubConnection hub)
+    private static IDisposable CreateAdapter(HubConnection hub, LogEventStore? eventStore = null)
     {
         return (IDisposable)(
-            Activator.CreateInstance(AdapterType, hub)
+            Activator.CreateInstance(AdapterType, hub, eventStore)
             ?? throw new InvalidOperationException("Failed to construct HubServerAdapter")
         );
     }
