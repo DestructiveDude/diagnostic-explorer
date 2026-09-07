@@ -15,6 +15,7 @@ namespace DiagnosticExplorer.UnitTests;
 ///     nothing — so asserting that the configuration was *stored* would have proved precisely the
 ///     wrong thing.
 /// </remarks>
+[Collection(DiagnosticConfigurationCollection.Name)]
 public sealed class FluentConfigurationTests : IDisposable
 {
     /// <summary>

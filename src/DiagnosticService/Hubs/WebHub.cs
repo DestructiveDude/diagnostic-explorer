@@ -54,6 +54,11 @@ public class WebHub : Hub<IWebHubClient>
         return await _realtimeManager.ExecuteOperation(request);
     }
 
+    public async Task<DrillDownResponse> GetDrillDown(ProcessDrillDownRequest request)
+    {
+        return await _realtimeManager.GetDrillDown(request);
+    }
+
     public Task StartRetroSearch(RetroQuery query)
     {
         return _retroManager.StartRetroSearch(query, Context.ConnectionId, Clients.Caller);

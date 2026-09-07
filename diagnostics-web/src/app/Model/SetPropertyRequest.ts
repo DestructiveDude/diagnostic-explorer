@@ -1,5 +1,7 @@
 ﻿export class SetPropertyRequest {
     id = '';
+    /** The drilldown the edit was made in, empty for the main view. */
+    objectPaths: string[] = [];
     path = '';
     value = '';
 }

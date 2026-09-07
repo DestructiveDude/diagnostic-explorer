@@ -48,13 +48,24 @@ namespace DiagnosticExplorer;
 public interface IDiagnosticHubClient
 {
     Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel);
+
+    /// <summary>
+    ///     Renders a value named by a chain of diagnostic paths, so it can be inspected on its own.
+    /// </summary>
+    Task<DrillDownResponse> GetDrillDown(DrillDownRequest request, CancellationToken cancel);
+
+    // objectPaths is the drilldown the operator triggered this from, empty for the main view. It
+    // has to travel with the action: inside a drilldown, path names a property of the drilled-into
+    // object, and resolving it against the process's registered objects would miss - or, where a
+    // same-named property exists there, hit the wrong object entirely.
     Task<OperationResponse> ExecuteOperation(
+        string[] objectPaths,
         string path,
         string operation,
         string[] arguments,
         CancellationToken cancel
     );
-    Task<OperationResponse> SetProperty(string path, string value, CancellationToken cancel);
+    Task<OperationResponse> SetProperty(string[] objectPaths, string path, string value, CancellationToken cancel);
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }

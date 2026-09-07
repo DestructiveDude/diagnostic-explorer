@@ -264,7 +264,7 @@ public class RealtimeManager : IHostedService
                 return OperationResponse.Error($"Process {request.Id} is not connected");
             }
 
-            return await client.SetProperty(request.Path, request.Value);
+            return await client.SetProperty(request.ObjectPaths, request.Path, request.Value);
         }
         catch (Exception ex)
         {
@@ -288,11 +288,55 @@ public class RealtimeManager : IHostedService
                 return OperationResponse.Error($"Process {request.Id} is not connected");
             }
 
-            return await client.ExecuteOperation(request.Path, request.Operation, request.Arguments);
+            return await client.ExecuteOperation(
+                request.ObjectPaths,
+                request.Path,
+                request.Operation,
+                request.Arguments
+            );
         }
         catch (Exception ex)
         {
             return OperationResponse.Error(ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Asks a process to render a value one of its diagnostics named.
+    /// </summary>
+    /// <remarks>
+    ///     Every failure comes back inside the response rather than as a fault, matching what the
+    ///     agent does: a browser holding a path to something that has since been replaced is an
+    ///     ordinary outcome, and the popup showing it needs a message, not a broken invocation.
+    /// </remarks>
+    public async Task<DrillDownResponse> GetDrillDown(ProcessDrillDownRequest request)
+    {
+        try
+        {
+            var p = GetProcess(request.Id);
+            if (p == null)
+            {
+                return new DrillDownResponse { ErrorMessage = $"Process {request.Id} not found" };
+            }
+
+            var client = GetSubscription(p)?.DiagnosticClient;
+            if (client == null)
+            {
+                return new DrillDownResponse { ErrorMessage = $"Process {request.Id} is not connected" };
+            }
+
+            return await client.GetDrillDown(
+                new DrillDownRequest
+                {
+                    ObjectPaths = [.. request.ObjectPaths ?? []],
+                    JsonHover = request.JsonHover,
+                    ExcludeEventViews = request.ExcludeEventViews,
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            return new DrillDownResponse { ErrorMessage = ex.Message, ErrorDetail = ex.ToString() };
         }
     }
 

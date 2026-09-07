@@ -79,15 +79,31 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     // "Connection 'x' disconnected.", and a person reading "canceled" is the one most likely to
     // retry — into the double-run described on DefaultOperationTimeout. The ceiling is what bounds
     // these.
-    public Task<OperationResponse> SetProperty(string path, string? value)
+    // A drilldown is a read, like the poll, and carries the poll's ceiling rather than the
+    // operation one: nothing is mutated, so reissuing it after a timeout costs only the work.
+    public Task<DrillDownResponse> GetDrillDown(DrillDownRequest request)
     {
-        return Invoke(token => _client.SetProperty(path, value!, token), CancellationToken.None, _operationTimeout);
+        return Invoke(token => _client.GetDrillDown(request, token), CancellationToken.None, _requestTimeout);
     }
 
-    public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
+    public Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value)
     {
         return Invoke(
-            token => _client.ExecuteOperation(path, operation, arguments, token),
+            token => _client.SetProperty(objectPaths, path, value!, token),
+            CancellationToken.None,
+            _operationTimeout
+        );
+    }
+
+    public Task<OperationResponse> ExecuteOperation(
+        string[] objectPaths,
+        string path,
+        string operation,
+        string[] arguments
+    )
+    {
+        return Invoke(
+            token => _client.ExecuteOperation(objectPaths, path, operation, arguments, token),
             CancellationToken.None,
             _operationTimeout
         );
