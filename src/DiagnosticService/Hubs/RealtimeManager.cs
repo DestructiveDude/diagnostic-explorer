@@ -264,7 +264,7 @@ public class RealtimeManager : IHostedService
                 return OperationResponse.Error($"Process {request.Id} is not connected");
             }
 
-            return await client.SetProperty(request.ObjectPaths, request.Path, request.Value);
+            return await client.SetProperty(request.RequestId, request.ObjectPaths, request.Path, request.Value);
         }
         catch (Exception ex)
         {
@@ -289,6 +289,7 @@ public class RealtimeManager : IHostedService
             }
 
             return await client.ExecuteOperation(
+                request.RequestId,
                 request.ObjectPaths,
                 request.Path,
                 request.Operation,
