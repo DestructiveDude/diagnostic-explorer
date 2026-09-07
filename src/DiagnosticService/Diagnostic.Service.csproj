@@ -14,6 +14,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- LogEventRelayStore is an implementation detail of DiagnosticSubscription, but its
+         deduplication and stream-replacement rules are exactly what needs testing directly. -->
+    <InternalsVisibleTo Include="DiagnosticService.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Remove="appsettings.Debug.json" />
     <Content Remove="appsettings.Release.json" />
     <Content Remove="Config\settings.Debug.json" />

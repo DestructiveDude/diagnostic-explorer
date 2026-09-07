@@ -25,6 +25,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using DiagnosticExplorer.Logging;
 
 namespace DiagnosticExplorer;
 
@@ -66,8 +67,17 @@ public interface IDiagnosticHubServer
     // Sent as a typed array rather than a protobuf-compressed blob: MessagePack frames it on the
     // wire, so the manual serialize-and-gzip step is gone.
     Task<RpcResult> LogEvents(DiagnosticMsg[] messages);
-    Task SetEvents(SystemEvent[] events);
-    Task StreamEvents(SystemEvent[] evt);
+
+    // The realtime event feed, replacing SetEvents/StreamEvents over SystemEvent. The stream now
+    // comes from LogEventStore rather than EventSinkRepo, so it carries the routing in force and a
+    // sequence number per event: a subscriber can tell a replayed event from a live one, and can
+    // reconcile after a reconnect instead of starting blank.
+    //
+    // The legacy log4net DiagnosticAppender writes only to EventSinkRepo and therefore no longer
+    // reaches this feed. It stays in the package, but a host that wants realtime events must use
+    // RoutingDiagnosticAppender (or the NLog / Serilog / Microsoft.Extensions.Logging adapters).
+    Task InitializeLogStream(LogStreamInitialization initialization);
+    Task StreamLogEvents(LogStreamEvent[] events);
 }
 
 public class RpcResult<T> : RpcResult

@@ -4,6 +4,7 @@ using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Xunit;
@@ -38,8 +39,8 @@ public sealed class DiagnosticSubscriptionRetryTests
 
     private sealed class FakeDiagnosticClient : IDiagnosticClient
     {
-        private readonly Subject<SystemEvent[]> _eventsSet = new();
-        private readonly Subject<SystemEvent[]> _eventsStreamed = new();
+        private readonly Subject<LogStreamInitialization> _logStreamInitialized = new();
+        private readonly Subject<LogStreamEvent[]> _logStreamEvents = new();
         private int _subscribeCallCount;
 
         public TaskCompletionSource FirstAttempted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -81,8 +82,8 @@ public sealed class DiagnosticSubscriptionRetryTests
             return Task.CompletedTask;
         }
 
-        public IObservable<SystemEvent[]> EventsSet => _eventsSet;
+        public IObservable<LogStreamInitialization> LogStreamInitialized => _logStreamInitialized;
 
-        public IObservable<SystemEvent[]> EventsStreamed => _eventsStreamed;
+        public IObservable<LogStreamEvent[]> LogStreamEvents => _logStreamEvents;
     }
 }

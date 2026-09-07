@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Reflection;
 using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using Xunit;
 
 namespace DiagnosticService.UnitTests.ClientHandlers;
@@ -14,8 +14,8 @@ namespace DiagnosticService.UnitTests.ClientHandlers;
 ///     WebClientHandler serializes per-client SignalR sends onto a single continuation chain
 ///     so the synchronized subject order is preserved on the wire, and catches per send so
 ///     one failing send is observed (traced) without breaking the ordering or killing the
-///     chain. StartStreamingEvents must cancel the stream it replaces, or every event is
-///     delivered twice. (DE-30)
+///     chain. The log stream depends on that ordering: an initialization that overtook its own
+///     live events would discard them. (DE-30)
 /// </summary>
 public sealed class WebClientHandlerTests
 {
@@ -85,66 +85,68 @@ public sealed class WebClientHandlerTests
     }
 
     /// <summary>
-    ///     StartStreamingEvents with an id that already has a stream must cancel the old
-    ///     stream before starting the new one. If the old stream is left running, every
-    ///     subsequently logged event is delivered to the client twice. Deleting the
-    ///     existingState.Cancel.Cancel() call turns this red. (DE-30)
+    ///     A stream initialization must reach the client before the events that follow it.
     /// </summary>
+    /// <remarks>
+    ///     Both are enqueued rather than awaited, because DiagnosticSubscription calls them from
+    ///     inside its start/stop lock. That makes the send chain the only thing keeping them in
+    ///     order, and the order matters: a client applies an initialization by replacing what it
+    ///     holds, so one that arrived after its own live events would throw them away. Publishing
+    ///     from several threads at once is what a re-initialising agent and a busy stream actually
+    ///     do.
+    /// </remarks>
     [Fact]
-    public async Task StartStreamingEvents_ReplacesStream_EventDeliveredExactlyOnce()
+    public async Task InitializeLogStream_IsSentBeforeTheEventsThatFollowIt()
     {
-        using EventSinkRepo repo = new();
         RecordingWebHubClient client = new(expectedUpdates: 0);
         WebClientHandler handler = new("connection-1", client);
 
-        handler.StartStreamingEvents("process-1", repo);
-        (Task replacedTask, CancellationTokenSource replacedStream) = GetStreamState(handler, "process-1");
-        handler.StartStreamingEvents("process-1", repo);
+        const int rounds = 20;
+        client.ExpectedSends = rounds * 2;
 
-        replacedStream.IsCancellationRequested.Should().BeTrue();
-        await replacedTask.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
-
-        SystemEvent systemEvent = new()
-        {
-            SinkName = "sink",
-            SinkCategory = "category",
-            Message = "hello",
-        };
-        repo.LogEvent(systemEvent);
-
-        await client.FirstStreamedBatch.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
-
-        // Each stream start pushes its initial snapshot.
-        client.SetEventsCallCount.Should().Be(2);
-
-        client.StreamedBatchCount.Should().Be(1);
-
-        client.LastStreamedBatch.Should().ContainSingle(e => e.Message == "hello");
-
-        handler.StopStreamingEvents("process-1");
-        handler.Stop();
-    }
-
-    private static (Task Task, CancellationTokenSource Cancel) GetStreamState(WebClientHandler handler, string id)
-    {
-        object streams = typeof(WebClientHandler)
-            .GetField("_eventStreams", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(handler)!;
-        object state = streams.GetType().GetProperty("Item")!.GetValue(streams, [id])!;
-        return (
-            (Task)state.GetType().GetProperty("Task")!.GetValue(state)!,
-            (CancellationTokenSource)state.GetType().GetProperty("Cancel")!.GetValue(state)!
+        await Task.WhenAll(
+            Enumerable
+                .Range(0, rounds)
+                .Select(round =>
+                    Task.Run(() =>
+                    {
+                        handler.InitializeLogStream(
+                            "process-1",
+                            new LogStreamInitialization { StreamId = $"stream-{round}" }
+                        );
+                        handler.StreamLogEvents(
+                            "process-1",
+                            [new LogStreamEvent { StreamId = $"stream-{round}", Sequence = round }]
+                        );
+                    })
+                )
         );
+
+        await client.AllSendsReceived.Task.WaitAsync(SignalTimeout, TestContext.Current.CancellationToken);
+        handler.Stop();
+
+        // Whatever order the rounds interleaved in, each round's initialization precedes its own
+        // events: a chain that did not preserve order would put at least one of them the wrong way
+        // round across twenty rounds.
+        var sends = client.SendOrder.ToArray();
+        foreach (var round in Enumerable.Range(0, rounds))
+        {
+            var initializedAt = Array.IndexOf(sends, $"init:stream-{round}");
+            var streamedAt = Array.IndexOf(sends, $"events:stream-{round}");
+            initializedAt.Should().BeGreaterThanOrEqualTo(0);
+            streamedAt
+                .Should()
+                .BeGreaterThan(initializedAt, "round {0}'s events must follow its own initialization", round);
+        }
     }
 
     private sealed class RecordingWebHubClient : IWebHubClient
     {
         private readonly int _expectedUpdates;
         private readonly ConcurrentQueue<string> _updateOrder = new();
-        private readonly ConcurrentQueue<SystemEvent> _streamed = new();
+        private readonly ConcurrentQueue<string> _sendOrder = new();
         private int _updatesReceived;
-        private int _setEventsCallCount;
-        private int _streamedBatchCount;
+        private int _sendsReceived;
 
         public RecordingWebHubClient(int expectedUpdates)
         {
@@ -157,13 +159,13 @@ public sealed class WebClientHandlerTests
         public TaskCompletionSource AllUpdatesReceived { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public TaskCompletionSource FirstStreamedBatch { get; } =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource AllSendsReceived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>How many log-stream sends to wait for before completing AllSendsReceived.</summary>
+        public int ExpectedSends { get; set; }
 
         public IReadOnlyCollection<string> UpdateOrder => _updateOrder;
-        public int SetEventsCallCount => _setEventsCallCount;
-        public int StreamedBatchCount => _streamedBatchCount;
-        public IReadOnlyCollection<SystemEvent> LastStreamedBatch => _streamed;
+        public IReadOnlyCollection<string> SendOrder => _sendOrder;
 
         public Task SetProcesses(DiagProcess[] processes)
         {
@@ -191,22 +193,25 @@ public sealed class WebClientHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task SetEvents(string id, SystemEvent[] events)
+        public Task InitializeLogStream(string id, LogStreamInitialization initialization)
         {
-            Interlocked.Increment(ref _setEventsCallCount);
+            RecordSend($"init:{initialization.StreamId}");
             return Task.CompletedTask;
         }
 
-        public Task StreamEvents(string id, IList<SystemEvent> evt)
+        public Task StreamLogEvents(string id, LogStreamEvent[] events)
         {
-            foreach (SystemEvent systemEvent in evt)
-            {
-                _streamed.Enqueue(systemEvent);
-            }
-
-            Interlocked.Increment(ref _streamedBatchCount);
-            FirstStreamedBatch.TrySetResult();
+            RecordSend($"events:{events[0].StreamId}");
             return Task.CompletedTask;
+        }
+
+        private void RecordSend(string entry)
+        {
+            _sendOrder.Enqueue(entry);
+            if (Interlocked.Increment(ref _sendsReceived) == ExpectedSends)
+            {
+                AllSendsReceived.TrySetResult();
+            }
         }
 
         public Task RemoveProcess(string id) => Task.CompletedTask;

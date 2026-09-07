@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Diagnostic.Service.ClientHandlers;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Util;
 using log4net;
 using Microsoft.AspNetCore.SignalR;
@@ -78,17 +79,17 @@ public class DiagnosticHub : Hub<IDiagnosticHubClient>, IDiagnosticHubServer
     // client results the agent returns its value from the invocation itself, so there is nothing
     // for the service to correlate.
 
-    public Task SetEvents(SystemEvent[] events)
+    public Task InitializeLogStream(LogStreamInitialization initialization)
     {
         // GetClientHandler returns null on a disconnect/registration race; guard like the other
         // hub methods rather than NRE-ing inside the invocation.
-        _rtManager.GetClientHandler(Context.ConnectionId)?.SetEvents(events);
+        _rtManager.GetClientHandler(Context.ConnectionId)?.InitializeLogStream(initialization);
         return Task.CompletedTask;
     }
 
-    public Task StreamEvents(SystemEvent[] evt)
+    public Task StreamLogEvents(LogStreamEvent[] events)
     {
-        _rtManager.GetClientHandler(Context.ConnectionId)?.StreamEvents(evt);
+        _rtManager.GetClientHandler(Context.ConnectionId)?.StreamLogEvents(events);
         return Task.CompletedTask;
     }
 
