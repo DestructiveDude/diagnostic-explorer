@@ -1,0 +1,27 @@
+<div class="flex items-center justify-between gap-2 mb-2">
+  <h3>{{ view.category ? view.category + ' / ' : '' }}{{ view.name }}</h3>
+  <span class="text-xs text-[color:var(--label)]">{{ filteredRows.length }} of {{ rows.length }} events</span>
+  <app-event-filter [(filterVisible)]="filterVisible" [criteria]="criteria" (criteriaChange)="filter($event)" />
+</div>
+<div class="events border border-[color:var(--border)] rounded">
+  <table class="sev-table" [attr.aria-label]="view.name">
+    <thead class="sticky top-0"><tr><th>Date</th><th>Level</th><th>Logger</th><th>Message</th></tr></thead>
+    <tbody>
+      @for (row of filteredRows; track row.event.streamId + ':' + row.event.sequence) {
+        <tr class="event-level-{{ row.model.level | levelName | lowercase }}"
+            [class.event-row-selected]="selected === row.event" (click)="selected = row.event">
+          <td class="whitespace-nowrap">{{ row.model.date | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ row.model.level | levelName }}</td>
+          <td>{{ row.event.loggerCategory }}</td>
+          <td><button type="button" class="text-left" [attr.aria-pressed]="selected === row.event"
+                      (click)="selected = row.event">{{ row.model.message || '(No message)' }}</button></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="4">No matching events</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+@if (selected) {
+  <app-event-detail-panel [event]="selected" (closed)="selected = undefined" />
+}

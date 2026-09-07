@@ -20,6 +20,11 @@ export class DrillDownRequest {
     excludeEventViews = false;
 }
 
+export interface DrillDownDialogData {
+    request: DrillDownRequest;
+    title: string;
+}
+
 /**
  * Admits events by logger name and level. Field-compatible with the matching part of
  * {@link LogStreamRoute}, so the same matching logic serves both.

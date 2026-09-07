@@ -3,7 +3,7 @@ import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
 import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
-import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations, toDisplayLevel} from './LogStream';
+import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations, toSystemEvent} from './LogStream';
 import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
 import {customMerge, simpleMerge} from '../util/Merge';
@@ -20,6 +20,7 @@ import {DiagHubService} from '../services/diag-hub.service';
 import {DatePipe} from '@angular/common';
 import {Level} from './Level';
 import {strEqCI} from '../util/util';
+import {DrillDownRequest} from './DrillDownRequest';
 
 @Injectable()
 export class RealtimeModel {
@@ -44,6 +45,8 @@ export class RealtimeModel {
      * initialization that follows carries the agent's own replay of it.
      */
     private logStreamRouting?: LogStreamRoutingConfiguration;
+    logStreamEvents: LogStreamEvent[] = [];
+    private logStreamId?: string;
 
     @Watch((_this: RealtimeModel) => _this.performProcessSearch())
     processSearch: Null<string> = null;
@@ -118,6 +121,8 @@ export class RealtimeModel {
         // Cleared with the categories: routing belongs to a process's stream, and placing the new
         // process's events against the old one's routes would file them under the wrong sinks.
         this.logStreamRouting = undefined;
+        this.logStreamId = undefined;
+        this.logStreamEvents = [];
         this.selectedEvent = undefined;
         this.activeCat = undefined;
         this.selectedIndex = 0;
@@ -271,6 +276,8 @@ export class RealtimeModel {
         // would be issued against it.
         if (this.activeProcess?.id === id) {
             this.activeProcess = null;
+            this.logStreamId = undefined;
+            this.logStreamEvents = [];
             this.categories = [];
             this.operationSets = [];
             this.activeCat = undefined;
@@ -322,24 +329,28 @@ export class RealtimeModel {
         this.activeCat = this.categories[index];
     }
 
-    async setPropertyValue(prop: PropModel, value: string) {
+    async setPropertyValue(prop: PropModel, value: string,
+                           context?: Pick<DrillDownRequest, 'id' | 'objectPaths'>): Promise<boolean> {
         try {
             const request = new SetPropertyRequest();
-            request.id = this.activeProcess!.id;
+            request.id = context?.id ?? this.activeProcess!.id;
+            request.objectPaths = [...context?.objectPaths ?? []];
             request.path = prop.getPropertyPath();
             request.value = value;
 
             const result = await this.hubService.setPropertyValue(request);
-            if (result.errorMessage) {
+            if (!result.isSuccess) {
                 console.log(result);
-                this.showError('Error setting property', result.errorMessage);
+                this.showError('Error setting property', result.errorMessage || 'Property was not set');
             } else {
                 this.messages.add({ severity: 'success', detail: 'Property set!', life: 1000 });
+                return true;
             }
         } catch (err: any) {
             console.log(err);
             this.showError('Error setting property', 'See console for details');
         }
+        return false;
     }
 
     private showError(title: string, message: string) {
@@ -375,6 +386,8 @@ export class RealtimeModel {
         if (this.activeProcess?.id !== id) return;
 
         this.logStreamRouting = initialization.routing;
+        this.logStreamId = initialization.streamId;
+        this.logStreamEvents = [];
         this.categories.forEach(c => c.eventSinks = []);
         this.streamLogEvents(id, initialization.replayEvents ?? []);
     }
@@ -386,30 +399,25 @@ export class RealtimeModel {
         // to the SignalR handler's caller.
         const ordered = [...events].reverse();
 
+        // ponytail: retain 500 raw events, matching the existing grids; widen both if needed.
+        const retained = new Map(this.logStreamEvents.map(event => [event.sequence, event]));
+        for (const event of events) {
+            if (event.streamId === this.logStreamId)
+                retained.set(event.sequence, event);
+        }
+        this.logStreamEvents = [...retained.values()]
+            .sort((left, right) => right.sequence - left.sequence).slice(0, 500);
+
         const placed: SystemEvent[] = [];
         for (const event of ordered) {
             // One event can route to several destinations, and is shown under each of them.
             for (const destination of resolveDestinations(this.logStreamRouting, event))
-                placed.push(this.toSystemEvent(event, destination.category, destination.name));
+                placed.push(toSystemEvent(event, destination.category, destination.name));
         }
 
         const grouped = _.groupBy<SystemEvent>(placed, evt => evt.sinkCategory);
         for (const cat in grouped)
             this.getCat(cat).addEvents(grouped[cat]);
-    }
-
-    private toSystemEvent(event: LogStreamEvent, sinkCategory: string, sinkName: string): SystemEvent {
-        const systemEvent = new SystemEvent();
-        systemEvent.id = event.sequence;
-        systemEvent.date = Date.parse(event.timestampUtc);
-        systemEvent.message = event.message ?? '';
-        systemEvent.detail = event.detail ?? '';
-        // Mapped, not copied: the wire level is a Microsoft.Extensions.Logging ordinal and the
-        // grid reads log4net's scale. See toDisplayLevel.
-        systemEvent.level = toDisplayLevel(event.level);
-        systemEvent.sinkCategory = sinkCategory;
-        systemEvent.sinkName = sinkName;
-        return systemEvent;
     }
 
     private getCat(name: string): CategoryModel {

@@ -23,6 +23,9 @@ import {LevelNamePipe} from './pipes/level-name.pipe';
 import {CategoryNavComponent} from './category-nav/category-nav.component';
 import {TraceScopeComponent} from './trace-scope/trace-scope.component';
 import {EventDetailComponent} from './event-detail/event-detail.component';
+import {DrillDownDialogComponent} from './drill-down-dialog/drill-down-dialog.component';
+import {EventSinkViewComponent} from './event-sink-view/event-sink-view.component';
+import {EventDetailPanelComponent} from './event-detail-panel/event-detail-panel.component';
 import {getBaseLocation} from "./util/util";
 import {BASE_API_URL, BASE_API_KEY} from "../injectionTokens";
 import {environment} from "../environments/environment";
@@ -78,7 +81,10 @@ import {MessageService} from 'primeng/api';
         LevelNamePipe,
         CategoryNavComponent,
         TraceScopeComponent,
-        EventDetailComponent
+        EventDetailComponent,
+        DrillDownDialogComponent,
+        EventSinkViewComponent,
+        EventDetailPanelComponent
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,

@@ -1,3 +1,5 @@
+import {SystemEvent} from './DiagResponse';
+
 /**
  * The realtime log stream as it arrives from the service.
  *
@@ -141,7 +143,22 @@ export function toDisplayLevel(wireLevel: number | undefined | null): number {
     }
 }
 
-function routeMatches(route: LogStreamRoute, event: LogStreamEvent): boolean {
+export function toSystemEvent(event: LogStreamEvent, sinkCategory = '', sinkName = ''): SystemEvent {
+    return Object.assign(new SystemEvent(), {
+        id: event.sequence,
+        date: Date.parse(event.timestampUtc),
+        message: event.message ?? '',
+        detail: event.detail ?? '',
+        level: toDisplayLevel(event.level),
+        sinkCategory,
+        sinkName
+    });
+}
+
+export function routeMatches(
+    route: Pick<LogStreamRoute, 'loggerName' | 'loggerNameMatchMode' | 'minLevel' | 'maxLevel'>,
+    event: LogStreamEvent
+): boolean {
     if (route.minLevel != null && event.level < route.minLevel) return false;
     if (route.maxLevel != null && event.level > route.maxLevel) return false;
 

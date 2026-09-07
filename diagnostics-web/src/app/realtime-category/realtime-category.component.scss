@@ -16,3 +16,7 @@
   font-size: 15px;
 }
 
+.prop-value-cell { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.inspect-value { text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.preview-button { flex-shrink: 0; font-size: 12px; color: var(--label); text-decoration: underline; }
+

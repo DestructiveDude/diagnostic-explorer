@@ -1,0 +1,45 @@
+<div class="flex items-center justify-between gap-3 mb-3">
+  <nav aria-label="Drilldown path" class="flex flex-wrap items-center gap-2">
+    @for (crumb of breadcrumbs; track $index) {
+      @if (!$first) { <i class="pi pi-angle-right" aria-hidden="true"></i> }
+      <button type="button" [disabled]="$last" [attr.aria-current]="$last ? 'page' : null"
+              (click)="goBack($index)">{{ crumb.title }}</button>
+    }
+  </nav>
+  <p-button label="Refresh" icon="pi pi-refresh" [disabled]="loading" (onClick)="refresh()" />
+</div>
+@if (loading) {
+  <p role="status">Loading diagnostics…</p>
+}
+@if (response; as result) {
+  @if (result.errorMessage || result.diagnostics.exceptionMessage) {
+    <p role="alert">{{ result.errorMessage || result.diagnostics.exceptionMessage }}</p>
+    @if (result.errorDetail || result.diagnostics.exceptionDetail) {
+      <details><summary>Error details</summary><pre>{{ result.errorDetail || result.diagnostics.exceptionDetail }}</pre></details>
+    }
+  } @else if (result.json !== null) {
+    <pre>{{ result.json }}</pre>
+  } @else {
+    <p class="text-sm text-[color:var(--label)] mb-3" role="status">
+      Showing {{ result.displayedCount }}{{ result.totalCount !== null ? ' of ' + result.totalCount : '' }} item(s){{ result.isTruncated ? ' (truncated)' : '' }}.
+    </p>
+    @for (category of categories; track category.name) {
+      <section class="mb-4" [attr.aria-label]="category.name || 'Properties'">
+        @if (category.name) { <h3 class="mb-2">{{ category.name }}</h3> }
+        <app-realtime-category [category]="category" [context]="request" [operationSets]="result.diagnostics.operationSets"
+                               (inspect)="navigate($event)" (actionCompleted)="refresh()" />
+      </section>
+    } @empty {
+      <p>No properties</p>
+    }
+    @if (result.eventViews.length) {
+      <p class="text-xs text-[color:var(--label)] mb-2">Events from the latest 500 received for this process. Opening this view does not start a new stream.</p>
+      @if (realtime.activeProcess?.id !== request.id) {
+        <p role="status">Select the original process to receive its events.</p>
+      }
+      @for (view of result.eventViews; track view.id) {
+        <app-event-sink-view [view]="view" [events]="realtime.activeProcess?.id === request.id ? realtime.logStreamEvents : []" />
+      }
+    }
+  }
+}

@@ -8,9 +8,11 @@ import {ExecOperationRequest} from './ExecOperationRequest';
 import {OperationResponse} from './SetPropertyRequest';
 import {Null} from '../util/Null';
 import {Clipboard} from '@angular/cdk/clipboard';
+import {DrillDownRequest} from './DrillDownRequest';
 
 export class ExecOperationsModel {
     finished = new Subject<void>();
+    completed = new Subject<void>();
     readonly operations: OperationModel[] = [];
     activeOperation?: OperationModel;
     results = '';
@@ -19,9 +21,11 @@ export class ExecOperationsModel {
 
     constructor(readonly realtimeModel: RealtimeModel,
                 readonly subCat: SubCat,
-                private readonly clipboard: Clipboard) {
+                private readonly clipboard: Clipboard,
+                private readonly context?: Pick<DrillDownRequest, 'id' | 'objectPaths'>,
+                operationSets = realtimeModel.operationSets) {
 
-        const opSet: OperationSet | undefined = this.realtimeModel.operationSets.find(os => strEqCI(os.id, this.subCat.operationSet));
+        const opSet: OperationSet | undefined = operationSets.find(os => strEqCI(os.id, this.subCat.operationSet));
 
         if (opSet)
             this.operations = opSet.operations.map(op => new OperationModel(op));
@@ -45,9 +49,9 @@ export class ExecOperationsModel {
         // Guard the non-null derefs: clicking Execute before selecting an operation (or with no
         // active process) previously threw a TypeError that was caught below and shown as the
         // operation "result", hiding the real cause. The button is also disabled in this state.
-        const process = this.realtimeModel.activeProcess;
+        const processId = this.context?.id ?? this.realtimeModel.activeProcess?.id;
         const operation = this.activeOperation;
-        if (!process || !operation) {
+        if (!processId || !operation) {
             this.results = 'Select a process and an operation before executing.';
             return;
         }
@@ -58,16 +62,17 @@ export class ExecOperationsModel {
             this.executeDate = null;
 
             const request = new ExecOperationRequest();
-            request.id = process.id;
+            request.id = processId;
+            request.objectPaths = [...this.context?.objectPaths ?? []];
             request.path = this.subCat.cat.name + '|' + this.subCat.name;
             request.operation = operation.signature;
             request.arguments = operation.parameters.map(p => p.value);
 
             const result: OperationResponse = await this.realtimeModel.hubService.executeOperation(request);
 
-            if (result.isSuccess)
+            if (result.isSuccess) {
                 this.results = result.result ?? 'Success';
-            else
+            } else
                 this.results = result.errorMessage;
         } catch (err) {
             console.log(err);
@@ -75,6 +80,7 @@ export class ExecOperationsModel {
         } finally {
             this.executing = false;
             this.executeDate = new Date();
+            this.completed.next();
         }
     }
 

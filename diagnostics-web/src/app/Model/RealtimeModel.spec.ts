@@ -302,6 +302,29 @@ describe('RealtimeModel', () => {
     });
 
     describe('log stream', () => {
+        it('retains a bounded raw projection, deduplicates replay, and fences process and stream changes', async () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            const events = Array.from({length: 501}, (_, sequence) => logEvt({sequence}));
+            connection.handlers['InitializeLogStream']('active', initialization([], events));
+            expect(model.logStreamEvents).toHaveLength(500);
+            expect(model.logStreamEvents[0].sequence).toBe(500);
+            expect(model.logStreamEvents.at(-1)?.sequence).toBe(1);
+            connection.handlers['StreamLogEvents']('active', [events[500], logEvt({streamId: 'old'})]);
+            expect(model.logStreamEvents).toHaveLength(500);
+            expect(model.logStreamEvents[0]).toBe(events[500]);
+            connection.handlers['InitializeLogStream']('active', {
+                ...initialization([], [logEvt({streamId: 'new', sequence: 1})]), streamId: 'new'
+            });
+            expect(model.logStreamEvents.map(event => event.streamId)).toEqual(['new']);
+            await model.selectProcess(proc('other', 'Other'));
+            expect(model.logStreamEvents).toEqual([]);
+            connection.handlers['StreamLogEvents']('active', [logEvt()]);
+            expect(model.logStreamEvents).toEqual([]);
+        });
+
         it('ignores streamed events for a process that is not the active one', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
@@ -565,9 +588,20 @@ describe('RealtimeModel', () => {
             expect(messages.add).not.toHaveBeenCalled();
         });
 
+        it('does not report success when a setter refuses without an error message', async () => {
+            const hub = makeHub();
+            hub.setPropertyValue.mockResolvedValue({isSuccess: false, errorMessage: ''});
+            const {model, dialog, messages} = makeModel(hub);
+            model.activeProcess = proc('p-1', 'Worker');
+            const result = await model.setPropertyValue({getPropertyPath: () => 'Config.Timeout'} as any, '15');
+            expect(result).toBe(false);
+            expect(dialog.open).toHaveBeenCalled();
+            expect(messages.add).not.toHaveBeenCalled();
+        });
+
         it('confirms with a snackbar when setPropertyValue succeeds', async () => {
             const hub = makeHub();
-            hub.setPropertyValue.mockResolvedValue({});
+            hub.setPropertyValue.mockResolvedValue({isSuccess: true});
             const {model, dialog, messages} = makeModel(hub);
             model.activeProcess = proc('p-1', 'Worker');
 

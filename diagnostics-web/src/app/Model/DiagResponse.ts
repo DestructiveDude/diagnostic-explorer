@@ -10,6 +10,7 @@ export class DiagnosticResponse {
 }
 
 export class PropertyBag {
+    canDrillDown = false;
     name: string = '';
     category: string = '';
     operationSet: string = '';
@@ -17,6 +18,7 @@ export class PropertyBag {
 }
 
 export class Category {
+    canDrillDown = false;
     name = '';
     operationSet = '';
     properties: Property[] = [];
@@ -28,6 +30,11 @@ export class Property {
     description = '';
     operationSet = '';
     canSet = false;
+    canDrillDown = false;
+    drillDownIconOnly = false;
+    canJsonHover = false;
+    canExpandedHover = false;
+    drillDownText = '';
 }
 
 export class EventResponse {
