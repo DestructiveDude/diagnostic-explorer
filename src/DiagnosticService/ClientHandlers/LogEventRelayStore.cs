@@ -32,11 +32,7 @@ internal sealed class LogEventRelayStore
     private string? _streamId;
 
     /// <summary>Takes an agent's initialization snapshot.</summary>
-    /// <returns>
-    ///     True when this replaced a different stream, so the caller knows the history it held is
-    ///     gone rather than added to.
-    /// </returns>
-    public bool MergeInitialization(LogStreamInitialization initialization)
+    public void MergeInitialization(LogStreamInitialization initialization)
     {
         ArgumentNullException.ThrowIfNull(initialization);
         if (string.IsNullOrWhiteSpace(initialization.StreamId))
@@ -70,12 +66,18 @@ internal sealed class LogEventRelayStore
                 _streamId = initialization.StreamId;
             }
 
-            _routing = (initialization.Routing ?? new LogStreamRoutingConfiguration()).Clone();
-            _retention = GetRetention(initialization);
+            // Guarded on the watermark so a stale initialization landing second cannot put an
+            // older routing snapshot back in force. Events themselves need no such guard - they
+            // are keyed by sequence - but routing and retention are last-write-wins.
+            if (streamReplaced || initialization.HighWatermark >= _highWatermark)
+            {
+                _routing = (initialization.Routing ?? new LogStreamRoutingConfiguration()).Clone();
+                _retention = GetRetention(initialization);
+            }
+
             Merge(initialization.ReplayEvents);
             _highWatermark = Math.Max(_highWatermark, initialization.HighWatermark);
             Prune();
-            return streamReplaced;
         }
     }
 
@@ -86,8 +88,9 @@ internal sealed class LogEventRelayStore
         lock (_sync)
         {
             // Events that arrive before any initialization belong to a stream this store cannot
-            // identify, so there is nothing to key them against. Dropping them is safe: the
-            // initialization that follows carries the agent's own replay of the same events.
+            // identify, so there is nothing to key them against. Dropping them is safe because the
+            // agent awaits the initialization's completion before sending any frame, so this can
+            // only be reached by a frame from a connection whose initialization never arrived.
             if (string.IsNullOrWhiteSpace(_streamId))
             {
                 return [];

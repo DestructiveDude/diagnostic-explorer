@@ -15,7 +15,6 @@ namespace DiagnosticExplorer.Logging;
 /// </remarks>
 public sealed class LogEventStore
 {
-    private const int DefaultLiveSubscriptionCapacity = 1024;
     private readonly object _sync = new();
     private readonly List<LogStreamEvent> _events = [];
     private readonly HashSet<LogEventStoreSubscription> _subscriptions = [];
@@ -24,6 +23,18 @@ public sealed class LogEventStore
     private LogStreamRoutingConfiguration _routing;
     private long _sequence;
 
+    /// <summary>Creates a store.</summary>
+    /// <param name="retention">How much history to keep. Defaults to 5 000 events over 5 minutes.</param>
+    /// <param name="streamId">
+    ///     Identifies this stream to a consumer. Defaults to a fresh GUID per store, which is what
+    ///     makes a process restart recognisable: the service treats a changed id as a new stream
+    ///     and discards the history it held. Supplying a FIXED id gives that up — a restarted
+    ///     process then looks like the same stream with its sequence counter back at the
+    ///     beginning, and the service keeps the dead process's events in preference to the new
+    ///     ones until the counter passes them. Supply one only when something outside the process
+    ///     genuinely owns the stream's identity.
+    /// </param>
+    /// <param name="timeProvider">The clock retention is measured on. Defaults to the system clock.</param>
     public LogEventStore(
         LogEventRetentionOptions? retention = null,
         string? streamId = null,
@@ -123,9 +134,16 @@ public sealed class LogEventStore
         }
     }
 
-    public LogEventStoreSubscription CreateSubscription(int liveSubscriptionCapacity = DefaultLiveSubscriptionCapacity)
+    /// <summary>Opens a live subscription, with a snapshot of everything retained so far.</summary>
+    /// <param name="liveSubscriptionCapacity">
+    ///     How many events may queue for this subscriber before it is dropped. Defaults to this
+    ///     store's own retention, so a subscriber can fall a whole window behind and still be
+    ///     recoverable from the next snapshot; a fixed default smaller than the window would drop
+    ///     subscribers a host had explicitly configured to keep more.
+    /// </param>
+    public LogEventStoreSubscription CreateSubscription(int? liveSubscriptionCapacity = null)
     {
-        if (liveSubscriptionCapacity <= 0)
+        if (liveSubscriptionCapacity is <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(liveSubscriptionCapacity));
         }
@@ -134,7 +152,7 @@ public sealed class LogEventStore
         {
             Prune(UtcNow);
 
-            LogEventStoreSubscription subscription = new(this, liveSubscriptionCapacity);
+            LogEventStoreSubscription subscription = new(this, liveSubscriptionCapacity ?? _retention.MaxEvents);
             _ = _subscriptions.Add(subscription);
             subscription.SetInitialization(CreateInitializationLocked());
             return subscription;
