@@ -115,6 +115,9 @@ export class RealtimeModel {
         this.activeProcess = process;
         this.categories = [];
         this.operationSets = [];
+        // Cleared with the categories: routing belongs to a process's stream, and placing the new
+        // process's events against the old one's routes would file them under the wrong sinks.
+        this.logStreamRouting = undefined;
         this.selectedEvent = undefined;
         this.activeCat = undefined;
         this.selectedIndex = 0;
