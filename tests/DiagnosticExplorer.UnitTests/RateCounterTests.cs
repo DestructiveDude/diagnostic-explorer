@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer;
@@ -11,6 +12,55 @@ namespace DiagnosticExplorer.UnitTests;
 /// </summary>
 public class RateCounterTests
 {
+    /// <summary>
+    ///     Subscriber failures are reported in Release builds without preventing other subscribers
+    ///     from receiving the sample. The exception must be caught inside the dispatched task.
+    /// </summary>
+    [Fact]
+    public async Task SampleCollected_WhenSubscriberThrows_ReportsFailureAndDispatchesOtherSubscribers()
+    {
+        FakeTimeProvider timeProvider = new();
+        var counter = new RateCounter(5, timeProvider);
+        TaskCompletionSource<RateSampleEventArgs> received = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using SampleFailureTraceListener listener = new();
+        Trace.Listeners.Add(listener);
+        counter.SampleCollected += (_, _) => throw new InvalidOperationException("sample subscriber failed");
+        counter.SampleCollected += (_, args) => received.TrySetResult(args);
+
+        try
+        {
+            counter.Register(2);
+            timeProvider.Advance(TimeSpan.FromSeconds(1));
+
+            await received.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            string error = await listener.Error.Task.WaitAsync(
+                TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken
+            );
+            error.Should().Contain("InvalidOperationException").And.Contain("sample subscriber failed");
+            counter.Rate.Should().Be(2);
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+    }
+
+    private sealed class SampleFailureTraceListener : TraceListener
+    {
+        public TaskCompletionSource<string> Error { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override void Write(string? message) { }
+
+        public override void WriteLine(string? message)
+        {
+            if (message?.Contains("sample subscriber failed", StringComparison.Ordinal) == true)
+            {
+                Error.TrySetResult(message);
+            }
+        }
+    }
+
     [Fact]
     public void Increment_UsesInjectedTimeProviderForElapsedRate()
     {

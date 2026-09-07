@@ -1,6 +1,6 @@
 import {DatePipe} from '@angular/common';
 import {RealtimeModel} from './RealtimeModel';
-import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
+import {DiagnosticResponse, OperationSet, PropertyBag} from './DiagResponse';
 import {DiagProcess} from './DiagProcess';
 import {Level} from './Level';
 import {LogStreamEvent, LogStreamInitialization, LogStreamRoute} from './LogStream';
@@ -47,10 +47,6 @@ function makeModel(hub = makeHub(), dialog = {open: jest.fn()}, messages = {add:
 
 function proc(id: string, name: string, state = 'Online', machine = 'SRV', user = 'svc') {
     return {id, processName: name, machineName: machine, userName: user, state} as any;
-}
-
-function evt(over: Partial<SystemEvent>): SystemEvent {
-    return Object.assign(new SystemEvent(), over);
 }
 
 /**

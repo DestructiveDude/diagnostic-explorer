@@ -149,7 +149,8 @@ public class RegistrationHandler
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to log {messages.Count} messages: {ex.Message}");
+                // Keep delivery failures out of the diagnostic log channel that just failed.
+                Trace.TraceError($"RegistrationHandler failed to log {messages.Count} messages: {ex}");
             }
         }
 
