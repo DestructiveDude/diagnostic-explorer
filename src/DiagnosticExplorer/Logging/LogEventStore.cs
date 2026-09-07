@@ -47,6 +47,21 @@ public sealed class LogEventStore
         _routing = new LogStreamRoutingConfiguration();
     }
 
+    /// <summary>The longest Detail an event may carry onto the wire.</summary>
+    /// <remarks>
+    ///     Detail is where an exception's stack trace lands, and nothing upstream of here bounds
+    ///     it. A frame carries up to a hundred events against a 10 MB hub receive cap, so one
+    ///     oversize event — or a hundred merely large ones — faults the invocation; that fault is
+    ///     not cancellation, so it ends event delivery for the connection's life, and because the
+    ///     event stays in the retained window every re-subscribe sends it again. Bounding it here
+    ///     rather than at the frame keeps the poison out of the window in the first place.
+    ///     32 KB is far above any real stack trace and leaves a full frame near 3 MB.
+    /// </remarks>
+    public const int MaxDetailLength = 32 * 1024;
+
+    /// <summary>The longest Message an event may carry. Same reasoning as Detail, smaller bound.</summary>
+    public const int MaxMessageLength = 4 * 1024;
+
     public string StreamId { get; }
 
     private DateTime UtcNow => _timeProvider.GetUtcNow().UtcDateTime;
@@ -68,6 +83,7 @@ public sealed class LogEventStore
             _retention = retention.CloneAndValidate();
             _routing = routing.Clone();
             Prune(UtcNow);
+            SupersedeSubscriptionsLocked();
         }
     }
 
@@ -81,6 +97,7 @@ public sealed class LogEventStore
         lock (_sync)
         {
             _routing = routing.Clone();
+            SupersedeSubscriptionsLocked();
         }
     }
 
@@ -103,8 +120,8 @@ public sealed class LogEventStore
                 TimestampUtc = timestampUtc,
                 LoggerCategory = logEvent.Category,
                 Level = (int)logEvent.Level,
-                Message = logEvent.Message,
-                Detail = logEvent.Detail,
+                Message = Truncate(logEvent.Message, MaxMessageLength),
+                Detail = Truncate(logEvent.Detail, MaxDetailLength),
                 EventId = logEvent.EventId.Id,
                 EventName = logEvent.EventId.Name,
             };
@@ -127,7 +144,7 @@ public sealed class LogEventStore
                 }
 
                 _ = _subscriptions.Remove(subscription);
-                subscription.Complete();
+                subscription.Complete(SubscriptionEndReason.Overrun);
             }
 
             return streamEvent.Sequence;
@@ -141,6 +158,27 @@ public sealed class LogEventStore
     ///     recoverable from the next snapshot; a fixed default smaller than the window would drop
     ///     subscribers a host had explicitly configured to keep more.
     /// </param>
+    /// <summary>
+    ///     Ends every live subscription so its reader re-subscribes and picks up the new routing.
+    /// </summary>
+    /// <remarks>
+    ///     A subscriber resolves each event's destination from the routing snapshot it was handed
+    ///     at subscribe time, so changing the routing without telling it leaves it filing events
+    ///     under routes that no longer exist — silently, because an event that only a new route
+    ///     admits simply resolves to no destination and is not shown. Ending the subscription is
+    ///     the signal: the reader's loop already treats completion as "take a fresh subscription",
+    ///     and a fresh one carries the new routing and replays the retained window, so nothing is
+    ///     lost beyond what the window no longer holds.
+    /// </remarks>
+    private void SupersedeSubscriptionsLocked()
+    {
+        foreach (LogEventStoreSubscription subscription in _subscriptions.ToArray())
+        {
+            _ = _subscriptions.Remove(subscription);
+            subscription.Complete(SubscriptionEndReason.Superseded);
+        }
+    }
+
     public LogEventStoreSubscription CreateSubscription(int? liveSubscriptionCapacity = null)
     {
         if (liveSubscriptionCapacity is <= 0)
@@ -157,6 +195,18 @@ public sealed class LogEventStore
             subscription.SetInitialization(CreateInitializationLocked());
             return subscription;
         }
+    }
+
+    /// <summary>
+    ///     Bounds a field, marking it so a reader can tell truncation from a short value.
+    /// </summary>
+    private static string? Truncate(string? value, int maxLength)
+    {
+        const string marker = "... [truncated]";
+        // Substring rather than a span overload: this file also targets net48, which has neither.
+        return value is null || value.Length <= maxLength
+            ? value
+            : value.Substring(0, maxLength - marker.Length) + marker;
     }
 
     public LogStreamInitialization CreateInitialization()
@@ -231,6 +281,16 @@ public sealed class LogEventStore
 
         public LogStreamInitialization? Initialization { get; private set; }
 
+        /// <summary>
+        ///     Why the subscription ended, once <see cref="Events" /> completes.
+        /// </summary>
+        /// <remarks>
+        ///     A reader re-subscribes either way; the distinction is what it should say about it.
+        ///     Overrun means this subscriber could not keep up and events were lost, which is worth
+        ///     a warning. Superseded means the routing changed underneath it, which is routine.
+        /// </remarks>
+        public SubscriptionEndReason EndReason { get; private set; } = SubscriptionEndReason.Disposed;
+
         public ChannelReader<LogStreamEvent> Events => _channel.Reader;
 
         internal bool TryWrite(LogStreamEvent streamEvent)
@@ -243,9 +303,13 @@ public sealed class LogEventStore
             Initialization = initialization;
         }
 
-        internal void Complete()
+        internal void Complete(SubscriptionEndReason reason)
         {
-            _ = _channel.Writer.TryComplete();
+            // First reason wins: whatever ended it first is the true cause.
+            if (_channel.Writer.TryComplete())
+            {
+                EndReason = reason;
+            }
         }
 
         public void Dispose()
@@ -257,7 +321,7 @@ public sealed class LogEventStore
 
             _disposed = true;
             _owner.RemoveSubscription(this);
-            Complete();
+            Complete(SubscriptionEndReason.Disposed);
         }
     }
 }
