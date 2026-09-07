@@ -170,7 +170,7 @@ internal class CollectionGetter : PropertyGetter
 
             if (_mode == CollectionMode.Count && count != -1)
             {
-                bag.AddProperty(new Property(Name, FormatValue(count)), PrependToCategory(catPrepend));
+                AddSummary(bag, catPrepend, FormatValue(count), rawCol, obj);
                 return;
             }
 
@@ -186,7 +186,7 @@ internal class CollectionGetter : PropertyGetter
 
             if (displayCount == 0)
             {
-                bag.AddProperty(new Property(Name, FormatValue(0)), PrependToCategory(catPrepend));
+                AddSummary(bag, catPrepend, FormatValue(0), rawCol, obj);
                 return;
             }
 
@@ -194,7 +194,7 @@ internal class CollectionGetter : PropertyGetter
             {
                 case CollectionMode.Count:
                     string val = wasTruncated ? "10000+ items" : FormatValue(displayCount);
-                    bag.AddProperty(new Property(Name, val), PrependToCategory(catPrepend));
+                    AddSummary(bag, catPrepend, val, rawCol, obj);
                     break;
                 case CollectionMode.Concatenate:
                     AppendConcatenated(col, bag, catPrepend);
@@ -228,6 +228,24 @@ internal class CollectionGetter : PropertyGetter
             string error = $"<{ex.Message}>";
             bag.AddProperty(new Property(Name, error), PrependToCategory(catPrepend));
         }
+    }
+
+    /// <summary>
+    ///     Adds the one-line summary that stands in for the whole collection, carrying the
+    ///     drilldown affordance for it.
+    /// </summary>
+    /// <remarks>
+    ///     The summary is the only thing a Count-mode collection renders, so it is the only place a
+    ///     drilldown into the collection can hang. Without this the configuration is accepted and
+    ///     silently does nothing: the count still renders, so nothing looks broken, and the items
+    ///     are simply unreachable. <paramref name="collection" /> rather than the count is what the
+    ///     drilldown opens - the affordance has to name the collection itself.
+    /// </remarks>
+    private void AddSummary(PropertyBag bag, string catPrepend, string value, IEnumerable collection, object owner)
+    {
+        Property property = new(Name, value);
+        ApplyDrillDown(property, collection, owner);
+        bag.AddProperty(property, PrependToCategory(catPrepend));
     }
 
     /// <summary>
@@ -394,6 +412,15 @@ internal class CollectionGetter : PropertyGetter
                 if (bag.Categories.FindByName(newPrepend) is Category cat)
                 {
                     cat.ValueObject = listObject;
+
+                    // An item rendered as its own category is drillable in its own right: the
+                    // category IS the object, so there is no property to hang the affordance on.
+                    if (DrillDownEnabled && DiagnosticManager.IsDrillDownValue(listObject))
+                    {
+                        cat.CanDrillDown = true;
+                        cat.DrillDownObject = listObject;
+                        cat.DrillDownMaxItems = DrillDownMaxItems;
+                    }
                 }
             }
             finally

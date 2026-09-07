@@ -51,6 +51,16 @@ public class PropertyBag
 
     public string OperationSet { get; set; }
 
+    /// <summary>
+    ///     Whether the registered object itself can be opened in a drilldown.
+    /// </summary>
+    /// <remarks>
+    ///     True only where the host configured a drilldown for the object's type. A bag rendered
+    ///     INSIDE a drilldown reports false: the operator is already looking at it, and offering to
+    ///     open it again would nest a popup on itself.
+    /// </remarks>
+    public bool CanDrillDown { get; set; }
+
     public List<Category> Categories { get; set; }
 
     /// <summary>

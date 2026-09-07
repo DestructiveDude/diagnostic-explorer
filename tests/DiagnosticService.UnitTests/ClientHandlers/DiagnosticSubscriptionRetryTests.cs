@@ -54,12 +54,22 @@ public sealed class DiagnosticSubscriptionRetryTests
             return Task.FromResult(new DiagnosticResponse());
         }
 
-        public Task<OperationResponse> SetProperty(string path, string? value)
+        public Task<DrillDownResponse> GetDrillDown(DrillDownRequest request)
+        {
+            return Task.FromResult(new DrillDownResponse());
+        }
+
+        public Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value)
         {
             return Task.FromResult(new OperationResponse());
         }
 
-        public Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments)
+        public Task<OperationResponse> ExecuteOperation(
+            string[] objectPaths,
+            string path,
+            string operation,
+            string[] arguments
+        )
         {
             return Task.FromResult(new OperationResponse());
         }

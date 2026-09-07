@@ -35,6 +35,7 @@ public sealed class WebHubContractTests
     [
         "CancelRetroSearch",
         "ExecuteOperation",
+        "GetDrillDown",
         "RemoveProcess",
         "RetroDelete",
         "RetroSupportsDelete",

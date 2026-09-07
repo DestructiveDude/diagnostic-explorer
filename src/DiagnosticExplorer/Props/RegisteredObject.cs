@@ -31,7 +31,11 @@ namespace DiagnosticExplorer;
 public class RegisteredObject
 {
     private readonly WeakReference _objectRef;
+    private readonly object _strongRef;
 
+    /// <summary>
+    ///     Registers a host object, held weakly: registering must not be what keeps it alive.
+    /// </summary>
     public RegisteredObject(object obj, string bagCategory, string bagName)
     {
         _objectRef = new WeakReference(obj);
@@ -39,10 +43,31 @@ public class RegisteredObject
         BagCategory = bagCategory;
     }
 
+    private RegisteredObject(string bagCategory, string bagName, object strongRef)
+    {
+        _strongRef = strongRef;
+        BagName = bagName;
+        BagCategory = bagCategory;
+    }
+
+    /// <summary>
+    ///     Wraps an object this library derived, held strongly for as long as the wrapper lives.
+    /// </summary>
+    /// <remarks>
+    ///     A drilldown materialises objects that exist only to be rendered — a wrapper around a
+    ///     scalar item, say. Nothing else references them, so held weakly they can be collected
+    ///     between being registered and being rendered, and the item then silently does not appear.
+    ///     Weak is right for a host's own objects and wrong for ours.
+    /// </remarks>
+    internal static RegisteredObject Derived(object obj, string bagCategory, string bagName)
+    {
+        return new RegisteredObject(bagCategory, bagName, obj);
+    }
+
     public string BagName { get; set; }
     public string BagCategory { get; set; }
 
-    public object Object => _objectRef.Target;
+    public object Object => _strongRef ?? _objectRef.Target;
 }
 
 public static class RegisteredObjectExtensions

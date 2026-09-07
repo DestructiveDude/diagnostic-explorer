@@ -6,11 +6,28 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Util;
 
 namespace DiagnosticExplorer;
+
+/// <summary>
+///     Which set of type configuration a render is reading.
+/// </summary>
+/// <remarks>
+///     A type can be configured twice: once for how it appears in the main view, and again, through
+///     <c>ConfigureDrillDown</c>, for how it appears when opened on its own. The second is normally
+///     the fuller of the two — a summary line in a list, the whole object in the popup — so the
+///     same object produces different properties depending on which view asked.
+/// </remarks>
+internal enum DiagnosticRenderMode
+{
+    Normal,
+    DrillDown,
+}
 
 public static class DiagnosticManager
 {
@@ -31,6 +48,23 @@ public static class DiagnosticManager
     ///     entries built under a superseded configuration can never be read back.
     /// </summary>
     private static int _configurationVersion;
+
+    /// <summary>
+    ///     The render mode in force for the current bag, read by the getter pipeline.
+    /// </summary>
+    /// <remarks>
+    ///     Ambient rather than a parameter because the pipeline recurses through
+    ///     <see cref="GetPropertyGetters" /> from three getter classes — a collection's items, an
+    ///     extended property's nested object, a nested renderer's — none of which is reached from
+    ///     here directly. Threading the mode explicitly would mean putting it on every getter's
+    ///     signature to serve one call at the bottom.
+    ///     <para>
+    ///         <see cref="AsyncLocal{T}" /> rather than <c>ThreadStatic</c> because a getter may
+    ///         await. Set and restored around one bag, so concurrent renders on the thread pool
+    ///         cannot see each other's mode.
+    ///     </para>
+    /// </remarks>
+    private static readonly AsyncLocal<DiagnosticRenderMode?> _renderMode = new();
 
     /// <summary>The configuration currently in force. Replaced wholesale by <see cref="UseConfiguration" />.</summary>
     public static DiagnosticConfiguration CurrentConfiguration { get; private set; } = new();
@@ -88,14 +122,32 @@ public static class DiagnosticManager
     }
 
     /// <summary>
-    ///     How many items a drill-down materialises before truncating.
+    ///     How many items a drill-down materialises before truncating, where nothing nearer to the
+    ///     value said otherwise.
+    /// </summary>
+    internal static int DrillDownMaxItems => _configuration.DrillDownMaxItems;
+
+    /// <summary>
+    ///     The ceiling on a drilldown path chain.
     /// </summary>
     /// <remarks>
-    ///     Upstream reads this from its configuration snapshot. That surface arrives with the fluent
-    ///     configuration port; until then this is upstream's own default, so behaviour matches and
-    ///     only the ability to retune it is missing.
+    ///     The chain arrives from the browser and each hop costs a full render of the previous
+    ///     hop's value, so an unbounded chain is unbounded work on the agent for one request. Deep
+    ///     enough that no operator reaches it by clicking.
     /// </remarks>
-    internal static int DrillDownMaxItems => 100;
+    internal const int MaxDrillDownDepth = 16;
+
+    /// <summary>
+    ///     The ceiling on a JSON hover payload.
+    /// </summary>
+    /// <remarks>
+    ///     Serialising a live object graph produces however much text the graph happens to hold,
+    ///     and the result crosses the same hub as everything else, against a 10 MB receive cap. A
+    ///     payload over the ceiling is refused rather than truncated: half a JSON document is not
+    ///     JSON, and a client that tried to parse it would report a syntax error instead of the
+    ///     size problem.
+    /// </remarks>
+    internal const int MaxJsonHoverLength = 512 * 1024;
 
     /// <summary>
     ///     Whether a value is worth drilling into, or is a leaf best rendered in place. Strings and
@@ -250,12 +302,20 @@ public static class DiagnosticManager
 
     public static DiagnosticResponse GetDiagnostics(IEnumerable<RegisteredObject> registeredObjects)
     {
+        return GetDiagnostics(registeredObjects, DiagnosticRenderMode.Normal);
+    }
+
+    private static DiagnosticResponse GetDiagnostics(
+        IEnumerable<RegisteredObject> registeredObjects,
+        DiagnosticRenderMode renderMode
+    )
+    {
         try
         {
             DiagnosticResponse response = new();
 
             response.PropertyBags.AddRange(
-                registeredObjects.Select(x => ObjectToPropertyBag(x.Object, x.BagName, x.BagCategory))
+                registeredObjects.Select(x => ObjectToPropertyBag(x.Object, x.BagName, x.BagCategory, renderMode))
             );
 
             HashSet<OperationSet> operationSets = [];
@@ -465,6 +525,16 @@ public static class DiagnosticManager
 
     public static PropertyBag ObjectToPropertyBag(object obj, string bagName, string bagCategory)
     {
+        return ObjectToPropertyBag(obj, bagName, bagCategory, DiagnosticRenderMode.Normal);
+    }
+
+    private static PropertyBag ObjectToPropertyBag(
+        object obj,
+        string bagName,
+        string bagCategory,
+        DiagnosticRenderMode renderMode
+    )
+    {
         PropertyBag bag = new()
         {
             Name = bagName,
@@ -472,6 +542,8 @@ public static class DiagnosticManager
             SourceObject = obj,
         };
 
+        DiagnosticRenderMode? previousMode = _renderMode.Value;
+        _renderMode.Value = renderMode;
         var visited = VisitedObjects;
         visited.Clear();
         try
@@ -479,6 +551,11 @@ public static class DiagnosticManager
             if (obj != null)
             {
                 visited.Add(obj);
+                bag.CanDrillDown =
+                    renderMode == DiagnosticRenderMode.Normal
+                    && obj is not Type
+                    && !IsUserInterfaceElement(obj.GetType())
+                    && _configuration.HasDrillDownConfiguration(obj.GetType());
             }
 
             List<PropertyGetter> valueGetters = GetPropertyGetters(obj);
@@ -492,6 +569,7 @@ public static class DiagnosticManager
         finally
         {
             visited.Clear();
+            _renderMode.Value = previousMode;
         }
 
         return bag;
@@ -529,11 +607,16 @@ public static class DiagnosticManager
         // getters just after UseConfiguration clears, leaving that type stale until the next
         // reconfiguration. Stamping the version means such a write lands under the old key and is
         // simply never read again.
+        // The render mode is part of the key for the same reason the version is: a drilldown reads
+        // a different type configuration, so it produces a different getter list for the same type.
+        // One key would hand whichever view ran first to the other.
         int version = Volatile.Read(ref _configurationVersion);
-        string versionedKey = version + ":" + typeKey;
+        DiagnosticRenderMode renderMode = _renderMode.Value ?? DiagnosticRenderMode.Normal;
+        string versionedKey = version + ":" + renderMode + ":" + typeKey;
         Type resolvedType = type;
         bool isStatic = obj is Type;
-        return _typeHash.GetOrAdd(versionedKey, _ => BuildPropertyGetters(resolvedType, isStatic));
+        bool drillDown = renderMode == DiagnosticRenderMode.DrillDown;
+        return _typeHash.GetOrAdd(versionedKey, _ => BuildPropertyGetters(resolvedType, isStatic, drillDown));
     }
 
     /// <summary>
@@ -993,12 +1076,14 @@ public static class DiagnosticManager
     ///     so an attribute-configured and a fluently-configured property go through one path. This
     ///     is where the configuration stops being inert.
     /// </remarks>
-    private static List<PropertyGetter> BuildPropertyGetters(Type type, bool isStatic)
+    private static List<PropertyGetter> BuildPropertyGetters(Type type, bool isStatic, bool drillDown = false)
     {
         List<PropertyGetter> propertyList = [];
         DiagnosticConfigurationSnapshot configuration = _configuration;
         bool applyAttributes = configuration.ApplyAttributes;
-        TypeConfiguration typeConfiguration = isStatic ? null : configuration.GetEffectiveTypeConfiguration(type);
+        TypeConfiguration typeConfiguration = isStatic
+            ? null
+            : configuration.GetEffectiveTypeConfiguration(type, drillDown);
 
         IEnumerable<PropertyInfo> properties = isStatic
             ? GetStaticProperties(type)
@@ -1225,6 +1310,44 @@ public static class DiagnosticManager
         return ExecuteOperation(GetRegisteredObjects(), path, operation, arguments);
     }
 
+    /// <summary>
+    ///     Runs an operation against the drilldown named by <paramref name="objectPaths" />.
+    /// </summary>
+    /// <remarks>
+    ///     An empty chain is the main view and behaves exactly as the overload without one. A chain
+    ///     means the operator triggered this inside a drilldown, where <paramref name="path" /> is
+    ///     relative to that popup's own diagnostics.
+    /// </remarks>
+    public static OperationResponse ExecuteOperation(
+        string[] objectPaths,
+        string path,
+        string operation,
+        string[] arguments
+    )
+    {
+        return ExecuteOperation(GetRegisteredObjects(), objectPaths, path, operation, arguments);
+    }
+
+    /// <inheritdoc cref="ExecuteOperation(string[], string, string, string[])" />
+    public static OperationResponse ExecuteOperation(
+        IEnumerable<RegisteredObject> registeredObjects,
+        string[] objectPaths,
+        string path,
+        string operation,
+        string[] arguments
+    )
+    {
+        try
+        {
+            IEnumerable<RegisteredObject> targets = ResolveActionObjects(registeredObjects, objectPaths);
+            return InActionRenderMode(objectPaths, () => ExecuteOperation(targets, path, operation, arguments));
+        }
+        catch (Exception ex)
+        {
+            return OperationResponse.Error(ex.Message, ex.ToString());
+        }
+    }
+
     public static OperationResponse ExecuteOperation(
         IEnumerable<RegisteredObject> registeredObjects,
         string path,
@@ -1336,38 +1459,92 @@ public static class DiagnosticManager
     /// <returns>An object which represents the Bag/PropCat/Prop, or exception if not found</returns>
     private static object GetSourceObject(IEnumerable<RegisteredObject> registeredObjects, PropIdent ident)
     {
-        PropertyBag bag = GetRegisteredObject(registeredObjects, ident);
+        return GetSourceTarget(registeredObjects, ident, DiagnosticRenderMode.Normal, DrillDownAccess.None).Value;
+    }
 
+    /// <summary>
+    ///     Resolves one path to the value it names, and to how many of that value's items may be
+    ///     shown.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <paramref name="access" /> decides which value a property yields and whether it may
+    ///         be yielded at all. An operation or a property edit reads
+    ///         <see cref="Property.ValueObject" /> and is not gated here — the operation set is its
+    ///         own check. A drilldown reads <see cref="Property.DrillDownObject" />, which the
+    ///         getter pipeline sets on any inspectable value regardless of configuration, so the
+    ///         gate is applied HERE rather than left to the browser.
+    ///     </para>
+    ///     <para>
+    ///         That gate is the difference between "drilldowns are opt-in", which is what the
+    ///         configuration says and the UI honours, and it actually being true: without it a
+    ///         request naming a path the UI never offered opens any object-valued property on the
+    ///         process, and a JSON hover returns that object's whole graph as text.
+    ///     </para>
+    /// </remarks>
+    private static DrillDownTarget GetSourceTarget(
+        IEnumerable<RegisteredObject> registeredObjects,
+        PropIdent ident,
+        DiagnosticRenderMode renderMode,
+        DrillDownAccess access
+    )
+    {
+        PropertyBag bag = GetRegisteredObject(registeredObjects, ident, renderMode);
         if (string.IsNullOrEmpty(ident.PropCategory) && string.IsNullOrEmpty(ident.PropName))
         {
-            if (bag.SourceObject == null)
-            {
-                string msg =
-                    $"Can't invoke operation. Property bag {ident.BagCategory}|{ident.BagName} doesn't have a value.";
-                throw new ArgumentException(msg);
-            }
-            return bag.SourceObject;
+            return GetBagTarget(bag, ident, access);
         }
-
         Category cat = bag.Categories.FindByName(ident.PropCategory);
         if (cat == null)
         {
-            string msg = $"Can't find source category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory}";
+            throw new ArgumentException(
+                $"Can't find source category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory}"
+            );
+        }
+        return string.IsNullOrEmpty(ident.PropName)
+            ? GetCategoryTarget(cat, ident, access)
+            : GetPropertyTarget(cat, ident, access);
+    }
 
+    private static DrillDownTarget GetBagTarget(PropertyBag bag, PropIdent ident, DrillDownAccess access)
+    {
+        if (bag.SourceObject == null)
+        {
+            string msg =
+                $"Can't invoke operation. Property bag {ident.BagCategory}|{ident.BagName} doesn't have a value.";
             throw new ArgumentException(msg);
         }
-
-        if (string.IsNullOrEmpty(ident.PropName))
+        // A bag rendered inside a drilldown reports CanDrillDown false, because the operator is
+        // already looking at it. Only the outermost hop of a chain addresses a bag, and that one is
+        // rendered in Normal mode, so the flag is set where it is read.
+        if (access != DrillDownAccess.None && !bag.CanDrillDown)
         {
-            if (cat.ValueObject == null)
-            {
-                string msg =
-                    $"Can't invoke operation. Category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
-                throw new ArgumentException(msg);
-            }
-            return cat.ValueObject;
+            throw new ArgumentException($"{ident.BagCategory}|{ident.BagName} is not available for drilldown.");
         }
+        return new DrillDownTarget(bag.SourceObject, DrillDownMaxItems);
+    }
 
+    private static DrillDownTarget GetCategoryTarget(Category cat, PropIdent ident, DrillDownAccess access)
+    {
+        if (cat.ValueObject == null)
+        {
+            string msg =
+                $"Can't invoke operation. Category {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
+            throw new ArgumentException(msg);
+        }
+        if (access == DrillDownAccess.None)
+        {
+            return new DrillDownTarget(cat.ValueObject, cat.DrillDownMaxItems);
+        }
+        if (!cat.CanDrillDown || cat.DrillDownObject == null)
+        {
+            throw new ArgumentException($"Category {ident} is not available for drilldown.");
+        }
+        return new DrillDownTarget(cat.DrillDownObject, cat.DrillDownMaxItems);
+    }
+
+    private static DrillDownTarget GetPropertyTarget(Category cat, PropIdent ident, DrillDownAccess access)
+    {
         Property prop = cat.Properties.FindByName(ident.PropName);
         if (prop == null)
         {
@@ -1375,15 +1552,36 @@ public static class DiagnosticManager
                 $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} not found.";
             throw new ArgumentException(msg);
         }
-
-        if (prop.ValueObject == null)
+        if (access == DrillDownAccess.None)
         {
-            string msg =
-                $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
-            throw new ArgumentException(msg);
+            if (prop.ValueObject == null)
+            {
+                string msg =
+                    $"Can't invoke operation. Property {ident.BagCategory}|{ident.BagName}|{ident.PropCategory} doesn't have a value.";
+                throw new ArgumentException(msg);
+            }
+            return new DrillDownTarget(prop.ValueObject, prop.DrillDownMaxItems, ident.PropName);
         }
+        bool permitted =
+            access == DrillDownAccess.Json ? prop.CanJsonHover : prop.CanDrillDown || prop.CanExpandedHover;
+        if (!permitted || prop.DrillDownObject == null)
+        {
+            throw new ArgumentException($"Property {ident} is not available for drilldown.");
+        }
+        return new DrillDownTarget(prop.DrillDownObject, prop.DrillDownMaxItems, ident.PropName);
+    }
 
-        return prop.ValueObject;
+    /// <summary>What a path resolution is for, which decides both the value read and the gate.</summary>
+    private enum DrillDownAccess
+    {
+        /// <summary>An operation or property edit: the rendered value, ungated.</summary>
+        None,
+
+        /// <summary>A drilldown or expanded hover: the inspectable value, if the host allowed it.</summary>
+        Inspect,
+
+        /// <summary>A JSON hover: the same value, gated on the host having allowed JSON hover.</summary>
+        Json,
     }
 
     #region SetProperty
@@ -1391,6 +1589,31 @@ public static class DiagnosticManager
     public static OperationResponse SetProperty(string path, string value)
     {
         return SetProperty(GetRegisteredObjects(), path, value);
+    }
+
+    /// <summary>Sets a property inside the drilldown named by <paramref name="objectPaths" />.</summary>
+    public static OperationResponse SetProperty(string[] objectPaths, string path, string value)
+    {
+        return SetProperty(GetRegisteredObjects(), objectPaths, path, value);
+    }
+
+    /// <inheritdoc cref="SetProperty(string[], string, string)" />
+    public static OperationResponse SetProperty(
+        IEnumerable<RegisteredObject> registeredObjects,
+        string[] objectPaths,
+        string path,
+        string value
+    )
+    {
+        try
+        {
+            IEnumerable<RegisteredObject> targets = ResolveActionObjects(registeredObjects, objectPaths);
+            return InActionRenderMode(objectPaths, () => SetProperty(targets, path, value));
+        }
+        catch (Exception ex)
+        {
+            return OperationResponse.Error(ex.Message, ex.ToString());
+        }
     }
 
     public static OperationResponse SetProperty(
@@ -1464,7 +1687,11 @@ public static class DiagnosticManager
         }
     }
 
-    private static PropertyBag GetRegisteredObject(IEnumerable<RegisteredObject> registeredObjects, PropIdent ident)
+    private static PropertyBag GetRegisteredObject(
+        IEnumerable<RegisteredObject> registeredObjects,
+        PropIdent ident,
+        DiagnosticRenderMode renderMode = DiagnosticRenderMode.Normal
+    )
     {
         RegisteredObject regObj = registeredObjects.FindByCategoryAndName(ident.BagCategory, ident.BagName);
         if (regObj == null)
@@ -1480,7 +1707,376 @@ public static class DiagnosticManager
             throw new ArgumentException(msg);
         }
 
-        return ObjectToPropertyBag(obj, ident.BagName, ident.BagCategory);
+        return ObjectToPropertyBag(obj, ident.BagName, ident.BagCategory, renderMode);
+    }
+
+    #endregion
+
+    #region DrillDown
+
+    public static DrillDownResponse GetDrillDown(DrillDownRequest request)
+    {
+        return GetDrillDown(GetRegisteredObjects(), request);
+    }
+
+    /// <summary>
+    ///     Renders the value a drilldown request names, as diagnostics or as JSON.
+    /// </summary>
+    /// <remarks>
+    ///     Every failure comes back as an <see cref="DrillDownResponse.ErrorMessage" /> rather than
+    ///     a fault. The caller is a client result on the agent's hub connection: a thrown exception
+    ///     travels to the service as a failed invocation, and a request naming a path that no
+    ///     longer resolves — an object replaced between poll and click — is an ordinary outcome,
+    ///     not a fault of the connection.
+    /// </remarks>
+    public static DrillDownResponse GetDrillDown(
+        IEnumerable<RegisteredObject> registeredObjects,
+        DrillDownRequest request
+    )
+    {
+        if (request == null)
+        {
+            return new DrillDownResponse { ErrorMessage = "Drilldown request not specified" };
+        }
+
+        try
+        {
+            DrillDownAccess access = request.JsonHover ? DrillDownAccess.Json : DrillDownAccess.Inspect;
+            DrillDownTarget target = ResolveDrillDownTarget(registeredObjects, request.ObjectPaths, access);
+
+            if (IsUserInterfaceElement(target.Value.GetType()))
+            {
+                return new DrillDownResponse
+                {
+                    ErrorMessage = "Windows Forms and WPF user interface elements cannot be shown in a drilldown.",
+                };
+            }
+
+            if (request.JsonHover)
+            {
+                return SerializeJsonHover(target.Value);
+            }
+
+            DrillDownMaterialization materialized = MaterializeDrillDown(target);
+            return new DrillDownResponse
+            {
+                Diagnostics = GetDiagnostics(materialized.Objects, DiagnosticRenderMode.DrillDown),
+                DisplayedCount = materialized.DisplayedCount,
+                TotalCount = materialized.TotalCount,
+                IsTruncated = materialized.IsTruncated,
+                EventViews = request.ExcludeEventViews ? [] : ResolveDrillDownEventViews(materialized.Objects),
+            };
+        }
+        catch (Exception ex)
+        {
+            return new DrillDownResponse { ErrorMessage = ex.Message, ErrorDetail = ex.ToString() };
+        }
+    }
+
+    private static DrillDownResponse SerializeJsonHover(object value)
+    {
+        string json = JsonSerializer.Serialize(
+            value,
+            new JsonSerializerOptions { WriteIndented = true, ReferenceHandler = ReferenceHandler.IgnoreCycles }
+        );
+
+        // Refused rather than cut: half a JSON document is not JSON, and a client parsing it would
+        // report a syntax error instead of the size.
+        return json.Length > MaxJsonHoverLength
+            ? new DrillDownResponse
+            {
+                ErrorMessage =
+                    $"The value serialises to {json.Length:N0} characters, over the {MaxJsonHoverLength:N0} character limit for a JSON view.",
+            }
+            : new DrillDownResponse { Json = json };
+    }
+
+    /// <summary>
+    ///     Collects the event tables the drilled-into objects define, merging by destination.
+    /// </summary>
+    /// <remarks>
+    ///     Definitions only: matchers a client applies to events it already receives. Two objects
+    ///     routing to the same destination produce one table admitting both, which is what lets a
+    ///     collection drilldown show one table covering every item while drilling into one item
+    ///     shows only its own.
+    /// </remarks>
+    private static List<DrillDownEventViewDefinition> ResolveDrillDownEventViews(
+        IEnumerable<RegisteredObject> registeredObjects
+    )
+    {
+        Dictionary<string, DrillDownEventViewDefinition> views = new(StringComparer.OrdinalIgnoreCase);
+        foreach (RegisteredObject registeredObject in registeredObjects)
+        {
+            object target = registeredObject?.Object;
+            if (target == null)
+            {
+                continue;
+            }
+            TypeConfiguration configuration = _configuration.GetEffectiveTypeConfiguration(
+                target.GetType(),
+                drillDown: true
+            );
+            foreach (DrillDownEventRouteTemplate route in configuration.EventRoutes)
+            {
+                AddEventView(views, route, target);
+            }
+        }
+        return [.. views.Values.OrderBy(view => view.Category).ThenBy(view => view.Name)];
+    }
+
+    private static void AddEventView(
+        Dictionary<string, DrillDownEventViewDefinition> views,
+        DrillDownEventRouteTemplate route,
+        object target
+    )
+    {
+        string loggerName = route.ResolveLoggerName(target);
+        if (string.IsNullOrWhiteSpace(loggerName))
+        {
+            return;
+        }
+        // The same separator the browser's destination key uses, and one no logger category or
+        // destination name can contain.
+        string id = $"{route.Route.Category}\u001F{route.Route.Name}";
+        if (!views.TryGetValue(id, out DrillDownEventViewDefinition view))
+        {
+            view = new DrillDownEventViewDefinition
+            {
+                Id = id,
+                Category = route.Route.Category,
+                Name = route.Route.Name,
+            };
+            views.Add(id, view);
+        }
+        DrillDownEventMatcher matcher = new()
+        {
+            LoggerName = loggerName,
+            LoggerNameMatchMode = route.MatchMode,
+            MinLevel = route.Route.MinLevel.HasValue ? (int)route.Route.MinLevel.Value : null,
+            MaxLevel = route.Route.MaxLevel.HasValue ? (int)route.Route.MaxLevel.Value : null,
+        };
+        // Two objects can resolve the same route to the same matcher - a static logger name shared
+        // across a collection - and one table listing it twice would admit every event twice.
+        if (!view.Matchers.Any(existing => IsSameMatcher(existing, matcher)))
+        {
+            view.Matchers.Add(matcher);
+        }
+    }
+
+    private static bool IsSameMatcher(DrillDownEventMatcher left, DrillDownEventMatcher right)
+    {
+        return left.LoggerName == right.LoggerName
+            && left.LoggerNameMatchMode == right.LoggerNameMatchMode
+            && left.MinLevel == right.MinLevel
+            && left.MaxLevel == right.MaxLevel;
+    }
+
+    /// <summary>
+    ///     Walks a chain of paths, each resolved against the diagnostics the previous one produced.
+    /// </summary>
+    private static DrillDownTarget ResolveDrillDownTarget(
+        IEnumerable<RegisteredObject> registeredObjects,
+        IReadOnlyList<string> objectPaths,
+        DrillDownAccess access
+    )
+    {
+        if (objectPaths == null || objectPaths.Count == 0)
+        {
+            throw new ArgumentException("At least one drilldown object path is required.", nameof(objectPaths));
+        }
+
+        if (objectPaths.Count > MaxDrillDownDepth)
+        {
+            string msg =
+                $"A drilldown chain of {objectPaths.Count} exceeds the limit of {MaxDrillDownDepth}, and each step costs a full render of the one before it.";
+            throw new ArgumentException(msg, nameof(objectPaths));
+        }
+
+        IEnumerable<RegisteredObject> currentObjects = registeredObjects;
+        DrillDownTarget current = null;
+        for (int index = 0; index < objectPaths.Count; index++)
+        {
+            string path = objectPaths[index];
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException($"Drilldown object path {index + 1} is empty.", nameof(objectPaths));
+            }
+
+            bool last = index + 1 == objectPaths.Count;
+            try
+            {
+                current = GetSourceTarget(
+                    currentObjects,
+                    PropIdent.Parse(path),
+                    // Only the outermost hop reads the process's own diagnostics. Every hop after
+                    // it is reading a value already inside a drilldown, and so must be rendered
+                    // with the drilldown configuration or the path it names will not exist.
+                    index == 0
+                        ? DiagnosticRenderMode.Normal
+                        : DiagnosticRenderMode.DrillDown,
+                    // A JSON view is permitted only for the value finally asked for. Nesting
+                    // through it is an ordinary inspection and gated as one.
+                    last ? access : DrillDownAccess.Inspect
+                );
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Unable to resolve drilldown path {index + 1} '{path}': {ex.Message}", ex);
+            }
+
+            if (!last)
+            {
+                currentObjects = MaterializeDrillDown(current).Objects;
+            }
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    ///     Runs an action in the render mode the objects it targets were rendered in.
+    /// </summary>
+    /// <remarks>
+    ///     An action resolves its path by re-rendering the object it names, and a drilldown reads a
+    ///     different type configuration from the main view. Left in the default mode, an action
+    ///     triggered inside a drilldown would look for its property in the main view's render - so a
+    ///     property the drilldown configuration is the only thing to expose, which is the ordinary
+    ///     case for a popup, could be displayed and never edited or invoked.
+    /// </remarks>
+    private static OperationResponse InActionRenderMode(string[] objectPaths, Func<OperationResponse> action)
+    {
+        if (objectPaths == null || objectPaths.Length == 0)
+        {
+            return action();
+        }
+
+        DiagnosticRenderMode? previousMode = _renderMode.Value;
+        _renderMode.Value = DiagnosticRenderMode.DrillDown;
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            _renderMode.Value = previousMode;
+        }
+    }
+
+    /// <summary>
+    ///     Narrows the objects an action runs against to the drilldown the operator has open.
+    /// </summary>
+    /// <remarks>
+    ///     An empty chain means the main view, whose objects are the registered ones. A chain means
+    ///     the action was triggered inside a drilldown, and the path it carries is relative to that
+    ///     drilldown's own diagnostics — resolving it against the registered objects instead would
+    ///     either miss or, worse, hit a same-named property on a different object.
+    /// </remarks>
+    private static IEnumerable<RegisteredObject> ResolveActionObjects(
+        IEnumerable<RegisteredObject> registeredObjects,
+        IReadOnlyList<string> objectPaths
+    )
+    {
+        if (objectPaths == null || objectPaths.Count == 0)
+        {
+            return registeredObjects;
+        }
+
+        DrillDownTarget target = ResolveDrillDownTarget(registeredObjects, objectPaths, DrillDownAccess.Inspect);
+        return MaterializeDrillDown(target).Objects;
+    }
+
+    /// <summary>
+    ///     Turns the resolved value into the registered objects a render walks: one for a single
+    ///     object, one per item for a collection.
+    /// </summary>
+    private static DrillDownMaterialization MaterializeDrillDown(DrillDownTarget target)
+    {
+        IEnumerable enumerable = target.Value is string ? null : target.Value as IEnumerable;
+        if (enumerable == null)
+        {
+            Type type = target.Value.GetType();
+            return new DrillDownMaterialization(
+                [RegisteredObject.Derived(target.Value, "DrillDown", type.Name)],
+                1,
+                1,
+                false
+            );
+        }
+
+        int maxItems = target.MaxItems > 0 ? target.MaxItems : DrillDownMaxItems;
+        List<object> items = enumerable.Cast<object>().Take(maxItems + 1).ToList();
+        bool truncated = items.Count > maxItems;
+        if (truncated)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        List<RegisteredObject> registered = [];
+        for (int index = 0; index < items.Count; index++)
+        {
+            // A scalar item has no properties of its own, so it is wrapped in something that does.
+            // Registered as Derived: the wrapper exists only for this response, and held weakly it
+            // could be collected between here and the render, leaving the item silently absent.
+            object item = IsDrillDownValue(items[index]) ? items[index] : new DrillDownScalarValue(items[index]);
+            registered.Add(RegisteredObject.Derived(item, "Items", $"{target.ItemName ?? "Items"}[{index}]"));
+        }
+
+        int? totalCount;
+        if (enumerable is ICollection collection)
+        {
+            totalCount = collection.Count;
+        }
+        else
+        {
+            // Without a Count, the only honest total is the one we counted - and if we stopped at
+            // the ceiling we did not reach the end, so there is no total to give.
+            totalCount = truncated ? null : items.Count;
+        }
+        return new DrillDownMaterialization(registered, items.Count, totalCount, truncated);
+    }
+
+    private sealed class DrillDownTarget
+    {
+        public DrillDownTarget(object value, int maxItems, string itemName = null)
+        {
+            Value = value ?? throw new ArgumentNullException(nameof(value));
+            MaxItems = maxItems;
+            ItemName = itemName;
+        }
+
+        public object Value { get; }
+        public int MaxItems { get; }
+        public string ItemName { get; }
+    }
+
+    private sealed class DrillDownMaterialization
+    {
+        public DrillDownMaterialization(
+            IReadOnlyList<RegisteredObject> registeredObjects,
+            int displayedCount,
+            int? totalCount,
+            bool isTruncated
+        )
+        {
+            Objects = registeredObjects;
+            DisplayedCount = displayedCount;
+            TotalCount = totalCount;
+            IsTruncated = isTruncated;
+        }
+
+        public IReadOnlyList<RegisteredObject> Objects { get; }
+        public int DisplayedCount { get; }
+        public int? TotalCount { get; }
+        public bool IsTruncated { get; }
+    }
+
+    [DiagnosticClass(AttributedPropertiesOnly = true)]
+    private sealed class DrillDownScalarValue
+    {
+        public DrillDownScalarValue(object value) => Value = value;
+
+        [DiagnosticProperty]
+        public object Value { get; }
     }
 
     #endregion

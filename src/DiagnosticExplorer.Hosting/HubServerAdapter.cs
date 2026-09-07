@@ -72,14 +72,20 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             () => GetDiagnostics(CancellationToken.None)
         );
 
-        _hubConn.On<string, string, OperationResponse>(
-            nameof(IDiagnosticHubClient.SetProperty),
-            (path, value) => SetProperty(path, value, CancellationToken.None)
+        _hubConn.On<DrillDownRequest, DrillDownResponse>(
+            nameof(IDiagnosticHubClient.GetDrillDown),
+            request => GetDrillDown(request, CancellationToken.None)
         );
 
-        _hubConn.On<string, string, string[], OperationResponse>(
+        _hubConn.On<string[], string, string, OperationResponse>(
+            nameof(IDiagnosticHubClient.SetProperty),
+            (objectPaths, path, value) => SetProperty(objectPaths, path, value, CancellationToken.None)
+        );
+
+        _hubConn.On<string[], string, string, string[], OperationResponse>(
             nameof(IDiagnosticHubClient.ExecuteOperation),
-            (path, operation, args) => ExecuteOperation(path, operation, args, CancellationToken.None)
+            (objectPaths, path, operation, args) =>
+                ExecuteOperation(objectPaths, path, operation, args, CancellationToken.None)
         );
 
         _hubConn.On(nameof(IDiagnosticHubClient.SubscribeEvents), async () => await SubscribeEvents());
@@ -126,19 +132,30 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         return Run(() => DiagnosticManager.GetDiagnostics());
     }
 
-    public Task<OperationResponse> SetProperty(string path, string value, CancellationToken cancel)
+    public Task<DrillDownResponse> GetDrillDown(DrillDownRequest request, CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.SetProperty(path, value));
+        return Run(() => DiagnosticManager.GetDrillDown(request));
+    }
+
+    public Task<OperationResponse> SetProperty(
+        string[] objectPaths,
+        string path,
+        string value,
+        CancellationToken cancel
+    )
+    {
+        return Run(() => DiagnosticManager.SetProperty(objectPaths, path, value));
     }
 
     public Task<OperationResponse> ExecuteOperation(
+        string[] objectPaths,
         string path,
         string operation,
         string[] arguments,
         CancellationToken cancel
     )
     {
-        return Run(() => DiagnosticManager.ExecuteOperation(path, operation, arguments));
+        return Run(() => DiagnosticManager.ExecuteOperation(objectPaths, path, operation, arguments));
     }
 
     /// <summary>

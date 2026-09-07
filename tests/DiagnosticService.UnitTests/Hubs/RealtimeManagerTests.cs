@@ -136,7 +136,7 @@ public sealed class RealtimeManagerTests
             manager,
             client =>
                 client
-                    .SetProperty(Arg.Any<string>(), Arg.Any<string?>())
+                    .SetProperty(Arg.Any<string[]>(), Arg.Any<string>(), Arg.Any<string?>())
                     .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 
@@ -161,7 +161,7 @@ public sealed class RealtimeManagerTests
             manager,
             client =>
                 client
-                    .ExecuteOperation(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string[]>())
+                    .ExecuteOperation(Arg.Any<string[]>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string[]>())
                     .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 

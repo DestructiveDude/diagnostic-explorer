@@ -11,8 +11,13 @@ public interface IDiagnosticClient
     /// <summary>Live log events, batched by the agent.</summary>
     IObservable<LogStreamEvent[]> LogStreamEvents { get; }
     Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel);
-    Task<OperationResponse> SetProperty(string path, string? value);
-    Task<OperationResponse> ExecuteOperation(string path, string operation, string[] arguments);
+    Task<DrillDownResponse> GetDrillDown(DrillDownRequest request);
+
+    /// <param name="objectPaths">
+    ///     The drilldown the action was triggered from, empty for the main view.
+    /// </param>
+    Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value);
+    Task<OperationResponse> ExecuteOperation(string[] objectPaths, string path, string operation, string[] arguments);
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }

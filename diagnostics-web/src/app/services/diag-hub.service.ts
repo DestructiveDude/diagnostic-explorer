@@ -5,6 +5,7 @@ import {OperationResponse, SetPropertyRequest} from '../Model/SetPropertyRequest
 import {plainToInstance} from 'class-transformer';
 import {ExecOperationRequest} from '../Model/ExecOperationRequest';
 import {RetroQuery} from '../Model/RetroQuery';
+import {DrillDownRequest, DrillDownResponse} from '../Model/DrillDownRequest';
 import {BASE_API_URL, BASE_API_KEY} from "../../injectionTokens";
 
 @Injectable({
@@ -97,6 +98,19 @@ export class DiagHubService {
         }
         const response = await this.connection.invoke<OperationResponse>(`ExecuteOperation`, request);
         return plainToInstance(OperationResponse, response);
+    }
+
+    /**
+     * Opens the value the request names. Errors come back on the response rather than as a
+     * rejection: a path that no longer resolves — an object replaced between poll and click — is
+     * an ordinary outcome, not a transport fault.
+     */
+    async getDrillDown(request: DrillDownRequest): Promise<DrillDownResponse> {
+        if (!this.connection) {
+            return {...new DrillDownResponse(), errorMessage: 'Not connected to service'};
+        }
+        const response = await this.connection.invoke<DrillDownResponse>('GetDrillDown', request);
+        return plainToInstance(DrillDownResponse, response);
     }
 
     async removeProcess(id: string): Promise<void> {
