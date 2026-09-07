@@ -59,12 +59,13 @@ public sealed class DiagnosticSubscriptionRetryTests
             return Task.FromResult(new DrillDownResponse());
         }
 
-        public Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value)
+        public Task<OperationResponse> SetProperty(string requestId, string[] objectPaths, string path, string? value)
         {
             return Task.FromResult(new OperationResponse());
         }
 
         public Task<OperationResponse> ExecuteOperation(
+            string requestId,
             string[] objectPaths,
             string path,
             string operation,

@@ -4,6 +4,13 @@ public class SetPropertyRequest
 {
     public string Id { get; set; } = null!;
 
+    /// <summary>
+    ///     The operator action this request is an attempt at, echoed to the agent so a retry of
+    ///     the same action joins the first attempt instead of running it twice. Empty runs
+    ///     unguarded, which is what a browser predating this field gets.
+    /// </summary>
+    public string RequestId { get; set; } = "";
+
     /// <summary>The drilldown the edit was made in, empty for the main view.</summary>
     public string[] ObjectPaths { get; set; } = [];
     public string Path { get; set; } = null!;

@@ -136,7 +136,7 @@ public sealed class RealtimeManagerTests
             manager,
             client =>
                 client
-                    .SetProperty(Arg.Any<string[]>(), Arg.Any<string>(), Arg.Any<string?>())
+                    .SetProperty(Arg.Any<string>(), Arg.Any<string[]>(), Arg.Any<string>(), Arg.Any<string?>())
                     .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 
@@ -161,7 +161,13 @@ public sealed class RealtimeManagerTests
             manager,
             client =>
                 client
-                    .ExecuteOperation(Arg.Any<string[]>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string[]>())
+                    .ExecuteOperation(
+                        Arg.Any<string>(),
+                        Arg.Any<string[]>(),
+                        Arg.Any<string>(),
+                        Arg.Any<string>(),
+                        Arg.Any<string[]>()
+                    )
                     .Returns(Task.FromException<OperationResponse>(new InvalidOperationException("client exploded")))
         );
 
@@ -175,6 +181,55 @@ public sealed class RealtimeManagerTests
         );
 
         response.IsSuccess.Should().BeFalse();
+        response.ErrorMessage.Should().Be("client exploded");
+    }
+
+    /// <summary>
+    ///     GetDrillDown carries the same never-throw contract as the other two, and the same three
+    ///     failure modes, but its own lookups and try/catch live at this layer - DrillDownTests
+    ///     exercise DiagnosticManager, one layer below, and cannot reach them.
+    /// </summary>
+    [Fact]
+    public async Task GetDrillDown_ProcessNotFound_ReturnsErrorResponse()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+
+        DrillDownResponse response = await manager.GetDrillDown(
+            new ProcessDrillDownRequest { Id = "no-such-process", ObjectPaths = ["a|b"] }
+        );
+
+        response.ErrorMessage.Should().Be("Process no-such-process not found");
+    }
+
+    [Fact]
+    public async Task GetDrillDown_ProcessNotConnected_ReturnsErrorResponse()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        var processId = RegisterProcess(manager);
+
+        DrillDownResponse response = await manager.GetDrillDown(
+            new ProcessDrillDownRequest { Id = processId, ObjectPaths = ["a|b"] }
+        );
+
+        response.ErrorMessage.Should().Be($"Process {processId} is not connected");
+    }
+
+    [Fact]
+    public async Task GetDrillDown_DiagnosticClientThrows_ReturnsErrorResponse()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        var processId = await RegisterProcessWithClient(
+            manager,
+            client =>
+                client
+                    .GetDrillDown(Arg.Any<DrillDownRequest>())
+                    .Returns(Task.FromException<DrillDownResponse>(new InvalidOperationException("client exploded")))
+        );
+
+        DrillDownResponse response = await manager.GetDrillDown(
+            new ProcessDrillDownRequest { Id = processId, ObjectPaths = ["a|b"] }
+        );
+
         response.ErrorMessage.Should().Be("client exploded");
     }
 

@@ -58,14 +58,25 @@ public interface IDiagnosticHubClient
     // has to travel with the action: inside a drilldown, path names a property of the drilled-into
     // object, and resolving it against the process's registered objects would miss - or, where a
     // same-named property exists there, hit the wrong object entirely.
+    //
+    // requestId identifies the OPERATOR'S action, not the invocation. The service's timeout does
+    // not reach the agent, so a request that outruns it keeps running while its caller is told it
+    // failed; a retry carrying the same id joins the first instead of running the body twice.
     Task<OperationResponse> ExecuteOperation(
+        string requestId,
         string[] objectPaths,
         string path,
         string operation,
         string[] arguments,
         CancellationToken cancel
     );
-    Task<OperationResponse> SetProperty(string[] objectPaths, string path, string value, CancellationToken cancel);
+    Task<OperationResponse> SetProperty(
+        string requestId,
+        string[] objectPaths,
+        string path,
+        string value,
+        CancellationToken cancel
+    );
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }

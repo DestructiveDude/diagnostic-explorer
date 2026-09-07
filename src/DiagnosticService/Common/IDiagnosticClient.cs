@@ -16,8 +16,18 @@ public interface IDiagnosticClient
     /// <param name="objectPaths">
     ///     The drilldown the action was triggered from, empty for the main view.
     /// </param>
-    Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value);
-    Task<OperationResponse> ExecuteOperation(string[] objectPaths, string path, string operation, string[] arguments);
+    /// <param name="requestId">
+    ///     The operator action this is an attempt at. A retry carrying the same id joins the
+    ///     first attempt on the agent rather than running the body a second time.
+    /// </param>
+    Task<OperationResponse> SetProperty(string requestId, string[] objectPaths, string path, string? value);
+    Task<OperationResponse> ExecuteOperation(
+        string requestId,
+        string[] objectPaths,
+        string path,
+        string operation,
+        string[] arguments
+    );
     Task SubscribeEvents();
     Task UnsubscribeEvents();
 }

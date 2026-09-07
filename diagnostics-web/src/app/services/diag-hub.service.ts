@@ -88,7 +88,7 @@ export class DiagHubService {
         if (!this.connection) {
             return { isSuccess: false, errorMessage: "Not connected to service" } as OperationResponse;
         }
-        const response = await this.connection.invoke<OperationResponse>(`SetProperty`, request);
+        const response = await this.connection.invoke<OperationResponse>(`SetProperty`, withRequestId(request));
         return plainToInstance(OperationResponse, response);
     }
 
@@ -96,7 +96,7 @@ export class DiagHubService {
         if (!this.connection) {
             return { isSuccess: false, errorMessage: "Not connected to service" } as OperationResponse;
         }
-        const response = await this.connection.invoke<OperationResponse>(`ExecuteOperation`, request);
+        const response = await this.connection.invoke<OperationResponse>(`ExecuteOperation`, withRequestId(request));
         return plainToInstance(OperationResponse, response);
     }
 
@@ -144,4 +144,25 @@ export class DiagHubService {
         if (!this.connection) return false;
         return await this.connection.invoke<boolean>('RetroSupportsDelete');
     }
+}
+
+/**
+ * Stamps an action with the id the agent deduplicates on, leaving one already set alone.
+ *
+ * The service gives up on a slow action long before the agent does, so a timed-out action is
+ * still running when the operator is told it failed. Retrying that action must therefore reuse
+ * its id - a caller that mints a fresh one is asking for the body to run a second time, which
+ * for an operation is exactly the damage the id exists to prevent. A brand new gesture is a new
+ * intent and correctly gets a new id.
+ */
+function withRequestId<T extends { requestId: string }>(request: T): T {
+    return request.requestId ? request : {...request, requestId: newRequestId()};
+}
+
+function newRequestId(): string {
+    // randomUUID needs a secure context; the fallback keeps a plain-http deployment working
+    // rather than silently sending an empty id, which the agent treats as "run unguarded".
+    const cryptoApi = globalThis.crypto as Crypto | undefined;
+    if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

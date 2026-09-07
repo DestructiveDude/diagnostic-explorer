@@ -86,16 +86,17 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
         return Invoke(token => _client.GetDrillDown(request, token), CancellationToken.None, _requestTimeout);
     }
 
-    public Task<OperationResponse> SetProperty(string[] objectPaths, string path, string? value)
+    public Task<OperationResponse> SetProperty(string requestId, string[] objectPaths, string path, string? value)
     {
         return Invoke(
-            token => _client.SetProperty(objectPaths, path, value!, token),
+            token => _client.SetProperty(requestId, objectPaths, path, value!, token),
             CancellationToken.None,
             _operationTimeout
         );
     }
 
     public Task<OperationResponse> ExecuteOperation(
+        string requestId,
         string[] objectPaths,
         string path,
         string operation,
@@ -103,7 +104,7 @@ public sealed class DiagnosticClientHandler : IDiagnosticClient, IDisposable
     )
     {
         return Invoke(
-            token => _client.ExecuteOperation(objectPaths, path, operation, arguments, token),
+            token => _client.ExecuteOperation(requestId, objectPaths, path, operation, arguments, token),
             CancellationToken.None,
             _operationTimeout
         );

@@ -76,16 +76,40 @@ describe('DiagHubService', () => {
             service.connection = connection as any;
         });
 
-        it('invokes SetProperty with the supplied request', async () => {
+        it('invokes SetProperty with the supplied request, stamped with a request id', async () => {
             const request = {processId: 'p-1', propertyPath: 'Config.Timeout', value: '15'} as any;
             await service.setPropertyValue(request);
-            expect(connection.invoke).toHaveBeenCalledWith('SetProperty', request);
+            expect(connection.invoke).toHaveBeenCalledWith('SetProperty', {
+                ...request,
+                requestId: expect.any(String),
+            });
         });
 
-        it('invokes ExecuteOperation with the supplied request', async () => {
+        it('invokes ExecuteOperation with the supplied request, stamped with a request id', async () => {
             const request = {processId: 'p-1', operation: 'Restart'} as any;
             await service.executeOperation(request);
+            expect(connection.invoke).toHaveBeenCalledWith('ExecuteOperation', {
+                ...request,
+                requestId: expect.any(String),
+            });
+        });
+
+        // The id identifies the operator's action, so a caller that already has one - a retry of
+        // an action the service timed out on - must keep it. Minting a fresh one there is exactly
+        // the double-run the agent's guard exists to refuse.
+        it('keeps a request id the caller already set', async () => {
+            const request = {processId: 'p-1', operation: 'Restart', requestId: 'attempt-1'} as any;
+            await service.executeOperation(request);
             expect(connection.invoke).toHaveBeenCalledWith('ExecuteOperation', request);
+        });
+
+        it('gives two separate actions different request ids', async () => {
+            await service.executeOperation({processId: 'p-1', operation: 'Restart'} as any);
+            await service.executeOperation({processId: 'p-1', operation: 'Restart'} as any);
+
+            const [first, second] = connection.invoke.mock.calls.map((call: any[]) => call[1].requestId);
+            expect(first).toBeTruthy();
+            expect(second).not.toBe(first);
         });
 
         it('invokes RemoveProcess, StartRetroSearch and CancelRetroSearch', async () => {

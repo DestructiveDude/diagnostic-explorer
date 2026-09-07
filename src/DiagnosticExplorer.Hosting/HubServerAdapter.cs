@@ -1,8 +1,11 @@
 #nullable enable annotations
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DiagnosticExplorer.Logging;
@@ -38,6 +41,23 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             + "SemaphoreSlim allocates nothing to dispose unless AvailableWaitHandle is used."
     )]
     private readonly SemaphoreSlim _requestGate = new(1, 1);
+
+    /// <summary>Completed and in-flight actions, keyed by the operator request that asked for them.</summary>
+    private readonly ConcurrentDictionary<string, DeduplicatedRequest> _requests = new(StringComparer.Ordinal);
+
+    /// <summary>How long a completed action stays answerable to a repeat of its request id.</summary>
+    /// <remarks>
+    ///     Longer than the service's operation timeout, because the retry this guards against is
+    ///     the one that timeout provokes. See DiagnosticClientHandler.DefaultOperationTimeout.
+    /// </remarks>
+    private const int RequestRetentionMs = 5 * 60 * 1000;
+
+    /// <summary>A ceiling on retained request ids, so a long-lived agent cannot grow one per action forever.</summary>
+    private const int MaxRetainedRequests = 512;
+
+    /// <summary>Ages request ids. A stopwatch rather than the wall clock, so a clock adjustment
+    /// cannot make a retained entry look older or younger than it is.</summary>
+    private static readonly Stopwatch _clock = Stopwatch.StartNew();
 
     private readonly HubConnection _hubConn;
     private readonly LogEventStore? _eventStore;
@@ -77,15 +97,16 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             request => GetDrillDown(request, CancellationToken.None)
         );
 
-        _hubConn.On<string[], string, string, OperationResponse>(
+        _hubConn.On<string, string[], string, string, OperationResponse>(
             nameof(IDiagnosticHubClient.SetProperty),
-            (objectPaths, path, value) => SetProperty(objectPaths, path, value, CancellationToken.None)
+            (requestId, objectPaths, path, value) =>
+                SetProperty(requestId, objectPaths, path, value, CancellationToken.None)
         );
 
-        _hubConn.On<string[], string, string, string[], OperationResponse>(
+        _hubConn.On<string, string[], string, string, string[], OperationResponse>(
             nameof(IDiagnosticHubClient.ExecuteOperation),
-            (objectPaths, path, operation, args) =>
-                ExecuteOperation(objectPaths, path, operation, args, CancellationToken.None)
+            (requestId, objectPaths, path, operation, args) =>
+                ExecuteOperation(requestId, objectPaths, path, operation, args, CancellationToken.None)
         );
 
         _hubConn.On(nameof(IDiagnosticHubClient.SubscribeEvents), async () => await SubscribeEvents());
@@ -138,16 +159,18 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     }
 
     public Task<OperationResponse> SetProperty(
+        string requestId,
         string[] objectPaths,
         string path,
         string value,
         CancellationToken cancel
     )
     {
-        return Run(() => DiagnosticManager.SetProperty(objectPaths, path, value));
+        return RunOnce(requestId, () => DiagnosticManager.SetProperty(objectPaths, path, value));
     }
 
     public Task<OperationResponse> ExecuteOperation(
+        string requestId,
         string[] objectPaths,
         string path,
         string operation,
@@ -155,7 +178,104 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         CancellationToken cancel
     )
     {
-        return Run(() => DiagnosticManager.ExecuteOperation(objectPaths, path, operation, arguments));
+        return RunOnce(requestId, () => DiagnosticManager.ExecuteOperation(objectPaths, path, operation, arguments));
+    }
+
+    /// <summary>
+    ///     Runs an action at most once per operator request, however many times it is invoked.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The service bounds how long IT waits; the agent never learns that the caller gave
+    ///         up, and goes on running (see the constructor). So a request that outruns the
+    ///         service's timeout reports failure to the operator while its body is still executing,
+    ///         and an operator who retries at that point runs the body a second time - against the
+    ///         host's own objects, through PropertyInfo.SetValue or MethodInfo.Invoke. Nothing on
+    ///         this path is naturally idempotent, and a chain makes the window wider rather than
+    ///         narrower, because every hop is a full render before the effect happens.
+    ///     </para>
+    ///     <para>
+    ///         The retry joins the first attempt instead of queueing behind it. That is the whole
+    ///         point of taking the entry BEFORE <see cref="_requestGate" />: waiting on the gate
+    ///         would serialise the duplicate after the original and then run it.
+    ///     </para>
+    ///     <para>
+    ///         A missing id runs unguarded, which is the old behaviour and what an agent talking to
+    ///         a service that predates this field gets. Retention outlives the service's operation
+    ///         timeout so that a retry prompted by that timeout still finds the entry; entries are
+    ///         pruned only once complete, so an id is never dropped while its work is in flight.
+    ///     </para>
+    /// </remarks>
+    private Task<OperationResponse> RunOnce(string requestId, Func<OperationResponse> work)
+    {
+        if (string.IsNullOrEmpty(requestId))
+        {
+            return Run(work);
+        }
+
+        PruneRequests();
+
+        // Lazy with ExecutionAndPublication, not a bare Task: GetOrAdd may run its factory more
+        // than once under contention, and a factory that started the work would then have started
+        // it twice - the exact thing being prevented.
+        DeduplicatedRequest request = _requests.GetOrAdd(
+            requestId,
+            _ => new DeduplicatedRequest(
+                new Lazy<Task<OperationResponse>>(() => Run(work), LazyThreadSafetyMode.ExecutionAndPublication),
+                _clock.ElapsedMilliseconds
+            )
+        );
+
+        return request.Work.Value;
+    }
+
+    private void PruneRequests()
+    {
+        long now = _clock.ElapsedMilliseconds;
+        foreach (
+            KeyValuePair<string, DeduplicatedRequest> entry in _requests.Where(candidate =>
+                candidate.Value.IsPrunable(now)
+            )
+        )
+        {
+            _requests.TryRemove(entry.Key, out _);
+        }
+
+        if (_requests.Count <= MaxRetainedRequests)
+        {
+            return;
+        }
+
+        // A host driven hard enough to hold more than this many ids has already had every retry
+        // window it was promised for the oldest of them.
+        foreach (
+            KeyValuePair<string, DeduplicatedRequest> entry in _requests
+                .Where(candidate => candidate.Value.IsComplete)
+                .OrderBy(candidate => candidate.Value.CreatedMs)
+                .Take(_requests.Count - MaxRetainedRequests)
+                .ToList()
+        )
+        {
+            _requests.TryRemove(entry.Key, out _);
+        }
+    }
+
+    private sealed class DeduplicatedRequest
+    {
+        public DeduplicatedRequest(Lazy<Task<OperationResponse>> work, long createdMs)
+        {
+            Work = work;
+            CreatedMs = createdMs;
+        }
+
+        public Lazy<Task<OperationResponse>> Work { get; }
+        public long CreatedMs { get; }
+
+        public bool IsComplete => Work.IsValueCreated && Work.Value.IsCompleted;
+
+        // Never while the work is still running: dropping it there would let a retry start a
+        // second copy of the very thing the entry exists to prevent.
+        public bool IsPrunable(long now) => IsComplete && now - CreatedMs > RequestRetentionMs;
     }
 
     /// <summary>
