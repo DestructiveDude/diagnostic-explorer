@@ -68,7 +68,7 @@ release();
 
 ### Task 3: Contextual group and property operations
 
-**Files:** Modify `diagnostics-web/src/app/Model/PropGroup.ts`, `Model/ExecOperationsModel.ts`, `realtime-category/realtime-category.component.ts`, `.html`; tests `Model/ExecOperationsModel.spec.ts`, `realtime-category/realtime-category.component.spec.ts`, and relevant model tests. Update `docs/upstream-integration-status.md` with completed behavior and remaining preview scope.
+**Files:** Modify `diagnostics-web/src/app/Model/PropGroup.ts`, `Model/ExecOperationsModel.ts`, `realtime-category/realtime-category.component.ts`, `.html`; extend the existing rendered operation tests in `drill-down-dialog/drill-down-dialog.component.spec.ts`. Add a focused model spec only if existing tests cannot cover a required behavior cleanly. Update `docs/upstream-integration-status.md` with completed behavior and remaining preview scope.
 
 **Interfaces:** Consume the existing structural `{operationSet: string; getPropertyPath(): string}` contract of SubCat/PropGroup/PropModel and existing action context. No new target hierarchy needed.
 
