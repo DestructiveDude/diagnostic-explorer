@@ -1,4 +1,4 @@
-import {afterNextRender, ChangeDetectionStrategy, Component, DoCheck, EventEmitter, HostListener, Injector, Input, OnDestroy, Output, ViewChild} from '@angular/core';
+import {afterNextRender, ChangeDetectionStrategy, Component, DoCheck, EventEmitter, Injector, Input, OnDestroy, Output, Renderer2, ViewChild} from '@angular/core';
 import {CdkConnectedOverlay, ConnectedPosition} from '@angular/cdk/overlay';
 import {PropModel} from '../Model/PropModel';
 import {DiagnosticResponse} from '../Model/DiagResponse';
@@ -52,8 +52,9 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
     private opening = 0;
     private openedContext = '';
     private request?: DrillDownRequest;
+    private keydownUnlisten?: () => void;
 
-    constructor(private readonly realtimeModel: RealtimeModel, private readonly injector: Injector) {}
+    constructor(private readonly realtimeModel: RealtimeModel, private readonly injector: Injector, private readonly renderer: Renderer2) {}
 
     ngDoCheck(): void {
         if (this.visible && this.contextKey() !== this.openedContext) this.close();
@@ -61,11 +62,6 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
 
     ngOnDestroy(): void {
         this.close();
-    }
-
-    @HostListener('document:keydown', ['$event'])
-    onDocumentKeydown(event: KeyboardEvent): void {
-        this.dismiss(event);
     }
 
     openFromPointer(): void {
@@ -106,7 +102,7 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
     }
 
     dismiss(event?: KeyboardEvent): void {
-        if (event?.key !== 'Escape') return;
+        if (!this.visible || event?.key !== 'Escape') return;
         event.preventDefault();
         this.close();
     }
@@ -115,6 +111,7 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
         if (this.visible) return;
 
         this.visible = true;
+        this.keydownUnlisten = this.renderer.listen('document', 'keydown', (event: KeyboardEvent) => this.dismiss(event));
         this.loading = true;
         this.error = '';
         this.diagnostics = undefined;
@@ -190,6 +187,8 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
     }
 
     close(): void {
+        this.keydownUnlisten?.();
+        this.keydownUnlisten = undefined;
         this.cancelHide();
         if (this.refreshTimer !== undefined) window.clearInterval(this.refreshTimer);
         this.refreshTimer = undefined;
