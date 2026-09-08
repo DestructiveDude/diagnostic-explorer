@@ -23,6 +23,7 @@ public class RegistrationHandler
     private readonly string _url;
     private readonly Registration _registration;
     private readonly string? _apiKey;
+    private readonly IServiceProvider? _serviceProvider;
 
     // _connLock guards the _connection/_hubAdapter pair. They are mutated from three racing
     // contexts — the registration loop (OpenHub/CloseConnection), the SignalR Closed event
@@ -43,10 +44,14 @@ public class RegistrationHandler
     private Action<HttpConnectionOptions>? _configureHttp;
 
     public RegistrationHandler(string url, Registration registration, string? apiKey = null)
+        : this(url, registration, apiKey, null) { }
+
+    public RegistrationHandler(string url, Registration registration, string? apiKey, IServiceProvider? serviceProvider)
     {
         _url = url;
         _registration = registration;
         _apiKey = apiKey;
+        _serviceProvider = serviceProvider;
         _logSubject = Subject.Synchronize(_ownedLogSubject);
 
         // F8: never send the API key over a cleartext transport. Fail fast at construction rather
@@ -272,7 +277,7 @@ public class RegistrationHandler
             await connection.StartAsync(cancelToken);
 
             Debug.WriteLine("Diagnostic RegistrationHandler connection started");
-            HubServerAdapter adapter = new HubServerAdapter(connection);
+            HubServerAdapter adapter = new HubServerAdapter(connection, null, _serviceProvider);
 
             lock (_connLock)
             {

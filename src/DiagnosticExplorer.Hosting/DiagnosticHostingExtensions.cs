@@ -10,6 +10,22 @@ namespace DiagnosticExplorer;
 
 public static class DiagnosticHostingExtensions
 {
+    public static IServiceCollection ConfigureDiagnosticExplorer(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IDiagConfigurator> configureDiagnostics,
+        Action<HttpConnectionOptions>? configureHttp = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(configureDiagnostics);
+
+        DiagnosticManager.Configure(configureDiagnostics);
+
+        return services.AddDiagnosticExplorer(configuration, configureHttp);
+    }
+
     public static IServiceCollection AddDiagnosticExplorer(
         this IServiceCollection services,
         IConfiguration config,
@@ -19,7 +35,8 @@ public static class DiagnosticHostingExtensions
         services.Configure<DiagnosticOptions>(config.GetSection("DiagnosticExplorer"));
         services.AddHostedService(sp => new DiagnosticHostingService(
             sp.GetRequiredService<IOptions<DiagnosticOptions>>(),
-            configureHttp
+            configureHttp,
+            sp
         ));
         return services;
     }

@@ -62,6 +62,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
 
     private readonly HubConnection _hubConn;
     private readonly LogEventStore? _eventStore;
+    private readonly IServiceProvider? _serviceProvider;
     private CancellationTokenSource? _writeEventCancel;
     private Task? _writeEventTask;
 
@@ -77,9 +78,13 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     private LogEventStore EventStore => _eventStore ?? DiagnosticManager.LogEventStore;
 
     public HubServerAdapter(HubConnection hubConn, LogEventStore? eventStore = null)
+        : this(hubConn, eventStore, null) { }
+
+    public HubServerAdapter(HubConnection hubConn, LogEventStore? eventStore, IServiceProvider? serviceProvider)
     {
         _hubConn = hubConn;
         _eventStore = eventStore;
+        _serviceProvider = serviceProvider;
 
         // Registered through the value-returning On overloads, which is what makes these client
         // results rather than one-way notifications.
@@ -151,12 +156,14 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     // token, and it never crosses the wire.
     public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.GetDiagnostics());
+        return Run(() => DiagnosticManager.GetDiagnostics(DiagnosticManager.GetRegisteredObjects(_serviceProvider!)));
     }
 
     public Task<DrillDownResponse> GetDrillDown(DrillDownRequest request, CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.GetDrillDown(request));
+        return Run(() =>
+            DiagnosticManager.GetDrillDown(DiagnosticManager.GetRegisteredObjects(_serviceProvider!), request)
+        );
     }
 
     public Task<OperationResponse> SetProperty(
@@ -167,7 +174,16 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         CancellationToken cancel
     )
     {
-        return RunOnce(requestId, () => DiagnosticManager.SetProperty(objectPaths, path, value));
+        return RunOnce(
+            requestId,
+            () =>
+                DiagnosticManager.SetProperty(
+                    DiagnosticManager.GetRegisteredObjects(_serviceProvider!),
+                    objectPaths,
+                    path,
+                    value
+                )
+        );
     }
 
     public Task<OperationResponse> ExecuteOperation(
@@ -179,7 +195,17 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
         CancellationToken cancel
     )
     {
-        return RunOnce(requestId, () => DiagnosticManager.ExecuteOperation(objectPaths, path, operation, arguments));
+        return RunOnce(
+            requestId,
+            () =>
+                DiagnosticManager.ExecuteOperation(
+                    DiagnosticManager.GetRegisteredObjects(_serviceProvider!),
+                    objectPaths,
+                    path,
+                    operation,
+                    arguments
+                )
+        );
     }
 
     /// <summary>

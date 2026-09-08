@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Xunit;
 
 namespace DiagnosticService.UnitTests.Hosting;
@@ -255,6 +256,91 @@ public sealed class ProgramHostedTests
         response.PropertyBags.Should().ContainSingle().Which.Name.Should().Be("agent-bag");
     }
 
+    [Fact]
+    public async Task ConfiguredService_OverARealAdapter_StaysLiveAndCanBeActedOn()
+    {
+        var configured = new HostedWidget();
+        var legacy = new LegacyWidget();
+        DiagnosticConfiguration originalConfiguration = DiagnosticManager.CurrentConfiguration;
+        bool originalEnabled = DiagnosticManager.Enabled;
+        using var factory = CreateFactory(new Dictionary<string, string?> { ["DiagnosticExplorer:Enabled"] = "false" });
+        var services = new ServiceCollection();
+        services.AddSingleton(configured);
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DiagnosticExplorer:Enabled"] = "true",
+                    ["DiagnosticExplorer:Uri"] = new Uri(factory.Server.BaseAddress, "/diagnostics").ToString(),
+                }
+            )
+            .Build();
+        services.ConfigureDiagnosticExplorer(
+            configuration,
+            configure =>
+            {
+                configure.RegisterObjects(registrar => registrar.RegisterService<HostedWidget>("Configured", "Widget"));
+                configure.Configure<HostedWidget>(type => type.Property(widget => widget.Child).WithDrillDown());
+            },
+            options => options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler()
+        );
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IHostedService agent = provider.GetServices<IHostedService>().OfType<DiagnosticHostingService>().Single();
+
+        DiagnosticManager.Register(legacy, "Legacy", "Object");
+
+        try
+        {
+            await agent.StartAsync(TestContext.Current.CancellationToken);
+            RealtimeManager manager = factory.Services.GetRequiredService<RealtimeManager>();
+            DiagnosticClientHandler handler = await WaitForRegisteredClientHandler(manager);
+
+            DiagnosticResponse diagnostics = await handler.GetDiagnostics(TestContext.Current.CancellationToken);
+            diagnostics.PropertyBags.Select(bag => (bag.Category, bag.Name)).Should().Contain(("Configured", "Widget"));
+            diagnostics.PropertyBags.Select(bag => (bag.Category, bag.Name)).Should().Contain(("Object", "Legacy"));
+
+            DrillDownResponse drillDown = await handler.GetDrillDown(
+                new DrillDownRequest { ObjectPaths = ["Configured|Widget||Child"] }
+            );
+            drillDown.ErrorMessage.Should().BeNull();
+            drillDown
+                .Diagnostics.PropertyBags.SelectMany(bag => bag.Categories)
+                .SelectMany(category => category.Properties)
+                .Single(property => property.Name == "Name")
+                .Value.Should()
+                .Be("child");
+
+            OperationResponse set = await handler.SetProperty("set-widget", [], "Configured|Widget||Value", "7");
+            set.IsSuccess.Should().BeTrue();
+            configured.Value.Should().Be(7);
+
+            DiagnosticResponse changed = await handler.GetDiagnostics(TestContext.Current.CancellationToken);
+            changed
+                .PropertyBags.Single(bag => bag.Category == "Configured" && bag.Name == "Widget")
+                .Categories.SelectMany(category => category.Properties)
+                .Single(property => property.Name == "Value")
+                .Value.Should()
+                .Be("7");
+
+            OperationResponse execute = await handler.ExecuteOperation(
+                "increment-widget",
+                [],
+                "Configured|Widget",
+                "Increment()",
+                []
+            );
+            execute.IsSuccess.Should().BeTrue();
+            configured.Value.Should().Be(8);
+        }
+        finally
+        {
+            await agent.StopAsync(TestContext.Current.CancellationToken);
+            DiagnosticManager.Unregister(legacy);
+            DiagnosticManager.UseConfiguration(originalConfiguration);
+            DiagnosticManager.Enabled = originalEnabled;
+        }
+    }
+
     /// <summary>
     ///     Waits for the SERVER to register the handler, which is not what StartAsync signals.
     /// </summary>
@@ -285,6 +371,24 @@ public sealed class ProgramHostedTests
 
             DateTime.UtcNow.Should().BeBefore(deadline, "the hub should register the agent's handler on connect");
             await Task.Delay(TimeSpan.FromMilliseconds(10), TestContext.Current.CancellationToken);
+        }
+    }
+
+    private static async Task<DiagnosticClientHandler> WaitForRegisteredClientHandler(RealtimeManager manager)
+    {
+        using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(
+            TestContext.Current.CancellationToken
+        );
+        deadline.CancelAfter(TimeSpan.FromSeconds(30));
+        while (true)
+        {
+            var process = manager.GetProcesses().SingleOrDefault(candidate => candidate.ConnectionId != null);
+            if (process?.ConnectionId != null)
+            {
+                return await WaitForClientHandler(manager, process.ConnectionId);
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(10), deadline.Token);
         }
     }
 
@@ -381,6 +485,30 @@ public sealed class ProgramHostedTests
                 }
             }
         }
+    }
+
+    private sealed class HostedWidget
+    {
+        [DiagnosticProperty(AllowSet = true)]
+        public int Value { get; set; }
+
+        [DiagnosticProperty]
+        public HostedChild Child { get; } = new();
+
+        [DiagnosticMethod]
+        public void Increment() => Value++;
+    }
+
+    private sealed class HostedChild
+    {
+        [DiagnosticProperty]
+        public string Name => "child";
+    }
+
+    private sealed class LegacyWidget
+    {
+        [DiagnosticProperty]
+        public string Name => "legacy";
     }
 
     private sealed class EnvironmentVariableScope : IDisposable
