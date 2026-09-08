@@ -71,9 +71,10 @@ describe('property preview', () => {
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('11');
     });
 
-    it('formats valid JSON, preserves malformed JSON, and escapes remote markup', async () => {
+    it('preserves server JSON exactly, preserves malformed JSON, and escapes remote markup', async () => {
+        const json = '{\n  "id": 9223372036854775807,\n  "amount": 1234567890.1234567890123456789,\n  "overflow": 1e400,\n  "markup": "<script>bad()</script>"\n}';
         hub.getDrillDown.mockReset().mockResolvedValue(Object.assign(new DrillDownResponse(), {
-            json: '{"markup":"<script>bad()</script>"}', isTruncated: true, displayedCount: 2, totalCount: 3
+            json, isTruncated: true, displayedCount: 2, totalCount: 3
         }));
         fixture.componentRef.setInput('json', true);
         fixture.detectChanges();
@@ -82,7 +83,7 @@ describe('property preview', () => {
         button.dispatchEvent(new FocusEvent('focus'));
         await settle();
 
-        expect(document.querySelector('pre')?.textContent).toContain('  "markup": "<script>bad()</script>"');
+        expect(document.querySelector('pre')?.textContent).toBe(json);
         expect(document.querySelector('[role="tooltip"] script')).toBeNull();
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Showing 2 of 3 items (truncated).');
 

@@ -1,3 +1,7 @@
+:host { flex-shrink: 0; }
+
+.preview-button { font-size: 12px; color: var(--label); text-decoration: underline; }
+
 .property-preview-tooltip {
   max-width: min(32rem, calc(100vw - 2rem));
   max-height: min(24rem, calc(100vh - 2rem));
