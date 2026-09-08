@@ -68,7 +68,7 @@ function logEvt(over: Partial<LogStreamEvent> = {}): LogStreamEvent {
     return {
         streamId: 'stream-1',
         sequence: nextSequence++,
-        timestampUtc: '2026-01-01T00:00:00.000Z',
+        timestampUtc: '2026-09-08T10:00:00.000Z',
         loggerCategory: 'App.Worker',
         level: WireLevel.INFO,
         eventId: 0,
@@ -298,13 +298,112 @@ describe('RealtimeModel', () => {
     });
 
     describe('log stream', () => {
+        it('shows fixed destinations even before they receive an event', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')]));
+
+            const sink = model.categories.find(category => category.name === 'Disk')?.eventSinks[0];
+            expect(sink?.name).toBe('IO');
+            expect(sink?.events).toEqual([]);
+        });
+
+        it('keeps a surviving sink and its filter state while a routing snapshot is replaced', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt()]));
+            const sink = model.categories.find(category => category.name === 'Disk')!.eventSinks[0];
+            sink.isExpanded = false;
+            sink.filterCriteria.searchText = 'needle';
+
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt({sequence: 9})]));
+
+            const replacement = model.categories.find(category => category.name === 'Disk')!.eventSinks[0];
+            expect(replacement).toBe(sink);
+            expect(replacement.isExpanded).toBe(false);
+            expect(replacement.filterCriteria.searchText).toBe('needle');
+            expect(replacement.events.map(event => event.id)).toEqual([9]);
+        });
+
+        it('removes destinations excluded by a replacement routing snapshot', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt({sequence: 1})]));
+
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Net', 'Http')], [logEvt({sequence: 1})]));
+
+            expect(model.categories.find(category => category.name === 'Disk')).toBeUndefined();
+            expect(model.categories.find(category => category.name === 'Net')?.eventSinks[0].events).toHaveLength(1);
+        });
+
+        it('derives destinations from retained records and restores a process projection after switching back', async () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', '', {
+                destinations: [{
+                    category: {source: 'Fixed', value: 'Disk'},
+                    name: {source: 'LoggerSuffix'},
+                }],
+            })], [logEvt()]));
+
+            await model.selectProcess(proc('other', 'Other'));
+            await model.selectProcess(proc('active', 'Worker'));
+
+            expect(model.getProcessEventStore('active').events).toHaveLength(1);
+            const sink = model.categories.find(category => category.name === 'Disk')?.eventSinks[0];
+            expect(sink?.name).toBe('App.Worker');
+            expect(sink?.events).toHaveLength(1);
+        });
+
+        it('prunes every store on the maintenance tick and clears an expired selected event', async () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
+            try {
+                const {model, hub} = makeModel();
+                const connection = makeConnection();
+                hub.emitReady(connection);
+                model.activeProcess = proc('active', 'Worker');
+                connection.handlers['InitializeLogStream']('active', {...initialization([
+                    routeTo('Disk', '', {destinations: [{
+                        category: {source: 'Fixed', value: 'Disk'},
+                        name: {source: 'LoggerSuffix'},
+                    }]})
+                ], [logEvt()]), maxAgeMinutes: 1});
+                const selected = model.categories.find(category => category.name === 'Disk')!.eventSinks[0].events[0];
+                model.setCurrentEvent(selected);
+
+                await model.start();
+                jest.setSystemTime(new Date('2026-09-08T10:01:00.001Z'));
+                // Exercise the one-second callback directly; Zone's RxJS scheduler has a separate
+                // fake-timer queue, while the model behaviour belongs to this maintenance method.
+                (model as any).checkEventSeverityLevels();
+
+                expect(model.getProcessEventStore('active').events).toEqual([]);
+                expect(model.categories.find(category => category.name === 'Disk')).toBeUndefined();
+                expect(model.selectedEvent).toBeUndefined();
+                expect(model.traceScopeVisible).toBe(false);
+                model.severityCheckSubscription?.unsubscribe();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         it('retains a bounded raw projection, deduplicates replay, and fences process and stream changes', async () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
             model.activeProcess = proc('active', 'Worker');
             const events = Array.from({length: 501}, (_, sequence) => logEvt({sequence}));
-            connection.handlers['InitializeLogStream']('active', initialization([], events));
+            connection.handlers['InitializeLogStream']('active', {...initialization([], events), maxEvents: 500});
             expect(model.logStreamEvents).toHaveLength(500);
             expect(model.logStreamEvents[0].sequence).toBe(500);
             expect(model.logStreamEvents.at(-1)?.sequence).toBe(1);
@@ -330,7 +429,7 @@ describe('RealtimeModel', () => {
 
             connection.handlers['StreamLogEvents']('other', [logEvt()]);
 
-            expect(model.categories).toHaveLength(0);
+            expect(model.categories.find(category => category.name === 'Cat')?.eventSinks[0].events).toEqual([]);
         });
 
         it('places an event under the destination its route resolves to', () => {
@@ -380,7 +479,7 @@ describe('RealtimeModel', () => {
 
             connection.handlers['StreamLogEvents']('active', [logEvt({loggerCategory: 'App.Net'})]);
 
-            expect(model.categories).toHaveLength(0);
+            expect(model.categories.find(category => category.name === 'Disk')?.eventSinks[0].events).toEqual([]);
         });
 
         it('shows a Trace event as Trace, not as an error', () => {
@@ -422,8 +521,8 @@ describe('RealtimeModel', () => {
             connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt()]));
             const secondSink = model.categories.find(c => c.name === 'Disk')!.eventSinks[0];
 
-            // An initialization is a whole picture, so the sink is rebuilt rather than accumulated.
-            expect(secondSink).not.toBe(firstSink);
+            // The records reset authoritatively, while the surviving destination keeps its view state.
+            expect(secondSink).toBe(firstSink);
         });
 
         it('applies the events replayed with an initialization', () => {
