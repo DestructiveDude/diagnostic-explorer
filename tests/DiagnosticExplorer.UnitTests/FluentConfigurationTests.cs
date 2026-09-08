@@ -183,7 +183,7 @@ public sealed class FluentConfigurationTests : IDisposable
     }
 
     [Fact]
-    public void GetRegisteredObjects_RerunsConfiguredRegistrationCallbacks()
+    public void GetRegisteredObjects_WithoutAServiceProvider_RerunsExplicitRegistrationCallbacks()
     {
         var firstWidget = new Widget();
         var secondWidget = new Widget();
@@ -215,6 +215,34 @@ public sealed class FluentConfigurationTests : IDisposable
         RegisteredObject[] registered = DiagnosticManager.GetRegisteredObjects(new SingleServiceProvider(widget));
 
         registered.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
+    }
+
+    [Fact]
+    public void GetRegisteredObjects_WithoutAServiceProvider_ExplainsHowToRegisterDynamicServices()
+    {
+        DiagnosticManager.Configure(configure =>
+            configure.RegisterObjects(registrar => registrar.RegisterService<Widget>("Configured", "Service"))
+        );
+
+        Action get = () => DiagnosticManager.GetRegisteredObjects();
+
+        get.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("*RegisterService requires an IServiceProvider from DI hosting*RegisterObjects/Register*");
+    }
+
+    [Fact]
+    public void GetRegisteredObjects_WithAProviderMissingTheService_IdentifiesTheServiceType()
+    {
+        DiagnosticManager.Configure(configure =>
+            configure.RegisterObjects(registrar => registrar.RegisterService<Widget>("Configured", "Service"))
+        );
+
+        Action get = () => DiagnosticManager.GetRegisteredObjects(new EmptyServiceProvider());
+
+        get.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("No service for type '*Widget*' has been registered.");
     }
 
     [Fact]
@@ -274,6 +302,11 @@ public sealed class FluentConfigurationTests : IDisposable
         public SingleServiceProvider(Widget widget) => _widget = widget;
 
         public object? GetService(Type serviceType) => serviceType == typeof(Widget) ? _widget : null;
+    }
+
+    private sealed class EmptyServiceProvider : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => null;
     }
 #pragma warning restore S1144, S2325
 }

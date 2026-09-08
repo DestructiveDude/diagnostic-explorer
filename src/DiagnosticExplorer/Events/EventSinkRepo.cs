@@ -105,6 +105,8 @@ public sealed class EventSinkRepo : IDisposable
     {
         ThrowIfDisposed();
 
+        // ponytail: this serializes snapshot purge and live handoff; use per-sink locking only if
+        // measured contention warrants it, since delaying it breaks expiry and out-of-order imports.
         _eventStreamLock.EnterWriteLock();
         try
         {

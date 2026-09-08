@@ -156,13 +156,13 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
     // token, and it never crosses the wire.
     public Task<DiagnosticResponse> GetDiagnostics(CancellationToken cancel)
     {
-        return Run(() => DiagnosticManager.GetDiagnostics(DiagnosticManager.GetRegisteredObjects(_serviceProvider!)));
+        return Run(() => DiagnosticManager.GetDiagnostics(DiagnosticManager.GetRegisteredObjects(_serviceProvider)));
     }
 
     public Task<DrillDownResponse> GetDrillDown(DrillDownRequest request, CancellationToken cancel)
     {
         return Run(() =>
-            DiagnosticManager.GetDrillDown(DiagnosticManager.GetRegisteredObjects(_serviceProvider!), request)
+            DiagnosticManager.GetDrillDown(DiagnosticManager.GetRegisteredObjects(_serviceProvider), request)
         );
     }
 
@@ -178,7 +178,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             requestId,
             () =>
                 DiagnosticManager.SetProperty(
-                    DiagnosticManager.GetRegisteredObjects(_serviceProvider!),
+                    DiagnosticManager.GetRegisteredObjects(_serviceProvider),
                     objectPaths,
                     path,
                     value
@@ -199,7 +199,7 @@ internal sealed class HubServerAdapter : IDiagnosticHubClient, IDisposable
             requestId,
             () =>
                 DiagnosticManager.ExecuteOperation(
-                    DiagnosticManager.GetRegisteredObjects(_serviceProvider!),
+                    DiagnosticManager.GetRegisteredObjects(_serviceProvider),
                     objectPaths,
                     path,
                     operation,
