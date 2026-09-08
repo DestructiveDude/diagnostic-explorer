@@ -1,4 +1,3 @@
-﻿import {SubCat} from './SubCat';
 import {Subject} from 'rxjs';
 import {getErrorMessage, strEqCI} from '../util/util';
 import {OperationSet} from './DiagResponse';
@@ -20,12 +19,12 @@ export class ExecOperationsModel {
     executeDate: Null<Date> = null;
 
     constructor(readonly realtimeModel: RealtimeModel,
-                readonly subCat: SubCat,
+                readonly target: {operationSet: string; getPropertyPath(): string},
                 private readonly clipboard: Clipboard,
                 private readonly context?: Pick<DrillDownRequest, 'id' | 'objectPaths'>,
                 operationSets = realtimeModel.operationSets) {
 
-        const opSet: OperationSet | undefined = operationSets.find(os => strEqCI(os.id, this.subCat.operationSet));
+        const opSet: OperationSet | undefined = operationSets.find(os => strEqCI(os.id, this.target.operationSet));
 
         if (opSet)
             this.operations = opSet.operations.map(op => new OperationModel(op));
@@ -64,7 +63,7 @@ export class ExecOperationsModel {
             const request = new ExecOperationRequest();
             request.id = processId;
             request.objectPaths = [...this.context?.objectPaths ?? []];
-            request.path = this.subCat.cat.name + '|' + this.subCat.name;
+            request.path = this.target.getPropertyPath();
             request.operation = operation.signature;
             request.arguments = operation.parameters.map(p => p.value);
 

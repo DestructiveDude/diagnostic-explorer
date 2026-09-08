@@ -23,15 +23,26 @@ function diagnostics(): DiagnosticResponse {
         propertyBags: [Object.assign(new PropertyBag(), {
             name: fencedName, category: 'Trading', canDrillDown: false, operationSet: 'nested-ops',
             categories: [Object.assign(new Category(), {
-                name: 'State', canDrillDown: true,
+                name: 'State', canDrillDown: true, operationSet: 'group-ops',
                 properties: [Object.assign(new Property(), {
-                    name: 'Order', value: 'Order value', canSet: true, canDrillDown: true,
+                    name: 'Order', value: 'Order value', canSet: true, canDrillDown: true, operationSet: 'property-ops',
                     canJsonHover: true, canExpandedHover: true, drillDownText: 'Open order'
+                })]
+            }), Object.assign(new Category(), {
+                name: '', operationSet: 'group-ops',
+                properties: [Object.assign(new Property(), {
+                    name: 'Price', value: '10', operationSet: 'property-ops'
+                }), Object.assign(new Property(), {
+                    name: 'Passive', value: 'No operations'
                 })]
             })]
         })],
         operationSets: [Object.assign(new OperationSet(), {
-            id: 'nested-ops', operations: [Object.assign(new Operation(), {signature: 'Reset()'})]
+            id: 'nested-ops', operations: [Object.assign(new Operation(), {signature: 'Reset bag()'})]
+        }), Object.assign(new OperationSet(), {
+            id: 'group-ops', operations: [Object.assign(new Operation(), {signature: 'Reset group()'})]
+        }), Object.assign(new OperationSet(), {
+            id: 'property-ops', operations: [Object.assign(new Operation(), {signature: 'Reset property()'})]
         })]
     });
 }
@@ -197,9 +208,45 @@ describe('drilldown UI', () => {
         model.selectOperation(model.operations[0]);
         await model.execute();
         expect(hub.executeOperation).toHaveBeenCalledWith(expect.objectContaining({
-            id: 'original', objectPaths: [outerPath], path: `Trading|${fencedName}`, operation: 'Reset()'
+            id: 'original', objectPaths: [outerPath], path: `Trading|${fencedName}`, operation: 'Reset bag()'
         }));
         expect(model.results).toBe('Reset');
+    });
+
+    it.each([
+        ['Orders[2]', `Trading|${fencedName}`, 'Reset bag()'],
+        ['State', `Trading|${fencedName}|State`, 'Reset group()'],
+        ['default group in Orders[2]', `Trading|${fencedName}|`, 'Reset group()'],
+        ['Price', `Trading|${fencedName}||Price`, 'Reset property()']
+    ])('renders and executes contextual operations for %s with its complete path', async (name, path, operation) => {
+        const fixture = await render();
+        const element: HTMLElement = fixture.nativeElement;
+        const closed = new Subject();
+        dialogs.open.mockReturnValue({onClose: closed, close: jest.fn()});
+
+        expect(element.querySelector(`button[aria-label="Operations for ${name}"]`)).not.toBeNull();
+        expect(element.querySelector('button[aria-label="Operations for Passive"]')).toBeNull();
+        realtime.activeProcess = {id: 'other'} as any;
+        (element.querySelector(`button[aria-label="Operations for ${name}"]`) as HTMLButtonElement).click();
+        const model = dialogs.open.mock.calls.at(-1)![1].data as ExecOperationsModel;
+        expect(model.operations.map(item => item.signature)).toEqual([operation]);
+
+        model.selectOperation(model.operations[0]);
+        await model.execute();
+
+        expect(hub.executeOperation).toHaveBeenLastCalledWith(expect.objectContaining({
+            id: 'original', objectPaths: [outerPath], path, operation
+        }));
+    });
+
+    it('updates a group operation set with its diagnostics', async () => {
+        const fixture = await render();
+        const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;
+        const source = diagnostics().propertyBags[0];
+        source.categories[0].operationSet = 'property-ops';
+        grid.category!.update([source]);
+
+        expect((grid.category!.subCats[0].groups[0] as any).operationSet).toBe('property-ops');
     });
 
     it('projects matchers once per event, filters on display levels, and renders safe event detail', () => {

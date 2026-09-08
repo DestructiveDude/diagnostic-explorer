@@ -36,6 +36,12 @@
                       <i class="pi pi-external-link" aria-hidden="true"></i>
                     </button>
                   }
+                  @if (group.operationSet) {
+                    <button type="button" class="text-yellow-500" [attr.aria-label]="'Operations for ' + (group.name || 'default group in ' + sub.displayName)"
+                            (click)="showOperationsDialog($event, group); $event.stopPropagation()">
+                      <i class="pi pi-bolt" aria-hidden="true"></i>
+                    </button>
+                  }
                 </div>
               </ng-template>
               <div class="prop-grid grid grid-cols-[max-content_1fr] lg:grid-cols-[max-content_1fr_max-content_1fr] gap-x-3 gap-y-0.5 px-1 py-1">
@@ -58,6 +64,12 @@
                       <button type="button" [attr.aria-label]="prop.drillDownText || 'Inspect ' + prop.name"
                               (click)="openDrillDown(prop.getPropertyPath(), prop.name)">
                         <i class="pi pi-external-link" aria-hidden="true"></i>
+                      </button>
+                    }
+                    @if (prop.operationSet) {
+                      <button type="button" class="text-yellow-500" [attr.aria-label]="'Operations for ' + prop.name"
+                              (click)="showOperationsDialog($event, prop); $event.stopPropagation()">
+                        <i class="pi pi-bolt" aria-hidden="true"></i>
                       </button>
                     }
                     @for (json of [false, true]; track json) {

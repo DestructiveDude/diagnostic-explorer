@@ -27,18 +27,18 @@ The [logging executable](../samples/Logging/README.md) exercises all four adapte
 without importing four copies of the upstream WinForms harness. The existing
 `src/WidgetSample` remains the graphical diagnostics demonstration.
 
-## Next UI task
+## UI completion pass
 
-This comparison is based on source behavior, not visual or interactive testing.
-Keep our `diagnostics-web` application, Realtime/Retro switch and Trace Scope views.
+Completed in the `phase6-ui-completion` branch. Keep our `diagnostics-web`
+application, Realtime/Retro switch and Trace Scope views.
 
-| Priority | Current behavior | Required follow-on |
-| --- | --- | --- |
-| First | `RealtimeModel.logStreamEvents` holds only the selected process's latest 500 events. Per-sink buffers duplicate them. Negotiated count/age retention is ignored. | A retained store per process, using stream ID and sequence identity, negotiated retention, and destination indexes. Bind sink views to those projections. |
-| First | Categories/sinks appear only when an actual event routes to them. | Reconcile fixed configured destinations at initialization, including ordinary empty states, and remove stale projections when routes change. |
-| Next | An open drilldown loses its event source when another process is selected. | Bind to the drilldown's process store and explicitly own subscriptions for visible views. A process store alone does not establish an active subscription. |
-| Next | Property operation sets are carried but have no button; category operation sets are dropped by `PropGroup`. | Surface group/property operations through the existing contextual request path and retain collection identity fences. |
-| Later | Preview buttons fetch one-shot plain text or JSON. | Consider live structured previews, readable JSON and refresh while visible after the event/operation work. |
+| Status | Completed behavior |
+| --- | --- |
+| Complete | Per-process retained event stores honour stream/sequence identity and negotiated retention; sink views bind to reconciled destination projections. |
+| Complete | Fixed configured sinks render when empty and routes reconcile without discarding surviving view state. |
+| Complete | Visible event-bearing drilldowns own process subscriptions and retain their originating process after main selection changes. |
+| Complete | Bag, group and property operations use contextual operation sets and complete fenced paths while preserving their originating process and refresh behavior. |
+| Later | Preview buttons still fetch one-shot plain text or JSON. Consider live structured previews, readable JSON and refresh while visible after the event/operation work. |
 
 The source comparison points are our `Model/RealtimeModel.ts`, `Model/EventSinkModel.ts`,
 `Model/PropGroup.ts`, `realtime-category/` and `drill-down-dialog/`, against upstream
