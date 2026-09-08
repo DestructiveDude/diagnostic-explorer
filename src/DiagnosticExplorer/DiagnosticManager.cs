@@ -100,8 +100,18 @@ public static class DiagnosticManager
             throw new ArgumentNullException(nameof(configuration));
         }
 
+        EventRetentionOptions eventRetention = configuration.RuntimeOptions.EventRetention.CloneAndValidate();
+        LogEventRetentionOptions logEventRetention = configuration.RuntimeOptions.LogEventRetention.CloneAndValidate();
+        LogStreamRoutingConfiguration routing = configuration.RuntimeOptions.Routing.CreateSnapshot();
+        DiagnosticConfigurationSnapshot snapshot = configuration.CreateSnapshot();
+
+        // Configure the store before publishing the new configuration. A conflicting live router
+        // leaves the old routing and every other configuration setting intact.
+        LogEventStore.Configure(logEventRetention, routing);
+        EventSinkRepo.Default.ConfigureEventRetention(eventRetention);
+
         CurrentConfiguration = configuration;
-        _configuration = configuration.CreateSnapshot();
+        _configuration = snapshot;
 
         // Only when the configuration actually says so. Enabled is a public, directly-settable
         // toggle, so assigning it unconditionally would silently switch diagnostics back on for a
@@ -111,14 +121,6 @@ public static class DiagnosticManager
             Enabled = configuration.RuntimeOptions.Enabled;
         }
 
-        LogEventStore.Configure(
-            configuration.RuntimeOptions.LogEventRetention,
-            configuration.RuntimeOptions.Routing.CreateSnapshot()
-        );
-
-        // Upstream also pushes RuntimeOptions.EventRetention into EventSinkRepo here. That needs
-        // the EventSink retention rework, which is still unported, so event-sink retention keeps
-        // its existing behaviour and only the log stream is retuned.
         Interlocked.Increment(ref _configurationVersion);
         _typeHash.Clear();
     }
@@ -491,7 +493,17 @@ public static class DiagnosticManager
 
     public static RegisteredObject[] GetRegisteredObjects()
     {
-        List<RegisteredObject> list = [];
+        return GetRegisteredObjects(null);
+    }
+
+    public static RegisteredObject[] GetRegisteredObjects(IServiceProvider serviceProvider)
+    {
+        List<RegisteredObject> list =
+        [
+            .. _configuration
+                .FindRegisteredObjects(serviceProvider)
+                .Where(registeredObject => registeredObject?.Object != null),
+        ];
 
         lock (RegisteredObjects)
         {

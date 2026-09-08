@@ -47,6 +47,6 @@ internal sealed class RegisteredObjectProviderConfigurator : IDiagRegistrar
             throw new ArgumentException("A name is required.", nameof(name));
         }
 
-        _registeredObjects.Add(new RegisteredObject(value, category, name));
+        _registeredObjects.Add(RegisteredObject.Derived(value, category, name));
     }
 }

@@ -24,6 +24,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using log4net.Core;
@@ -43,6 +44,7 @@ public class EventSink
     private readonly TimeProvider _timeProvider;
 
     private long _idCount;
+    private DateTime _nextExpiryUtc = DateTime.MaxValue;
 
     private bool _invalid;
 
@@ -58,6 +60,11 @@ public class EventSink
 
     public string Category { get; }
 
+    /// <summary>The legacy public event queue.</summary>
+    /// <remarks>
+    ///     Direct queue writes remain supported for compatibility, but bypass immediate retention;
+    ///     the next snapshot or explicit retention configuration purges them.
+    /// </remarks>
     public ConcurrentQueue<SystemEvent> Events { get; } = new();
 
     public void Info(string message, string detail = null)
@@ -161,16 +168,83 @@ public class EventSink
             return;
         }
 
-        // Events are enqueued inside RegisterEvent under the repo read lock to ensure
+        // Events are enqueued inside RegisterEvent under the repo write lock to ensure
         // stream creation snapshots are atomic with respect to live broadcasts (DE03-DUP).
         _repo.RegisterEvent(this, evt);
+    }
 
-        // Bounded queue size is a soft limit; under concurrent logging from multiple threads,
-        // the queue size can transiently exceed MaxMessages before items are dequeued.
-        if (Events.Count > MaxMessages)
+    internal bool AddAndPurge(SystemEvent evt, EventRetentionOptions retention, DateTime now)
+    {
+        Events.Enqueue(evt);
+        _nextExpiryUtc = Min(_nextExpiryUtc, ExpiresAt(evt.Date, retention));
+        if (now > _nextExpiryUtc)
         {
-            Events.TryDequeue(out _);
+            return Purge(retention, now, evt);
         }
+
+        TrimToCount(retention);
+        return true;
+    }
+
+    internal void Purge(EventRetentionOptions retention, DateTime now)
+    {
+        _ = Purge(retention, now, null);
+    }
+
+    internal void PurgeIfExpired(EventRetentionOptions retention, DateTime now)
+    {
+        // ponytail: cached earliest expiry avoids an O(n) scan on every log write; snapshots and
+        // explicit reconfiguration still force a full scan, which bounds direct queue writes.
+        if (now > _nextExpiryUtc)
+        {
+            _ = Purge(retention, now, null);
+        }
+    }
+
+    private bool Purge(EventRetentionOptions retention, DateTime now, SystemEvent added)
+    {
+        TimeSpan maxAge = TimeSpan.FromMinutes(retention.MaxAgeMinutes);
+        DateTime minimumTimestamp = now.Ticks <= maxAge.Ticks ? DateTime.MinValue : now - maxAge;
+        List<SystemEvent> retained = [];
+        while (Events.TryDequeue(out SystemEvent current))
+        {
+            if (current.Date >= minimumTimestamp)
+            {
+                retained.Add(current);
+            }
+        }
+
+        bool containsAdded = false;
+        _nextExpiryUtc = DateTime.MaxValue;
+        int firstRetained = Math.Max(0, retained.Count - retention.MaxEventsPerSink);
+        for (int index = firstRetained; index < retained.Count; index++)
+        {
+            SystemEvent current = retained[index];
+            Events.Enqueue(current);
+            containsAdded |= ReferenceEquals(current, added);
+            _nextExpiryUtc = Min(_nextExpiryUtc, ExpiresAt(current.Date, retention));
+        }
+
+        return containsAdded;
+    }
+
+    private void TrimToCount(EventRetentionOptions retention)
+    {
+        while (Events.Count > retention.MaxEventsPerSink)
+        {
+            _ = Events.TryDequeue(out _);
+        }
+    }
+
+    private static DateTime ExpiresAt(DateTime timestamp, EventRetentionOptions retention)
+    {
+        TimeSpan maxAge = TimeSpan.FromMinutes(retention.MaxAgeMinutes);
+        return timestamp.Ticks > DateTime.MaxValue.Ticks - maxAge.Ticks ? DateTime.MaxValue : timestamp + maxAge;
+    }
+
+    private static DateTime Min(DateTime left, DateTime right)
+    {
+        return left <= right ? left : right;
     }
 
     /// <summary>

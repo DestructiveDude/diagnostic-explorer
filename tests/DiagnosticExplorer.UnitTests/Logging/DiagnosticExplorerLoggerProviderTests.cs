@@ -166,6 +166,17 @@ public class DiagnosticExplorerLoggerProviderTests
         provider.CreateLogger("Widgets").Should().BeSameAs(provider.CreateLogger("Widgets"));
     }
 
+    [Fact]
+    public void Dispose_RemovesTheProvidersRoutingContribution()
+    {
+        var store = new LogEventStore();
+        var provider = new DiagnosticExplorerLoggerProvider(RoutesFor("Widgets"), store);
+
+        provider.Dispose();
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
+    }
+
     private static LogStreamEvent[] Replay(LogEventStore store)
     {
         using LogEventStore.LogEventStoreSubscription subscription = store.CreateSubscription();

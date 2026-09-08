@@ -153,6 +153,65 @@ public class EventSinkTests
         events[^1].Message.Should().Be($"event {EventSink.MaxMessages + 99}");
     }
 
+    [Fact]
+    public void ConfigureEventRetention_PrunesEachSinkByCount()
+    {
+        var repo = new EventSinkRepo();
+        var sink = repo.GetSink("svc", "cat");
+        sink.Info("one");
+        sink.Info("two");
+        sink.Info("three");
+
+        repo.ConfigureEventRetention(new EventRetentionOptions().WithMaxEventsPerSink(2));
+
+        sink.Events.Select(e => e.Message).Should().Equal("two", "three");
+    }
+
+    [Fact]
+    public void GetEvents_PrunesExpiredImportedEventsBehindFreshEvents()
+    {
+        DateTimeOffset now = new(2026, 9, 8, 9, 30, 0, TimeSpan.Zero);
+        FakeTimeProvider clock = new(now);
+        var repo = new EventSinkRepo(clock);
+        repo.ConfigureEventRetention(new EventRetentionOptions().WithMaxAge(TimeSpan.FromMinutes(10)));
+        var sink = repo.GetSink("svc", "cat");
+        sink.LogEvent(
+            new SystemEvent
+            {
+                Date = now.UtcDateTime,
+                Message = "fresh",
+                SinkName = "svc",
+                SinkCategory = "cat",
+            }
+        );
+        sink.LogEvent(
+            new SystemEvent
+            {
+                Date = now.AddMinutes(-11).UtcDateTime,
+                Message = "expired",
+                SinkName = "svc",
+                SinkCategory = "cat",
+            }
+        );
+
+        repo.GetEvents().Select(e => e.Message).Should().Equal("fresh");
+    }
+
+    [Fact]
+    public void CreateSinkStream_DoesNotReplayExpiredEventsFromAQuietSink()
+    {
+        DateTimeOffset now = new(2026, 9, 8, 9, 30, 0, TimeSpan.Zero);
+        FakeTimeProvider clock = new(now);
+        var repo = new EventSinkRepo(clock);
+        repo.ConfigureEventRetention(new EventRetentionOptions().WithMaxAge(TimeSpan.FromMinutes(10)));
+        repo.GetSink("svc", "cat").Info("old");
+        clock.Advance(TimeSpan.FromMinutes(11));
+
+        using EventSinkStream stream = repo.CreateSinkStream(TimeSpan.FromSeconds(1), 10);
+
+        stream.InitialEvents.Should().BeEmpty();
+    }
+
     /// <summary>
     ///     Clear() resets the sink set, so the aggregated backlog is empty afterwards and a sink
     ///     requested again is a fresh instance. (M34 — Clear now also takes the stream lock so it

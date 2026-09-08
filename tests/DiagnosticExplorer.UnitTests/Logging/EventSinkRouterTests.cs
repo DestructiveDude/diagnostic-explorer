@@ -270,27 +270,108 @@ public class EventSinkRouterTests
         act.Should().Throw<FormatException>();
     }
 
-    /// <summary>
-    ///     Two routers sharing a store — two logging frameworks side by side, which is what a
-    ///     migration looks like — both keep publishing, but the store's routing snapshot describes
-    ///     only the last router constructed. That is a known limitation rather than an accident, and
-    ///     this pins it: aggregating the snapshots needs a global route ordering, a resolution for
-    ///     two routers disagreeing on MatchMode, and retraction when a provider is disposed. Those
-    ///     belong with the configuration surface that owns routing, so a change here has to break
-    ///     this test deliberately.
-    /// </summary>
     [Fact]
-    public void Constructor_WhenRoutersShareAStore_BothPublishButTheLastOwnsTheSnapshot()
+    public void RoutersSharingAStore_KeepBothRoutesInRegistrationOrder()
     {
         var store = new LogEventStore();
-        var first = new EventSinkRouter(RouteFor("First"), store);
-        var second = new EventSinkRouter(RouteFor("Second"), store);
+        using var first = new EventSinkRouter(RouteFor("First"), store);
+        using var second = new EventSinkRouter(RouteFor("Second"), store);
 
         first.Route(Event("First")).Should().Be(1);
         second.Route(Event("Second")).Should().Be(1);
 
         LogStreamInitialization initialization = store.CreateInitialization();
         initialization.ReplayEvents.Should().HaveCount(2);
-        initialization.Routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("Second");
+        initialization.Routing.Routes.Select(route => route.LoggerName).Should().Equal("First", "Second");
+        initialization.Routing.Routes.Select(route => route.Order).Should().Equal(0, 1);
+    }
+
+    [Fact]
+    public void Dispose_RemovesOnlyThatRoutersRoutesAndSupersedesSubscribers()
+    {
+        var store = new LogEventStore();
+        var first = new EventSinkRouter(RouteFor("First"), store);
+        using var second = new EventSinkRouter(RouteFor("Second"), store);
+        using LogEventStore.LogEventStoreSubscription subscription = store.CreateSubscription();
+
+        first.Dispose();
+        first.Dispose();
+
+        subscription.EndReason.Should().Be(SubscriptionEndReason.Superseded);
+        store.CreateInitialization().Routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("Second");
+    }
+
+    [Fact]
+    public void RouterRegistration_RetainsConfiguredBaseRoutes()
+    {
+        var store = new LogEventStore();
+        store.ConfigureRouting(RouteFor("Base").CreateSnapshot());
+
+        using var router = new EventSinkRouter(RouteFor("Adapter"), store);
+
+        LogStreamRoutingConfiguration routing = store.CreateInitialization().Routing;
+        routing.Routes.Select(route => route.LoggerName).Should().Equal("Base", "Adapter");
+        routing.Routes.Select(route => route.Order).Should().Equal(0, 1);
+    }
+
+    [Fact]
+    public void ConflictingRouterMode_LeavesExistingRoutingAndSubscribersUntouched()
+    {
+        var store = new LogEventStore();
+        using var first = new EventSinkRouter(
+            new EventSinkRouteOptions()
+                .UseMatchMode(EventSinkRouteMatchMode.FirstMatch)
+                .Route("First", route => route.To("Logs", "First")),
+            store
+        );
+        using LogEventStore.LogEventStoreSubscription subscription = store.CreateSubscription();
+
+        var act = () =>
+            new EventSinkRouter(
+                new EventSinkRouteOptions()
+                    .UseMatchMode(EventSinkRouteMatchMode.AllMatches)
+                    .Route("Second", route => route.To("Logs", "Second")),
+                store
+            );
+
+        act.Should().Throw<InvalidOperationException>();
+        subscription.Events.Completion.IsCompleted.Should().BeFalse();
+        store.CreateInitialization().Routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("First");
+    }
+
+    [Fact]
+    public void EmptyRouter_DoesNotSelectTheMatchMode()
+    {
+        var store = new LogEventStore();
+        using var empty = new EventSinkRouter(
+            new EventSinkRouteOptions().UseMatchMode(EventSinkRouteMatchMode.AllMatches),
+            store
+        );
+
+        using var router = new EventSinkRouter(
+            new EventSinkRouteOptions()
+                .UseMatchMode(EventSinkRouteMatchMode.FirstMatch)
+                .Route("App", route => route.To("Logs", "App")),
+            store
+        );
+
+        store.CreateInitialization().Routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
+    }
+
+    [Fact]
+    public void Reconfigure_ReplacesItsContributionWhenTheMatchModeChanges()
+    {
+        var store = new LogEventStore();
+        using var router = new EventSinkRouter(RouteFor("Before"), store);
+
+        router.Reconfigure(
+            new EventSinkRouteOptions()
+                .UseMatchMode(EventSinkRouteMatchMode.FirstMatch)
+                .Route("After", route => route.To("Logs", "After"))
+        );
+
+        LogStreamRoutingConfiguration routing = store.CreateInitialization().Routing;
+        routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
+        routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("After");
     }
 }

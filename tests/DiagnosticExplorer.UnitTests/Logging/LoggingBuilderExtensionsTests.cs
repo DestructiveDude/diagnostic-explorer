@@ -12,8 +12,11 @@ namespace DiagnosticExplorer.UnitTests.Logging;
 ///     end to end — build the provider, log through it, read the stream — because a registration
 ///     that silently attaches no routes looks identical to one that works until an event arrives.
 /// </summary>
-public class LoggingBuilderExtensionsTests
+[Collection(DiagnosticConfigurationCollection.Name)]
+public sealed class LoggingBuilderExtensionsTests : IDisposable
 {
+    public void Dispose() => DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+
     [Fact]
     public void AddDiagnosticExplorer_WithOptions_RoutesThroughToTheStore()
     {
@@ -78,6 +81,20 @@ public class LoggingBuilderExtensionsTests
         Action add = () => Build(builder => builder.AddDiagnosticExplorer((IConfiguration)null!));
 
         add.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void AddDiagnosticExplorer_WithoutOptions_UsesTheCurrentConfiguration()
+    {
+        DiagnosticManager.Configure(configure =>
+            configure.ConfigureEventRouting(routes => routes.Route("Widgets", route => route.To("Logs", "App")))
+        );
+        int before = DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Length;
+
+        using ServiceProvider services = Build(builder => builder.AddDiagnosticExplorer());
+        services.GetRequiredService<ILoggerFactory>().CreateLogger("Widgets").LogInformation("Painted");
+
+        DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Should().HaveCount(before + 1);
     }
 
     private static ServiceProvider Build(Action<ILoggingBuilder> configure) =>

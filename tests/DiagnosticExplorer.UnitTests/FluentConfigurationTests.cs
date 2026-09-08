@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using DiagnosticExplorer.Logging;
+using Microsoft.Extensions.Logging;
 
 // Fixture properties are consumed through reflection by DiagnosticManager.
 // ReSharper disable UnusedMember.Local
@@ -165,6 +167,79 @@ public sealed class FluentConfigurationTests : IDisposable
     }
 
     [Fact]
+    public void UseConfiguration_AppliesEventRetentionToTheDefaultRepo()
+    {
+        DiagnosticManager.Configure(configure =>
+            configure.ConfigureHosting(hosting =>
+                hosting.EventRetention(retention => retention.WithMaxEventsPerSink(1))
+            )
+        );
+        EventSink sink = EventSinkRepo.Default.GetSink(Guid.NewGuid().ToString("N"), "Configured");
+
+        sink.Info("one");
+        sink.Info("two");
+
+        sink.Events.Select(@event => @event.Message).Should().Equal("two");
+    }
+
+    [Fact]
+    public void GetRegisteredObjects_RerunsConfiguredRegistrationCallbacks()
+    {
+        var widget = new Widget();
+        int calls = 0;
+        DiagnosticManager.Configure(configure =>
+            configure.RegisterObjects(registrar =>
+            {
+                calls++;
+                registrar.Register(widget, "Configured", "Widget");
+            })
+        );
+
+        RegisteredObject[] first = DiagnosticManager.GetRegisteredObjects();
+        RegisteredObject[] second = DiagnosticManager.GetRegisteredObjects();
+
+        calls.Should().Be(2);
+        first.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
+        second.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
+    }
+
+    [Fact]
+    public void GetRegisteredObjects_WithAServiceProvider_ResolvesConfiguredServices()
+    {
+        var widget = new Widget();
+        DiagnosticManager.Configure(configure =>
+            configure.RegisterObjects(registrar => registrar.RegisterService<Widget>("Configured", "Service"))
+        );
+
+        RegisteredObject[] registered = DiagnosticManager.GetRegisteredObjects(new SingleServiceProvider(widget));
+
+        registered.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
+    }
+
+    [Fact]
+    public void UseConfiguration_WithAConflictingLiveRouter_LeavesTheCurrentConfigurationUntouched()
+    {
+        DiagnosticConfiguration current = DiagnosticManager.CurrentConfiguration;
+        using var router = new EventSinkRouter(
+            new EventSinkRouteOptions()
+                .UseMatchMode(EventSinkRouteMatchMode.FirstMatch)
+                .Route("Existing", route => route.To("Logs", "Existing")),
+            DiagnosticManager.LogEventStore
+        );
+        var replacement = new DiagnosticConfiguration();
+        replacement.ConfigureEventRouting(routes =>
+            routes
+                .UseMatchMode(EventSinkRouteMatchMode.AllMatches)
+                .Route("Replacement", route => route.To("Logs", "Replacement"))
+        );
+
+        Action use = () => DiagnosticManager.UseConfiguration(replacement);
+
+        use.Should().Throw<InvalidOperationException>();
+        DiagnosticManager.CurrentConfiguration.Should().BeSameAs(current);
+    }
+
+    [Fact]
     public void Configure_WithoutAConfigureAction_Throws()
     {
         Action configure = () => DiagnosticManager.Configure(null!);
@@ -189,6 +264,15 @@ public sealed class FluentConfigurationTests : IDisposable
     {
         public string Serial => "AB12";
         public DateTime Created => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    }
+
+    private sealed class SingleServiceProvider : IServiceProvider
+    {
+        private readonly Widget _widget;
+
+        public SingleServiceProvider(Widget widget) => _widget = widget;
+
+        public object? GetService(Type serviceType) => serviceType == typeof(Widget) ? _widget : null;
     }
 #pragma warning restore S1144, S2325
 }

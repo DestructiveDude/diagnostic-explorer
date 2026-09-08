@@ -44,6 +44,7 @@ public sealed class DiagnosticExplorerLoggerProvider : ILoggerProvider, ISupport
     public void Dispose()
     {
         _loggers.Clear();
+        Router.Dispose();
     }
 
     internal bool IsEnabled(string category, LogLevel logLevel)

@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DiagnosticExplorer;
 using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.Serilog;
 using Serilog;
@@ -112,6 +113,38 @@ public class DiagnosticExplorerSinkTests
         Action construct = () => _ = new DiagnosticExplorerSink(RoutesFor("*"), fallbackCategory!);
 
         construct.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Dispose_RemovesTheSinksRoutingContribution()
+    {
+        var store = new LogEventStore();
+        var sink = new DiagnosticExplorerSink(RoutesFor("Widgets"), eventStore: store);
+
+        sink.Dispose();
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void DiagnosticExplorer_WithoutOptions_UsesTheCurrentConfiguration()
+    {
+        try
+        {
+            DiagnosticManager.Configure(configure =>
+                configure.ConfigureEventRouting(routes => routes.Route("Widgets", route => route.To("Logs", "App")))
+            );
+            int before = DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Length;
+            using Logger logger = new LoggerConfiguration().WriteTo.DiagnosticExplorer().CreateLogger();
+
+            logger.ForContext("SourceContext", "Widgets").Information("Painted");
+
+            DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Should().HaveCount(before + 1);
+        }
+        finally
+        {
+            DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+        }
     }
 
     /// <summary>

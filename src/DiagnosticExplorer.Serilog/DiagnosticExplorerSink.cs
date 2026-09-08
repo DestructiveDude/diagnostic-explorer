@@ -11,7 +11,7 @@ namespace DiagnosticExplorer.Serilog;
 ///     <see cref="EventSinkRouter" />, so a Serilog host feeds the same live event stream the other
 ///     logging-framework adapters do.
 /// </summary>
-public sealed class DiagnosticExplorerSink : ILogEventSink
+public sealed class DiagnosticExplorerSink : ILogEventSink, IDisposable
 {
     private const string SourceContextProperty = "SourceContext";
     private readonly string _fallbackCategory;
@@ -64,6 +64,11 @@ public sealed class DiagnosticExplorerSink : ILogEventSink
                 CreateDetail(logEvent, renderedMessage)
             )
         );
+    }
+
+    public void Dispose()
+    {
+        Router.Dispose();
     }
 
     private static LogLevel ToLogLevel(LogEventLevel level)

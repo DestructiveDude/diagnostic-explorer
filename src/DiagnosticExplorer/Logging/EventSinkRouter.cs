@@ -19,41 +19,20 @@ namespace DiagnosticExplorer.Logging;
 ///     first; narrowing the matched set alone would change nothing, because only whether the set is
 ///     empty is ever read.
 /// </remarks>
-public sealed class EventSinkRouter
+public sealed class EventSinkRouter : IDisposable
 {
     private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
     private readonly LogEventStore _eventStore;
-    private readonly CompiledRoute[] _routes;
+    private CompiledRoute[] _routes;
+    private LogEventStore.RoutingContribution _contribution;
+    private bool _disposed;
 
     public EventSinkRouter(EventSinkRouteOptions options, LogEventStore? eventStore = null)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-
-        if (!Enum.IsDefined(typeof(EventSinkRouteMatchMode), options.MatchMode))
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "The configured match mode is invalid.");
-        }
-
         _eventStore = eventStore ?? DiagnosticManager.LogEventStore;
+        _routes = CompileRoutes(options);
 
-        // Compile first: CompiledRoute validates every route and destination, and CreateSnapshot
-        // below projects those same destinations.
-        _routes = options.Routes?.Select((route, index) => new CompiledRoute(route, index)).ToArray() ?? [];
-
-        // REPLACES the store's routing snapshot rather than merging into it, so where several
-        // routers share a store — two logging frameworks running side by side through the default
-        // DiagnosticManager.LogEventStore, which is the shape of a migration — the last one
-        // constructed is the one the client sees described. Every router still publishes; only the
-        // description is last-writer-wins. Aggregating them is a real change and not a local one:
-        // route Order is per-options so a merged table needs a global ordering, MatchMode is a
-        // single value per snapshot so two routers disagreeing cannot both be represented, and a
-        // disposed provider would have to retract its contribution. That belongs with
-        // DiagnosticConfiguration, which is where a host declares routing once. Pinned by
-        // EventSinkRouterTests so changing it has to be deliberate.
-        _eventStore.ConfigureRouting(options.CreateSnapshot());
+        _contribution = _eventStore.RegisterRoutingContribution(options.CreateSnapshot());
     }
 
     public LogEventStore EventStore => _eventStore;
@@ -61,7 +40,7 @@ public sealed class EventSinkRouter
     /// <summary>Lets an adapter skip building an event that no route would accept.</summary>
     public bool IsEnabled(string? category, LogLevel level)
     {
-        return FindMatchingRoutes(category, level).Count != 0;
+        return !_disposed && FindMatchingRoutes(category, level).Count != 0;
     }
 
     /// <summary>Publishes the event if any route matches. Returns the number of stores written to.</summary>
@@ -72,7 +51,7 @@ public sealed class EventSinkRouter
             throw new ArgumentNullException(nameof(logEvent));
         }
 
-        if (!DiagnosticManager.Enabled)
+        if (_disposed || !DiagnosticManager.Enabled)
         {
             return 0;
         }
@@ -85,6 +64,48 @@ public sealed class EventSinkRouter
 
         _ = _eventStore.Publish(logEvent);
         return 1;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _eventStore.RemoveRoutingContribution(_contribution);
+    }
+
+    public void Reconfigure(EventSinkRouteOptions options)
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(EventSinkRouter));
+        }
+
+        CompiledRoute[] routes = CompileRoutes(options);
+        LogEventStore.RoutingContribution contribution = _eventStore.ReplaceRoutingContribution(
+            _contribution,
+            options.CreateSnapshot()
+        );
+        _routes = routes;
+        _contribution = contribution;
+    }
+
+    private static CompiledRoute[] CompileRoutes(EventSinkRouteOptions options)
+    {
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+
+        if (!Enum.IsDefined(typeof(EventSinkRouteMatchMode), options.MatchMode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "The configured match mode is invalid.");
+        }
+
+        return options.Routes?.Select((route, index) => new CompiledRoute(route, index)).ToArray() ?? [];
     }
 
     private List<CompiledRoute> FindMatchingRoutes(string? category, LogLevel level)
