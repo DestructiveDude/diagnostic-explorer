@@ -40,6 +40,10 @@ export class RealtimeModel {
 
     private readonly processEventStores = new Map<string, ProcessEventStore>();
     private readonly eventModels = new Map<string, EventModel>();
+    private readonly retainedProcessEventOwners = new Map<string, number>();
+    private desiredSubscriptionVersion = 0;
+    private sentSubscriptionVersion = -1;
+    private subscriptionChain = Promise.resolve();
 
     get logStreamEvents(): LogStreamEvent[] {
         return this.activeProcess ? this.processEventStores.get(this.activeProcess.id)?.events ?? [] : [];
@@ -80,17 +84,16 @@ export class RealtimeModel {
                     this.messages.add({ severity: 'error', detail: message, life: 2000 });
             });
             connection.on('InitializeLogStream', (id: string, initialization: LogStreamInitialization) => {
-                if (id === this.activeProcess?.id)
-                    this.initializeLogStream(id, initialization);
+                this.initializeLogStream(id, initialization);
             });
             connection.on('StreamLogEvents', (id: string, events: LogStreamEvent[]) => {
-                if (id === this.activeProcess?.id)
-                    this.streamLogEvents(id, events);
+                this.streamLogEvents(id, events);
             });
         });
 
         this.hubService.connectionStarted.subscribe(_connection => {
-            this.subscribeToActiveProcess();
+            this.sentSubscriptionVersion = -1;
+            void this.reconcileSubscriptions();
         });
     }
 
@@ -123,12 +126,49 @@ export class RealtimeModel {
         this.reconcileEventProjections();
 
         this.titleMessage = '';
-        await this.subscribeToActiveProcess();
+        await this.reconcileSubscriptions();
     }
 
-    private async subscribeToActiveProcess() {
-        if (this.activeProcess)
-            await this.hubService.connection?.invoke("Subscribe", this.activeProcess.id);
+    retainProcessEvents(id: string): () => void {
+        this.retainedProcessEventOwners.set(id, (this.retainedProcessEventOwners.get(id) ?? 0) + 1);
+        void this.reconcileSubscriptions();
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            const owners = this.retainedProcessEventOwners.get(id) ?? 0;
+            if (owners <= 1) this.retainedProcessEventOwners.delete(id);
+            else this.retainedProcessEventOwners.set(id, owners - 1);
+            void this.reconcileSubscriptions();
+        };
+    }
+
+    private desiredSubscriptionIds(): string[] {
+        const ids = new Set(this.retainedProcessEventOwners.keys());
+        if (this.activeProcess) ids.add(this.activeProcess.id);
+        return [...ids];
+    }
+
+    private reconcileSubscriptions(): Promise<void> {
+        ++this.desiredSubscriptionVersion;
+        this.subscriptionChain = this.subscriptionChain.then(async () => {
+            while (this.sentSubscriptionVersion !== this.desiredSubscriptionVersion) {
+                const version = this.desiredSubscriptionVersion;
+                const connection = this.hubService.connection;
+                if (!connection) return;
+
+                try {
+                    const accepted = await connection.invoke<boolean>('SetSubscriptions', this.desiredSubscriptionIds());
+                    if (accepted === false)
+                        this.messages.add({severity: 'error', detail: 'Unable to update visible process subscriptions.', life: 2000});
+                } catch (error) {
+                    console.log(error);
+                    this.messages.add({severity: 'error', detail: 'Unable to update visible process subscriptions.', life: 2000});
+                }
+                this.sentSubscriptionVersion = version;
+            }
+        });
+        return this.subscriptionChain;
     }
 
     private displayRealtimeDiags(response: DiagnosticResponse) {
@@ -252,6 +292,8 @@ export class RealtimeModel {
         this.allProcesses = this.allProcesses.filter(p => p.id !== id);
         this.filteredProcesses = this.filteredProcesses.filter(p => p.id !== id);
         this.removeProcessEventStore(id);
+        this.retainedProcessEventOwners.delete(id);
+        void this.reconcileSubscriptions();
 
         // If the removed process was the one being viewed, drop the selection and its diagnostics
         // view — otherwise activeProcess still points at a gone process and SetProperty/ExecuteOperation
@@ -363,23 +405,34 @@ export class RealtimeModel {
      * placed with it.
      */
     private initializeLogStream(id: string, initialization: LogStreamInitialization): void {
-        if (this.activeProcess?.id !== id) return;
+        if (!this.acceptsProcessEvent(id)) return;
 
         const store = this.getProcessEventStore(id);
         store.initialize(initialization);
-        this.reconcileEventProjections();
-        this.recordEventSeverity(store.events, store);
+        if (this.activeProcess?.id === id) {
+            this.reconcileEventProjections();
+            this.recordEventSeverity(store.events, store);
+        }
     }
 
     private streamLogEvents(id: string, events: LogStreamEvent[]): void {
-        if (this.activeProcess?.id !== id) return;
+        if (!this.acceptsProcessEvent(id)) return;
 
         const store = this.getProcessEventStore(id);
         const known = new Set(store.events.map(event => this.eventModelKey(id, event)));
         store.append(events);
-        this.reconcileEventProjections();
-        this.recordEventSeverity(events.filter(event => event.streamId === store.streamId
-            && !known.has(this.eventModelKey(id, event)) && store.events.includes(event)), store);
+        if (this.activeProcess?.id === id) {
+            this.reconcileEventProjections();
+            this.recordEventSeverity(events.filter(event => event.streamId === store.streamId
+                && !known.has(this.eventModelKey(id, event)) && store.events.includes(event)), store);
+        }
+    }
+
+    private acceptsProcessEvent(id: string): boolean {
+        return this.activeProcess?.id === id
+            || this.processEventStores.has(id)
+            || this.allProcesses.length === 0
+            || this.allProcesses.some(process => process.id === id);
     }
 
     getProcessEventStore(id: string): ProcessEventStore {

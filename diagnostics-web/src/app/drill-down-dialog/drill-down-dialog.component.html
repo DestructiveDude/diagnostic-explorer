@@ -33,12 +33,9 @@
       <p>No properties</p>
     }
     @if (result.eventViews.length) {
-      <p class="text-xs text-[color:var(--label)] mb-2">Events from the latest 500 received for this process. Opening this view does not start a new stream.</p>
-      @if (realtime.activeProcess?.id !== request.id) {
-        <p role="status">Select the original process to receive its events.</p>
-      }
+      <p class="text-xs text-[color:var(--label)] mb-2">Showing retained events currently available for this process.</p>
       @for (view of result.eventViews; track view.id) {
-        <app-event-sink-view [view]="view" [events]="realtime.activeProcess?.id === request.id ? realtime.logStreamEvents : []" />
+        <app-event-sink-view [view]="view" [events]="realtime.getProcessEventStore(request.id).events" />
       }
     }
   }

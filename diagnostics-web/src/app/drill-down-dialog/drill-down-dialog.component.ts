@@ -23,6 +23,8 @@ export class DrillDownDialogComponent implements OnInit, OnDestroy {
     categories: CategoryModel[] = [];
     loading = false;
     private generation = 0;
+    private releaseProcessEvents?: () => void;
+    private retainedProcessId?: string;
 
     constructor(config: DynamicDialogConfig, readonly realtime: RealtimeModel) {
         const data = config.data as DrillDownDialogData;
@@ -36,6 +38,8 @@ export class DrillDownDialogComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         ++this.generation;
+        this.releaseProcessEvents?.();
+        this.releaseProcessEvents = undefined;
     }
 
     navigate(data: DrillDownDialogData): void {
@@ -60,6 +64,7 @@ export class DrillDownDialogComponent implements OnInit, OnDestroy {
             const response = await this.realtime.hubService.getDrillDown(this.request);
             if (generation !== this.generation) return;
             this.response = response;
+            this.updateEventRetention(response);
             const bags = _.groupBy(response.diagnostics.propertyBags, bag => bag.category);
             this.categories = Object.keys(bags).sort().map(name => new CategoryModel(this.realtime, name, bags[name]));
         } catch (error) {
@@ -68,5 +73,14 @@ export class DrillDownDialogComponent implements OnInit, OnDestroy {
         } finally {
             if (generation === this.generation) this.loading = false;
         }
+    }
+
+    private updateEventRetention(response: DrillDownResponse): void {
+        const processId = response.eventViews.length ? this.request.id : undefined;
+        if (processId === this.retainedProcessId) return;
+        this.releaseProcessEvents?.();
+        this.releaseProcessEvents = undefined;
+        this.retainedProcessId = processId;
+        if (processId) this.releaseProcessEvents = this.realtime.retainProcessEvents(processId);
     }
 }

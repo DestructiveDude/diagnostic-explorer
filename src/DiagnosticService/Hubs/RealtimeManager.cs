@@ -590,26 +590,121 @@ public class RealtimeManager : IHostedService
             return false;
         }
 
-        // Validate the target BEFORE tearing the client off its current subscription: a subscribe to
-        // a stale/removed process id must not silently drop the client's existing live feed. (A9)
-        if (!_processes.TryGetValue(processId, out var process))
+        await webClient.SubscriptionGate.WaitAsync();
+        try
+        {
+            // Validate the target BEFORE tearing the client off its current subscription: a subscribe to
+            // a stale/removed process id must not silently drop the client's existing live feed. (A9)
+            if (!_processes.TryGetValue(processId, out var process))
+            {
+                return false;
+            }
+
+            RemoveClientFromSubscriptions(webClient);
+
+            var subscription = GetSubscription(process);
+            await subscription.AddWebClient(webClient);
+
+            if (IsCurrentWebClientAndProcesses(webConnectionId, webClient, [process]))
+            {
+                return true;
+            }
+
+            RemoveClientFromSubscriptions(webClient);
+            RemoveRemovedProcessSubscriptions([process]);
+            return false;
+        }
+        finally
+        {
+            webClient.SubscriptionGate.Release();
+        }
+    }
+
+    public async Task<bool> SetWebClientSubscriptions(string webConnectionId, string[] processIds)
+    {
+        if (!_webClients.TryGetValue(webConnectionId, out var webClient))
         {
             return false;
         }
 
-        RemoveClientFromSubscriptions(webClient);
-
-        var subscription = GetSubscription(process);
-        await subscription.AddWebClient(webClient);
-
-        // Rollback if connection disconnected concurrently
-        if (!_webClients.ContainsKey(webConnectionId))
+        await webClient.SubscriptionGate.WaitAsync();
+        try
         {
-            subscription.RemoveWebClient(webClient);
+            var desired = new Dictionary<string, DiagProcess>(_ic);
+            foreach (string processId in processIds ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(processId) || !_processes.TryGetValue(processId, out var process))
+                {
+                    return false;
+                }
+
+                desired[process.Id] = process;
+            }
+
+            foreach (
+                DiagnosticSubscription subscription in _subscriptions.Values.Where(subscription =>
+                    !desired.ContainsKey(subscription.ProcessId)
+                )
+            )
+            {
+                subscription.RemoveWebClient(webClient);
+            }
+
+            foreach (DiagProcess process in desired.Values)
+            {
+                if (!IsCurrentWebClientAndProcesses(webConnectionId, webClient, desired.Values))
+                {
+                    RemoveClientFromSubscriptions(webClient);
+                    RemoveRemovedProcessSubscriptions(desired.Values);
+                    return false;
+                }
+
+                DiagnosticSubscription subscription = GetSubscription(process);
+                if (!subscription.HasWebClient(webConnectionId))
+                {
+                    await subscription.AddWebClient(webClient);
+                }
+            }
+
+            if (IsCurrentWebClientAndProcesses(webConnectionId, webClient, desired.Values))
+            {
+                return true;
+            }
+
+            RemoveClientFromSubscriptions(webClient);
+            RemoveRemovedProcessSubscriptions(desired.Values);
             return false;
         }
+        finally
+        {
+            webClient.SubscriptionGate.Release();
+        }
+    }
 
-        return true;
+    private bool IsCurrentWebClientAndProcesses(
+        string webConnectionId,
+        WebClientHandler webClient,
+        IEnumerable<DiagProcess> processes
+    )
+    {
+        return _webClients.TryGetValue(webConnectionId, out var currentWebClient)
+            && ReferenceEquals(currentWebClient, webClient)
+            && processes.All(process =>
+                _processes.TryGetValue(process.Id, out var currentProcess) && ReferenceEquals(currentProcess, process)
+            );
+    }
+
+    private void RemoveRemovedProcessSubscriptions(IEnumerable<DiagProcess> processes)
+    {
+        foreach (DiagProcess process in processes)
+        {
+            if (
+                !_processes.TryGetValue(process.Id, out var currentProcess) || !ReferenceEquals(currentProcess, process)
+            )
+            {
+                RemoveSubscription(process);
+            }
+        }
     }
 
     private DiagnosticSubscription GetSubscription(DiagProcess process)
