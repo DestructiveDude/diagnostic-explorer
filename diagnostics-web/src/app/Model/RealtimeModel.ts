@@ -2,8 +2,8 @@ import {DiagProcess} from './DiagProcess';
 import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
-import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
-import {LogStreamEvent, LogStreamInitialization, LogStreamRoutingConfiguration, resolveDestinations, toSystemEvent} from './LogStream';
+import {DiagnosticResponse, OperationSet, PropertyBag} from './DiagResponse';
+import {destinationKey, LogStreamEvent, LogStreamInitialization, resolveDestinations, toSystemEvent} from './LogStream';
 import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
 import {customMerge, simpleMerge} from '../util/Merge';
@@ -20,6 +20,7 @@ import {DiagHubService} from '../services/diag-hub.service';
 import {DatePipe} from '@angular/common';
 import {strEqCI} from '../util/util';
 import {DrillDownRequest} from './DrillDownRequest';
+import {ProcessEventStore} from './ProcessEventStore';
 
 @Injectable()
 export class RealtimeModel {
@@ -37,15 +38,12 @@ export class RealtimeModel {
     operationSets: OperationSet[] = [];
     severityCheckSubscription?: Subscription;
 
-    /**
-     * The routing in force for the selected process's log stream, as sent with its
-     * initialization. Every arriving event is placed against it, so an event that arrives before
-     * any initialization has no destination and is not shown — which is correct: the
-     * initialization that follows carries the agent's own replay of it.
-     */
-    private logStreamRouting?: LogStreamRoutingConfiguration;
-    logStreamEvents: LogStreamEvent[] = [];
-    private logStreamId?: string;
+    private readonly processEventStores = new Map<string, ProcessEventStore>();
+    private readonly eventModels = new Map<string, EventModel>();
+
+    get logStreamEvents(): LogStreamEvent[] {
+        return this.activeProcess ? this.processEventStores.get(this.activeProcess.id)?.events ?? [] : [];
+    }
 
     @Watch((_this: RealtimeModel) => _this.performProcessSearch())
     processSearch: Null<string> = null;
@@ -117,15 +115,12 @@ export class RealtimeModel {
         this.activeProcess = process;
         this.categories = [];
         this.operationSets = [];
-        // Cleared with the categories: routing belongs to a process's stream, and placing the new
-        // process's events against the old one's routes would file them under the wrong sinks.
-        this.logStreamRouting = undefined;
-        this.logStreamId = undefined;
-        this.logStreamEvents = [];
         this.selectedEvent = undefined;
         this.activeCat = undefined;
         this.selectedIndex = 0;
         this.traceScopeVisible = false;
+
+        this.reconcileEventProjections();
 
         this.titleMessage = '';
         await this.subscribeToActiveProcess();
@@ -261,6 +256,13 @@ export class RealtimeModel {
 
         this.performProcessSearch();
 
+        if (removeOthers) {
+            const ids = new Set(processes.map(process => process.id));
+            for (const id of this.processEventStores.keys()) {
+                if (!ids.has(id)) this.removeProcessEventStore(id);
+            }
+        }
+
         if (this.activeProcess && !this.allProcesses.some(p => p.id === this.activeProcess!.id)) {
             this.removeProcess(this.activeProcess.id);
         }
@@ -269,14 +271,13 @@ export class RealtimeModel {
     public removeProcess(id: string) {
         this.allProcesses = this.allProcesses.filter(p => p.id !== id);
         this.filteredProcesses = this.filteredProcesses.filter(p => p.id !== id);
+        this.removeProcessEventStore(id);
 
         // If the removed process was the one being viewed, drop the selection and its diagnostics
         // view — otherwise activeProcess still points at a gone process and SetProperty/ExecuteOperation
         // would be issued against it.
         if (this.activeProcess?.id === id) {
             this.activeProcess = null;
-            this.logStreamId = undefined;
-            this.logStreamEvents = [];
             this.categories = [];
             this.operationSets = [];
             this.activeCat = undefined;
@@ -384,39 +385,106 @@ export class RealtimeModel {
     private initializeLogStream(id: string, initialization: LogStreamInitialization): void {
         if (this.activeProcess?.id !== id) return;
 
-        this.logStreamRouting = initialization.routing;
-        this.logStreamId = initialization.streamId;
-        this.logStreamEvents = [];
-        this.categories.forEach(c => c.eventSinks = []);
-        this.streamLogEvents(id, initialization.replayEvents ?? []);
+        this.getProcessEventStore(id).initialize(initialization);
+        this.reconcileEventProjections();
     }
 
     private streamLogEvents(id: string, events: LogStreamEvent[]): void {
         if (this.activeProcess?.id !== id) return;
 
-        // Newest first, matching what the grid expects. Copy before reversing: the array belongs
-        // to the SignalR handler's caller.
-        const ordered = [...events].reverse();
+        this.getProcessEventStore(id).append(events);
+        this.reconcileEventProjections();
+    }
 
-        // ponytail: retain 500 raw events, matching the existing grids; widen both if needed.
-        const retained = new Map(this.logStreamEvents.map(event => [event.sequence, event]));
-        for (const event of events) {
-            if (event.streamId === this.logStreamId)
-                retained.set(event.sequence, event);
+    getProcessEventStore(id: string): ProcessEventStore {
+        let store = this.processEventStores.get(id);
+        if (!store) {
+            store = new ProcessEventStore();
+            this.processEventStores.set(id, store);
         }
-        this.logStreamEvents = [...retained.values()]
-            .sort((left, right) => right.sequence - left.sequence).slice(0, 500);
+        return store;
+    }
 
-        const placed: SystemEvent[] = [];
-        for (const event of ordered) {
-            // One event can route to several destinations, and is shown under each of them.
-            for (const destination of resolveDestinations(this.logStreamRouting, event))
-                placed.push(toSystemEvent(event, destination.category, destination.name));
+    private reconcileEventProjections(): void {
+        const process = this.activeProcess;
+        const store = process && this.processEventStores.get(process.id);
+        if (!process || !store) return;
+
+        const categories = new Map<string, {name: string, sinks: Map<string, {name: string, events: EventModel[]}>}>();
+        const addDestination = (category: string, name: string, event?: LogStreamEvent) => {
+            const categoryKey = destinationKey(category, '');
+            let projection = categories.get(categoryKey);
+            if (!projection) {
+                projection = {name: category, sinks: new Map()};
+                categories.set(categoryKey, projection);
+            }
+            const key = destinationKey(category, name);
+            let sink = projection.sinks.get(key);
+            if (!sink) {
+                sink = {name, events: []};
+                projection.sinks.set(key, sink);
+            }
+            if (event) sink.events.push(this.getEventModel(process.id, event));
+        };
+
+        for (const route of store.routing?.routes ?? []) {
+            for (const destination of route.destinations ?? []) {
+                if (destination.category.source === 'Fixed' && destination.name.source === 'Fixed'
+                    && destination.category.value && destination.name.value)
+                    addDestination(destination.category.value, destination.name.value);
+            }
+        }
+        for (const event of store.events) {
+            for (const destination of resolveDestinations(store.routing, event))
+                addDestination(destination.category, destination.name, event);
         }
 
-        const grouped = _.groupBy<SystemEvent>(placed, evt => evt.sinkCategory);
-        for (const cat in grouped)
-            this.getCat(cat).addEvents(grouped[cat]);
+        for (const projection of categories.values()) this.getCat(projection.name);
+        for (const category of this.categories)
+            category.reconcileEventSinks([...categories.get(destinationKey(category.name, ''))?.sinks.values() ?? []]);
+        this.categories = this.categories.filter(category => category.subCats.length || category.eventSinks.length);
+        this.removeStaleEventModels(process.id, store.events);
+        this.clearStaleSelectedEvent();
+    }
+
+    private getEventModel(processId: string, event: LogStreamEvent): EventModel {
+        const key = this.eventModelKey(processId, event);
+        const converted = new EventModel(toSystemEvent(event));
+        const existing = this.eventModels.get(key);
+        if (existing) {
+            const selected = existing.isSelected;
+            Object.assign(existing, converted, {isSelected: selected});
+            return existing;
+        }
+        this.eventModels.set(key, converted);
+        return converted;
+    }
+
+    private removeStaleEventModels(processId: string, events: LogStreamEvent[]): void {
+        const retained = new Set(events.map(event => this.eventModelKey(processId, event)));
+        for (const key of this.eventModels.keys()) {
+            if (key.startsWith(`${processId}\u001f`) && !retained.has(key)) this.eventModels.delete(key);
+        }
+    }
+
+    private removeProcessEventStore(id: string): void {
+        this.processEventStores.delete(id);
+        for (const key of this.eventModels.keys()) {
+            if (key.startsWith(`${id}\u001f`)) this.eventModels.delete(key);
+        }
+    }
+
+    private eventModelKey(processId: string, event: LogStreamEvent): string {
+        return `${processId}\u001f${event.streamId}\u001f${event.sequence}`;
+    }
+
+    private clearStaleSelectedEvent(): void {
+        if (this.selectedEvent && !this.categories.some(category =>
+            category.eventSinks.some(sink => sink.events.includes(this.selectedEvent!)))) {
+            this.selectedEvent.isSelected = false;
+            this.selectedEvent = undefined;
+            this.traceScopeVisible = false;
+        }
     }
 
     private getCat(name: string): CategoryModel {
@@ -430,6 +498,8 @@ export class RealtimeModel {
     }
 
     private checkEventSeverityLevels() {
+        for (const store of this.processEventStores.values()) store.prune();
+        this.reconcileEventProjections();
         for (const cat of this.categories)
             cat.checkEventSeverityLevels();
     }

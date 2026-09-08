@@ -1,6 +1,7 @@
-import {EventResponse, PropertyBag, SystemEvent} from './DiagResponse';
+import {EventResponse, PropertyBag} from './DiagResponse';
 import {customMerge} from '../util/Merge';
 import {EventSinkModel} from './EventSinkModel';
+import {EventModel} from './EventModel';
 import {SubCat} from './SubCat';
 import {RealtimeModel} from './RealtimeModel';
 import _ from 'lodash';
@@ -45,20 +46,20 @@ export class CategoryModel {
         return sink;
     }
 
-    addEvents(evts: SystemEvent[]) {
-        const maxLevel = _.maxBy(evts, evt => evt.level)?.level ?? 0;
+    reconcileEventSinks(projections: {name: string, events: EventModel[]}[]) {
+        const sinks = projections.map(projection => {
+            const sink = this.getSink(projection.name);
+            sink.setEvents(projection.events);
+            return sink;
+        });
+        this.eventSinks = sinks;
 
-        if (maxLevel >= this.worstSev) {
-            this.worstSev = maxLevel;
+        const worstSev = _.maxBy(sinks.flatMap(sink => sink.events), event => event.level)?.level ?? 0;
+        if (worstSev !== this.worstSev) {
+            this.worstSev = worstSev;
             this.worstSevDate = new Date();
-            this.labelClass = this.worstSev === 0 ? '' : 'event-level-' + Level.LevelToString(this.worstSev).toLocaleLowerCase();
-        } else if (maxLevel > 0) {
-            this.worstSevDate = new Date();
+            this.labelClass = worstSev === 0 ? '' : 'event-level-' + Level.LevelToString(worstSev).toLocaleLowerCase();
         }
-
-        const grouped = _.groupBy(evts, evt => evt.sinkName)
-        for (const sinkName in grouped)
-            this.getSink(sinkName).addEvents(grouped[sinkName]);
     }
 
     checkEventSeverityLevels() {

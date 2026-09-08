@@ -1,4 +1,3 @@
-import {SystemEvent} from './DiagResponse';
 import {CategoryModel} from './CategoryModel';
 import {EventModel} from './EventModel';
 import {FilterCriteria} from './FilterCriteria';
@@ -34,18 +33,8 @@ export class EventSinkModel {
         this.name = name;
     }
 
-    public addEvents(evts: SystemEvent[]): void {
-
-        const evtModels = evts.map(evt => new EventModel(evt));
-
-        if (this.filterCriteria.isBlank) {
-            this.events = [...evtModels, ...this.events];
-        } else {
-            this.events.unshift(...evtModels);
-        }
-        if (this.events.length > 500)
-            this.events = this.events.slice(0, 500);
-
+    public setEvents(events: EventModel[]): void {
+        this.events = events;
         this.filterEvents();
     }
 
