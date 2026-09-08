@@ -154,10 +154,10 @@ bounded; the viewer reports truncation or refusal rather than silently presentin
 complete output. Full collection item paths include an identity fence: clients
 must preserve it when sending an action, even though it is hidden in display text.
 
-The first UI port supports drilldown navigation and button-triggered previews.
-Some upstream presentation features remain in the [next UI task](upstream-integration-status.md#next-ui-task),
-including group/property operation buttons. Configuring a server-side capability
-does not imply every upstream visual affordance is already available here.
+The UI supports drilldown navigation, contextual bag/group/property operations,
+and live structured and JSON previews. Previews are read-only and refresh every
+five seconds while visible; actions and nested navigation use the drilldown dialog.
+JSON preserves the server's formatted text, including exact large numeric values.
 
 ## Connect to the remote service
 
@@ -209,9 +209,9 @@ The sample's optional hub URL demonstrates this path. Production authentication
 configuration remains described in the main README and service security documentation.
 
 Upstream's `Hosts`/SelfHost configuration and configurable system-environment
-presentation are not wired by the existing remote hosting API. They remain a
-separate hosting integration scope; do not copy upstream SelfHost examples into
-this fork and expect them to start a listener.
+presentation are not wired by the existing remote hosting API. They are
+[deliberately unported](upstream-integration-status.md#decision-hosting-parity-is-deliberately-unported);
+do not copy upstream SelfHost examples into this fork and expect them to start a listener.
 
 Deploy the compatible service before agents when moving to `4.0.0`. EMS realtime
 logging must switch from `DiagnosticAppender` to `RoutingDiagnosticAppender` with

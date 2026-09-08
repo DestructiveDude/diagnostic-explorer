@@ -14,7 +14,7 @@ For the current fluent configuration and logging adapters, see the
 [agent configuration guide](docs/agent-configuration-guide.md) and the
 [runnable logging examples](samples/Logging/README.md). The
 [upstream integration status](docs/upstream-integration-status.md) records what
-has landed and the remaining UI scope.
+has landed and the deliberate hosting differences from upstream.
 
 The project originated as Cameron Elliot's open-source diagnostic
 toolset around 2010 (LGPL v3+) and has been carried forward under
@@ -44,7 +44,7 @@ src/ConsoleApp/              net10.0 CLI demo
 Add the package reference:
 
 ```xml
-<PackageReference Include="DiagnosticExplorer.Hosting" Version="3.2.2" />
+<PackageReference Include="DiagnosticExplorer.Hosting" Version="4.0.0" />
 ```
 
 Wire into a `Host.CreateDefaultBuilder` pipeline:
@@ -255,9 +255,10 @@ package's settings page on GitHub.
 
 ## Releases
 
-The current development package version is **4.0.0**. The recorded prior release
-is **3.2.2**; a source version bump does not establish package publication or
-consumer migration. See the [rollout notes](docs/upstream-integration-status.md#deployment-boundary).
+The current release is [**4.0.0**](https://github.com/FixPortal/fixportal-diagnostic-explorer/releases/tag/v4.0.0).
+Download the packages and checksums from the release; EMS vendors the core and hosting
+packages through its local folder feed. See the [release and migration notes](docs/releases/4.0.0.md)
+before upgrading from **3.2.2**. Package publication does not establish consumer rollout.
 The libraries preserve the intentional `net48`
 compatibility targets while the current application and test scaffold use
 `.NET 10`.
