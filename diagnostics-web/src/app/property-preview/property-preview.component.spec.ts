@@ -196,10 +196,15 @@ describe('property preview', () => {
         document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
         await settle();
         button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        expect(document.querySelector('[role="tooltip"]')).not.toBeNull();
         button.dispatchEvent(new MouseEvent('mouseleave'));
         jest.advanceTimersByTime(150);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(5300);
 
         expect(document.querySelector('[role="tooltip"]')).toBeNull();
+        expect(hub.getDrillDown).toHaveBeenCalledTimes(2);
     });
 
     it('keeps a focused preview open after pointer departure and closes it after blur', async () => {
@@ -248,9 +253,18 @@ describe('property preview', () => {
         button.dispatchEvent(new MouseEvent('mouseenter'));
         await settle();
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('No properties');
+
+        button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        fixture.componentRef.setInput('processId', 'empty-json');
+        fixture.componentRef.setInput('json', true);
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('No properties');
+        expect(document.querySelector('pre')).toBeNull();
     });
 
     it('keeps a reopened request pending when the old request resolves first', async () => {
+        jest.useFakeTimers();
         let resolveOld!: (value: DrillDownResponse) => void;
         let resolveNew!: (value: DrillDownResponse) => void;
         hub.getDrillDown.mockReset()
@@ -264,6 +278,8 @@ describe('property preview', () => {
         await settle();
 
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Loading preview…');
+        jest.advanceTimersByTime(5000);
+        expect(hub.getDrillDown).toHaveBeenCalledTimes(2);
         resolveNew(response('new'));
         await settle();
         expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('new');
