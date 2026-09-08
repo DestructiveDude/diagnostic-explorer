@@ -6,6 +6,7 @@ import {SubCat} from './SubCat';
 export class PropGroup {
     subCat: SubCat;
     name = '';
+    operationSet = '';
     canDrillDown = false;
 
     getPropertyPath(): string {
@@ -20,6 +21,7 @@ export class PropGroup {
     }
 
     update(propCat: Category) {
+        this.operationSet = propCat.operationSet;
         this.canDrillDown = propCat.canDrillDown ?? false;
         this.properties = customMerge(propCat.properties,
             this.properties,

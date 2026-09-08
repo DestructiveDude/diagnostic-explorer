@@ -6,7 +6,6 @@ import {PropModel} from '../Model/PropModel';
 import {SetPropertyDialogComponent} from '../set-property-dialog/set-property-dialog.component';
 import {DialogService} from 'primeng/dynamicdialog';
 import {PromptData, PromptResult} from '../util/PromptResult';
-import {SubCat} from '../Model/SubCat';
 import {ExecOperationsModel} from '../Model/ExecOperationsModel';
 import {ExecOperationsComponent} from '../exec-operations/exec-operations.component';
 import {RealtimeModel} from '../Model/RealtimeModel';
@@ -87,10 +86,10 @@ export class RealtimeCategoryComponent implements OnDestroy {
         $event.stopPropagation();
     }
 
-    showOperationsDialog(evt: MouseEvent, subCat: SubCat): void {
+    showOperationsDialog(evt: MouseEvent, target: {operationSet: string; getPropertyPath(): string}): void {
 
         evt.cancelBubble = true;
-        const model = new ExecOperationsModel(this.realtimeModel, subCat, this.clipboard,
+        const model = new ExecOperationsModel(this.realtimeModel, target, this.clipboard,
             this.actionContext(), this.operationSets ?? this.realtimeModel.operationSets);
 
         const ref = this.dialogService.open(ExecOperationsComponent, {
