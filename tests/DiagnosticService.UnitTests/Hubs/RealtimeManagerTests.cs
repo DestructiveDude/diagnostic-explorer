@@ -22,6 +22,8 @@ namespace DiagnosticService.UnitTests.Hubs;
 /// </summary>
 public sealed class RealtimeManagerTests
 {
+    private static readonly DateTime StreamTimestamp = new(2026, 9, 8, 10, 0, 0, DateTimeKind.Utc);
+
     [Fact]
     public void Register_WhenSubscriberThrowsObjectDisposedException_Propagates()
     {
@@ -245,6 +247,7 @@ public sealed class RealtimeManagerTests
         string processB = RegisterProcess(manager, "b");
         IWebHubClient client = NSubstitute.Substitute.For<IWebHubClient>();
         var initializedBoth = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sentAfterRepeatedSets = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var initializationCount = 0;
         client
             .InitializeLogStream(Arg.Any<string>(), Arg.Any<DiagnosticExplorer.Logging.LogStreamInitialization>())
@@ -257,12 +260,21 @@ public sealed class RealtimeManagerTests
 
                 return Task.CompletedTask;
             });
+        client
+            .UpdateProcess(Arg.Any<DiagProcess>())
+            .Returns(_ =>
+            {
+                sentAfterRepeatedSets.TrySetResult();
+                return Task.CompletedTask;
+            });
         manager.AddWebHubClient("web-1", client);
 
         (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
         await initializedBoth.Task.WaitAsync(TestContext.Current.CancellationToken);
         (await manager.SetWebClientSubscriptions("web-1", [processB])).Should().BeTrue();
         (await manager.SetWebClientSubscriptions("web-1", [processB, processB])).Should().BeTrue();
+        manager.ProcessChanged.OnNext(manager.GetProcess(processB)!);
+        await sentAfterRepeatedSets.Task.WaitAsync(TestContext.Current.CancellationToken);
 
         initializationCount.Should().Be(2, "unchanged B keeps its existing replay chain");
     }
@@ -366,10 +378,12 @@ public sealed class RealtimeManagerTests
         Task<bool> attaching = manager.SetWebClientSubscriptions("web-1", [processId]);
         await sendStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         manager.RemoveWebHubClient("web-1");
+        manager.RemoveProcess(processId);
         allowSend.TrySetResult();
 
         (await attaching).Should().BeFalse();
         subscription.HasWebClient("web-1").Should().BeFalse();
+        manager.Subscriptions.Should().NotContain(item => item.ProcessId == processId);
     }
 
     [Fact]
@@ -509,7 +523,7 @@ public sealed class RealtimeManagerTests
         {
             StreamId = streamId,
             Sequence = sequence,
-            TimestampUtc = DateTime.UtcNow,
+            TimestampUtc = StreamTimestamp,
         };
     }
 
