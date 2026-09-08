@@ -2,12 +2,18 @@
   display: grid;
   gap: 0.5em;
   grid-template-rows: 20em auto 20em;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   overflow-y: hidden;
 }
 
+fieldset {
+  min-width: 0;
+}
+
 pre {
-  width: 550px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   height: inherit;
   overflow: auto;
   padding: 0;
