@@ -15,6 +15,7 @@ public sealed class EventSinkRepo : IDisposable
     // distinct sinks, e.g. ("a.b","c") and ("a","b.c") both mapped to "a.b.c".
     private readonly ConcurrentDictionary<(string Name, string Category), EventSink> _sinks = new();
     private readonly TimeProvider _timeProvider;
+    private EventRetentionOptions _eventRetention;
 
     private bool _disposed;
 
@@ -26,6 +27,31 @@ public sealed class EventSinkRepo : IDisposable
     public EventSinkRepo(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _eventRetention = new EventRetentionOptions().CloneAndValidate();
+    }
+
+    public EventRetentionOptions EventRetention => Volatile.Read(ref _eventRetention).CloneAndValidate();
+
+    public void ConfigureEventRetention(EventRetentionOptions eventRetention)
+    {
+        if (eventRetention == null)
+        {
+            throw new ArgumentNullException(nameof(eventRetention));
+        }
+
+        EventRetentionOptions replacement = eventRetention.CloneAndValidate();
+
+        _eventStreamLock.EnterWriteLock();
+        try
+        {
+            ThrowIfDisposed();
+            Volatile.Write(ref _eventRetention, replacement);
+            PurgeSinks(replacement, force: true);
+        }
+        finally
+        {
+            _eventStreamLock.ExitWriteLock();
+        }
     }
 
     public void Dispose()
@@ -83,6 +109,7 @@ public sealed class EventSinkRepo : IDisposable
         try
         {
             ThrowIfDisposed();
+            PurgeSinks(Volatile.Read(ref _eventRetention), force: true);
 
             EventSinkStream stream = new(_sinks.Values.SelectMany(sink => sink.Events).ToArray(), buffer, bufferSize);
             _sinkStreams.Add(stream);
@@ -105,14 +132,16 @@ public sealed class EventSinkRepo : IDisposable
 
     public SystemEvent[] GetEvents()
     {
-        _eventStreamLock.EnterReadLock();
+        _eventStreamLock.EnterWriteLock();
         try
         {
+            ThrowIfDisposed();
+            PurgeSinks(Volatile.Read(ref _eventRetention), force: true);
             return _sinks.Values.SelectMany(sink => sink.Events).ToArray();
         }
         finally
         {
-            _eventStreamLock.ExitReadLock();
+            _eventStreamLock.ExitWriteLock();
         }
     }
 
@@ -153,10 +182,14 @@ public sealed class EventSinkRepo : IDisposable
 
     internal void RegisterEvent(EventSink sink, SystemEvent evt)
     {
-        _eventStreamLock.EnterReadLock();
+        _eventStreamLock.EnterWriteLock();
         try
         {
-            sink.Events.Enqueue(evt);
+            if (!sink.AddAndPurge(evt, Volatile.Read(ref _eventRetention), _timeProvider.GetUtcNow().UtcDateTime))
+            {
+                return;
+            }
+
             foreach (var stream in _sinkStreams)
             {
                 stream.StreamEvent(evt);
@@ -164,7 +197,23 @@ public sealed class EventSinkRepo : IDisposable
         }
         finally
         {
-            _eventStreamLock.ExitReadLock();
+            _eventStreamLock.ExitWriteLock();
+        }
+    }
+
+    private void PurgeSinks(EventRetentionOptions retention, bool force)
+    {
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        foreach (EventSink sink in _sinks.Values)
+        {
+            if (force)
+            {
+                sink.Purge(retention, now);
+            }
+            else
+            {
+                sink.PurgeIfExpired(retention, now);
+            }
         }
     }
 

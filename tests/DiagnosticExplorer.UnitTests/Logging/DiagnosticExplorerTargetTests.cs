@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using DiagnosticExplorer;
 using DiagnosticExplorer.Logging;
 using DiagnosticExplorer.NLog;
 using NLog;
@@ -136,6 +137,38 @@ public class DiagnosticExplorerTargetTests
         DiagnosticExplorerTarget target = configuration.AddDiagnosticExplorer("Diags", RoutesFor("*"));
 
         configuration.FindTargetByName("Diags").Should().BeSameAs(target);
+    }
+
+    [Fact]
+    public void AddDiagnosticExplorer_WithoutOptions_UsesTheCurrentConfiguration()
+    {
+        try
+        {
+            DiagnosticManager.Configure(configure =>
+                configure.ConfigureEventRouting(routes => routes.Route("Widgets", route => route.To("Logs", "App")))
+            );
+            LoggingConfiguration configuration = new();
+
+            LoggingConfiguration returned = configuration.AddDiagnosticExplorer();
+
+            returned.Should().BeSameAs(configuration);
+            configuration.FindTargetByName("DiagnosticExplorer").Should().NotBeNull();
+        }
+        finally
+        {
+            DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+        }
+    }
+
+    [Fact]
+    public void ClosingTheTarget_RemovesItsRoutingContribution()
+    {
+        var store = new LogEventStore();
+        LogFactory factory = FactoryFor(RoutesFor("Widgets"), store);
+
+        factory.Dispose();
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
     }
 
     [Theory]

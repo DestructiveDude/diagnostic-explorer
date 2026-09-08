@@ -19,7 +19,9 @@ public sealed class LogEventStore
     private readonly List<LogStreamEvent> _events = [];
     private readonly HashSet<LogEventStoreSubscription> _subscriptions = [];
     private readonly TimeProvider _timeProvider;
+    private readonly List<RoutingContribution> _routerContributions = [];
     private LogEventRetentionOptions _retention;
+    private LogStreamRoutingConfiguration _baseRouting;
     private LogStreamRoutingConfiguration _routing;
     private long _sequence;
 
@@ -44,7 +46,8 @@ public sealed class LogEventStore
         _timeProvider = timeProvider ?? TimeProvider.System;
         _retention = (retention ?? new LogEventRetentionOptions()).CloneAndValidate();
         StreamId = string.IsNullOrWhiteSpace(streamId) ? Guid.NewGuid().ToString("N") : streamId;
-        _routing = new LogStreamRoutingConfiguration();
+        _baseRouting = new LogStreamRoutingConfiguration();
+        _routing = _baseRouting.Clone();
     }
 
     /// <summary>The longest Detail an event may carry onto the wire.</summary>
@@ -78,10 +81,18 @@ public sealed class LogEventStore
             throw new ArgumentNullException(nameof(routing));
         }
 
+        LogEventRetentionOptions replacementRetention = retention.CloneAndValidate();
+        LogStreamRoutingConfiguration replacementBaseRouting = routing.Clone();
+
         lock (_sync)
         {
-            _retention = retention.CloneAndValidate();
-            _routing = routing.Clone();
+            LogStreamRoutingConfiguration replacementRouting = BuildRouting(
+                replacementBaseRouting,
+                _routerContributions
+            );
+            _retention = replacementRetention;
+            _baseRouting = replacementBaseRouting;
+            _routing = replacementRouting;
             Prune(UtcNow);
             SupersedeSubscriptionsLocked();
         }
@@ -94,11 +105,94 @@ public sealed class LogEventStore
             throw new ArgumentNullException(nameof(routing));
         }
 
+        LogStreamRoutingConfiguration replacementBaseRouting = routing.Clone();
+
         lock (_sync)
         {
-            _routing = routing.Clone();
+            LogStreamRoutingConfiguration replacementRouting = BuildRouting(
+                replacementBaseRouting,
+                _routerContributions
+            );
+            _baseRouting = replacementBaseRouting;
+            _routing = replacementRouting;
             SupersedeSubscriptionsLocked();
         }
+    }
+
+    internal RoutingContribution RegisterRoutingContribution(LogStreamRoutingConfiguration routing)
+    {
+        if (routing == null)
+        {
+            throw new ArgumentNullException(nameof(routing));
+        }
+
+        RoutingContribution contribution = new(routing.Clone());
+        lock (_sync)
+        {
+            LogStreamRoutingConfiguration replacementRouting = BuildRouting(
+                _baseRouting,
+                [.. _routerContributions, contribution]
+            );
+            _routerContributions.Add(contribution);
+            _routing = replacementRouting;
+            SupersedeSubscriptionsLocked();
+        }
+
+        return contribution;
+    }
+
+    internal void RemoveRoutingContribution(RoutingContribution contribution)
+    {
+        if (contribution == null)
+        {
+            return;
+        }
+
+        lock (_sync)
+        {
+            if (!_routerContributions.Remove(contribution))
+            {
+                return;
+            }
+
+            _routing = BuildRouting(_baseRouting, _routerContributions);
+            SupersedeSubscriptionsLocked();
+        }
+    }
+
+    internal RoutingContribution ReplaceRoutingContribution(
+        RoutingContribution contribution,
+        LogStreamRoutingConfiguration routing
+    )
+    {
+        if (contribution == null)
+        {
+            throw new ArgumentNullException(nameof(contribution));
+        }
+
+        if (routing == null)
+        {
+            throw new ArgumentNullException(nameof(routing));
+        }
+
+        RoutingContribution replacement = new(routing.Clone());
+        lock (_sync)
+        {
+            int index = _routerContributions.IndexOf(contribution);
+            if (index < 0)
+            {
+                throw new ObjectDisposedException(nameof(RoutingContribution));
+            }
+
+            List<RoutingContribution> proposed = [.. _routerContributions];
+            proposed[index] = replacement;
+            LogStreamRoutingConfiguration replacementRouting = BuildRouting(_baseRouting, proposed);
+            _routerContributions[index] = replacement;
+            _routing = replacementRouting;
+            SupersedeSubscriptionsLocked();
+        }
+
+        return replacement;
     }
 
     /// <summary>Records an event and pushes it to every live subscriber. Returns its sequence number.</summary>
@@ -239,6 +333,47 @@ public sealed class LogEventStore
         };
     }
 
+    private static LogStreamRoutingConfiguration BuildRouting(
+        LogStreamRoutingConfiguration baseRouting,
+        IEnumerable<RoutingContribution> contributions
+    )
+    {
+        List<LogStreamRoutingConfiguration> sources =
+        [
+            baseRouting,
+            .. contributions.Select(contribution => contribution.Routing),
+        ];
+        EventSinkRouteMatchMode? matchMode = null;
+        foreach (
+            EventSinkRouteMatchMode candidate in sources
+                .Where(source => source.Routes?.Count > 0)
+                .Select(source => source.MatchMode)
+        )
+        {
+            if (matchMode.HasValue && matchMode.Value != candidate)
+            {
+                throw new InvalidOperationException("All nonempty routing contributions must use the same match mode.");
+            }
+
+            matchMode = candidate;
+        }
+
+        List<LogStreamRoute> routes = [];
+        foreach (LogStreamRoutingConfiguration source in sources)
+        {
+            foreach (LogStreamRoute route in source.Routes ?? [])
+            {
+                LogStreamRoute copy = new LogStreamRoutingConfiguration { Routes = [route] }
+                    .Clone()
+                    .Routes[0];
+                copy.Order = routes.Count;
+                routes.Add(copy);
+            }
+        }
+
+        return new LogStreamRoutingConfiguration { MatchMode = matchMode ?? baseRouting.MatchMode, Routes = routes };
+    }
+
     /// <summary>Drops events past the age limit, then past the count limit. Caller holds <see cref="_sync" />.</summary>
     private void Prune(DateTime timestampUtc)
     {
@@ -323,6 +458,16 @@ public sealed class LogEventStore
             _owner.RemoveSubscription(this);
             Complete(SubscriptionEndReason.Disposed);
         }
+    }
+
+    internal sealed class RoutingContribution
+    {
+        public RoutingContribution(LogStreamRoutingConfiguration routing)
+        {
+            Routing = routing;
+        }
+
+        public LogStreamRoutingConfiguration Routing { get; }
     }
 }
 

@@ -41,7 +41,21 @@ public sealed class DiagnosticExplorerTarget : TargetWithLayout
     protected override void InitializeTarget()
     {
         base.InitializeTarget();
-        _router = new EventSinkRouter(Options, _eventStore);
+        if (_router == null)
+        {
+            _router = new EventSinkRouter(Options, _eventStore);
+        }
+        else
+        {
+            _router.Reconfigure(Options);
+        }
+    }
+
+    protected override void CloseTarget()
+    {
+        _router?.Dispose();
+        _router = null;
+        base.CloseTarget();
     }
 
     protected override void Write(LogEventInfo logEvent)
@@ -51,7 +65,11 @@ public sealed class DiagnosticExplorerTarget : TargetWithLayout
             throw new ArgumentNullException(nameof(logEvent));
         }
 
-        EventSinkRouter router = _router ?? new EventSinkRouter(Options, _eventStore);
+        EventSinkRouter? router = _router;
+        if (router == null)
+        {
+            return;
+        }
         string category = string.IsNullOrWhiteSpace(logEvent.LoggerName) ? FallbackCategory : logEvent.LoggerName!;
         MicrosoftLogLevel level = ToLogLevel(logEvent.Level);
         if (!router.IsEnabled(category, level))

@@ -2,8 +2,10 @@ using AwesomeAssertions;
 using DiagnosticExplorer.Log4Net;
 using DiagnosticExplorer.Logging;
 using log4net;
+using log4net.Appender;
 using log4net.Core;
 using log4net.Repository;
+using log4net.Repository.Hierarchy;
 using Microsoft.Extensions.Logging;
 
 namespace DiagnosticExplorer.UnitTests.Logging;
@@ -17,6 +19,7 @@ namespace DiagnosticExplorer.UnitTests.Logging;
 ///     Every test hands the appender its own store, so nothing here touches
 ///     <see cref="DiagnosticManager.LogEventStore" />.
 /// </remarks>
+[Collection(DiagnosticConfigurationCollection.Name)]
 public class RoutingDiagnosticAppenderTests
 {
     /// <summary>
@@ -221,6 +224,56 @@ public class RoutingDiagnosticAppenderTests
         appender.AppendForTest(Event("Widgets", Level.Error, "Paint failed", new InvalidOperationException("boom")));
 
         Replay(store).Should().ContainSingle().Subject.Detail.Should().Contain("boom");
+    }
+
+    [Fact]
+    public void Close_RemovesTheAppendersRoutingContribution()
+    {
+        var store = new LogEventStore();
+        var appender = new TestAppender(store)
+        {
+            RoutingOptions = new EventSinkRouteOptions().Route(
+                "Widgets",
+                route => route.To("Widgets", "Widget Events")
+            ),
+        };
+        appender.ActivateOptions();
+
+        appender.Close();
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ConfigureDiagnosticExplorer_PreservesExistingAppendersAndReplacesOnlyItsOwn()
+    {
+        ILoggerRepository repository = LogManager.CreateRepository(Guid.NewGuid().ToString("N"), typeof(Hierarchy));
+        var hierarchy = (Hierarchy)repository;
+        var existing = new MemoryAppender { Name = "DiagnosticExplorer.Routing" };
+        existing.ActivateOptions();
+        hierarchy.Root.Level = Level.All;
+        hierarchy.Root.AddAppender(existing);
+        hierarchy.Configured = true;
+
+        try
+        {
+            DiagnosticManager.Configure(configure =>
+                configure.ConfigureEventRouting(routes => routes.Route("Widgets", route => route.To("Logs", "App")))
+            );
+
+            repository.ConfigureDiagnosticExplorer();
+            repository.ConfigureDiagnosticExplorer();
+            LogManager.GetLogger(repository.Name, "Widgets").Info("survives");
+
+            hierarchy.Root.Appenders.Cast<IAppender>().Should().Contain(existing);
+            hierarchy.Root.Appenders.Cast<IAppender>().OfType<RoutingDiagnosticAppender>().Should().ContainSingle();
+            existing.GetEvents().Should().ContainSingle();
+        }
+        finally
+        {
+            LogManager.ShutdownRepository(repository.Name);
+            DiagnosticManager.UseConfiguration(new DiagnosticConfiguration());
+        }
     }
 
     private static LoggingEvent Event(string loggerName, Level level, string message, Exception? exception = null)

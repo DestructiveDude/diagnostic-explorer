@@ -24,6 +24,7 @@ public class RoutingDiagnosticAppender : AppenderSkeleton
     private const int MaxMessageLength = 150;
     private readonly LogEventStore _eventStore;
     private EventSinkRouter _router;
+    private bool _closed;
 
     public RoutingDiagnosticAppender()
         : this(null) { }
@@ -43,13 +44,35 @@ public class RoutingDiagnosticAppender : AppenderSkeleton
     public override void ActivateOptions()
     {
         base.ActivateOptions();
-        _router = new EventSinkRouter(RoutingOptions ?? LoadRoutingOptions(), _eventStore);
+        EventSinkRouteOptions options = RoutingOptions ?? LoadRoutingOptions();
+        if (_router == null)
+        {
+            _router = new EventSinkRouter(options, _eventStore);
+        }
+        else
+        {
+            _router.Reconfigure(options);
+        }
+        _closed = false;
+    }
+
+    protected override void OnClose()
+    {
+        _router?.Dispose();
+        _router = null;
+        _closed = true;
+        base.OnClose();
     }
 
     protected override void Append(LoggingEvent loggingEvent)
     {
         if (_router == null)
         {
+            if (_closed)
+            {
+                return;
+            }
+
             ActivateOptions();
         }
         LogLevel level = (LogLevel)loggingEvent.Level.ToMicrosoftOrdinal();
