@@ -21,6 +21,13 @@ internal sealed class RegisteredObjectProviderConfigurator : IDiagRegistrar
 
     public void RegisterService<TService>(string category, string name)
     {
+        if (_serviceProvider == null)
+        {
+            throw new InvalidOperationException(
+                "RegisterService requires an IServiceProvider from DI hosting. Use RegisterObjects/Register with explicit objects for non-DI startup."
+            );
+        }
+
         object service = GetService(typeof(TService));
         if (service == null)
         {

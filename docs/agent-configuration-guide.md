@@ -201,9 +201,12 @@ remote-service configuration section and supports the existing HTTP-connection
 options callback.
 
 For a non-DI host, call `DiagnosticHostingService.Start(hubUrl)` and await
-`DiagnosticHostingService.Stop()` during shutdown. The sample's optional hub URL
-demonstrates this path. Production authentication configuration remains described
-in the main README and service security documentation.
+`DiagnosticHostingService.Stop()` during shutdown. Static `Start(url)` has no
+`IServiceProvider`: `RegisterService<T>` requires DI
+`ConfigureDiagnosticExplorer`/`AddDiagnosticExplorer` registration or a provider-aware
+constructor. With static startup, use `RegisterObjects`/`Register` with actual roots.
+The sample's optional hub URL demonstrates this path. Production authentication
+configuration remains described in the main README and service security documentation.
 
 Upstream's `Hosts`/SelfHost configuration and configurable system-environment
 presentation are not wired by the existing remote hosting API. They remain a

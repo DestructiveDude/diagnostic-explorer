@@ -361,13 +361,10 @@ public sealed class LogEventStore
         List<LogStreamRoute> routes = [];
         foreach (LogStreamRoutingConfiguration source in sources)
         {
-            foreach (LogStreamRoute route in source.Routes ?? [])
+            foreach (LogStreamRoute route in source.Clone().Routes)
             {
-                LogStreamRoute copy = new LogStreamRoutingConfiguration { Routes = [route] }
-                    .Clone()
-                    .Routes[0];
-                copy.Order = routes.Count;
-                routes.Add(copy);
+                route.Order = routes.Count;
+                routes.Add(route);
             }
         }
 

@@ -496,6 +496,11 @@ public static class DiagnosticManager
         return GetRegisteredObjects(null);
     }
 
+    /// <summary>Gets the configured and legacy diagnostic roots.</summary>
+    /// <param name="serviceProvider">
+    ///     The DI provider for configured <c>RegisterService</c> callbacks. <see langword="null" />
+    ///     is supported for callbacks that use explicit <c>Register</c> roots.
+    /// </param>
     public static RegisteredObject[] GetRegisteredObjects(IServiceProvider serviceProvider)
     {
         List<RegisteredObject> list =
