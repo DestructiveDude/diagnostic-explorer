@@ -1,0 +1,34 @@
+<button type="button" class="preview-button" cdkOverlayOrigin #origin="cdkOverlayOrigin"
+        [attr.aria-label]="(json ? 'JSON for ' : 'Preview ') + prop.name"
+        [attr.aria-describedby]="visible ? tooltipId : null"
+        (mouseenter)="openFromPointer()" (mouseleave)="leaveTrigger()"
+        (focus)="openFromFocus()" (blur)="leaveFocus()"
+        (keydown)="dismiss($event)" (click)="inspectValue()">{{ json ? 'JSON' : 'Preview' }}</button>
+
+<ng-template cdkConnectedOverlay [cdkConnectedOverlayOrigin]="origin" [cdkConnectedOverlayOpen]="visible"
+             [cdkConnectedOverlayPositions]="positions" [cdkConnectedOverlayViewportMargin]="16"
+             [cdkConnectedOverlayFlexibleDimensions]="true" [cdkConnectedOverlayGrowAfterOpen]="true"
+             [cdkConnectedOverlayHasBackdrop]="false" cdkConnectedOverlayPanelClass="property-preview-overlay"
+             (overlayOutsideClick)="close()">
+  <section class="property-preview-tooltip" [id]="tooltipId" role="tooltip"
+           (mouseenter)="enterOverlay()" (mouseleave)="leaveOverlay()">
+    @if (error) {
+      <div role="alert">{{ error }}</div>
+    } @else if (json) {
+      @if (jsonText !== null) { <pre>{{ jsonText }}</pre> } @else if (loading) { <div>Loading preview…</div> } @else { <div>No properties</div> }
+    } @else if (diagnostics) {
+      @if (diagnostics.propertyBags.length) {
+        @for (bag of diagnostics.propertyBags; track bag.name) {
+          <section class="preview-bag">@if (bag.category) { <h3>{{ bag.category }}</h3> }<h4>{{ bag.name.split('\u001f')[0] }}</h4>
+            @for (category of bag.categories; track category.name) {
+              <section class="preview-category">@if (category.name) { <h5>{{ category.name }}</h5> }
+                @for (property of category.properties; track property.name) { <div><span>{{ property.name }}</span><span>{{ property.value }}</span></div> }
+              </section>
+            }
+          </section>
+        }
+      } @else { <div>No properties</div> }
+      @if (response?.isTruncated) { <div>Showing {{ response.displayedCount }} of {{ response.totalCount ?? 'unknown' }} items (truncated).</div> }
+    } @else { <div>Loading preview…</div> }
+  </section>
+</ng-template>

@@ -154,13 +154,14 @@ describe('drilldown UI', () => {
         const label = json ? 'JSON for Order' : 'Preview Order';
         const button = fixture.nativeElement.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement;
         button.dispatchEvent(new FocusEvent('focus'));
-        await fixture.whenStable();
+        await Promise.resolve();
+        await Promise.resolve();
         fixture.detectChanges();
         expect(hub.getDrillDown).toHaveBeenLastCalledWith(expect.objectContaining({jsonHover: json, excludeEventViews: true}));
-        expect(document.querySelector('.property-preview-tooltip')?.textContent).toContain('Preview limit exceeded');
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Preview limit exceeded');
         button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
         fixture.detectChanges();
-        expect(document.querySelector('.property-preview-tooltip')).toBeNull();
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
     });
 
     it.each(['agent', 'transport'])('renders %s errors and clears stale diagnostics', async kind => {

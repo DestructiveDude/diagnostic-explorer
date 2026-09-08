@@ -1,4 +1,4 @@
-import {Component, Input, Output, EventEmitter, OnDestroy, ChangeDetectionStrategy} from '@angular/core';
+import {Component, Input, Output, EventEmitter, ChangeDetectionStrategy} from '@angular/core';
 import {CategoryModel} from '../Model/CategoryModel';
 import {MessageService} from 'primeng/api';
 import {Clipboard} from '@angular/cdk/clipboard';
@@ -11,7 +11,6 @@ import {ExecOperationsComponent} from '../exec-operations/exec-operations.compon
 import {RealtimeModel} from '../Model/RealtimeModel';
 import {DrillDownDialogData, DrillDownRequest} from '../Model/DrillDownRequest';
 import {OperationSet} from '../Model/DiagResponse';
-import {getErrorMessage} from '../util/util';
 
 @Component({
     selector: 'app-realtime-category',
@@ -20,7 +19,7 @@ import {getErrorMessage} from '../util/util';
     changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
-export class RealtimeCategoryComponent implements OnDestroy {
+export class RealtimeCategoryComponent {
 
     @Input()
     category?: CategoryModel;
@@ -28,14 +27,9 @@ export class RealtimeCategoryComponent implements OnDestroy {
     @Input() operationSets?: OperationSet[];
     @Output() inspect = new EventEmitter<DrillDownDialogData>();
     @Output() actionCompleted = new EventEmitter<void>();
-    preview?: {prop: PropModel, json: boolean, text: string};
 
     constructor(private messages: MessageService, private realtimeModel: RealtimeModel, private dialogService: DialogService,
                 private clipboard: Clipboard) {
-    }
-
-    ngOnDestroy(): void {
-        this.preview = undefined;
     }
 
     private actionContext(): Pick<DrillDownRequest, 'id' | 'objectPaths'> {
@@ -45,6 +39,14 @@ export class RealtimeCategoryComponent implements OnDestroy {
         };
     }
 
+    get previewProcessId(): string {
+        return this.actionContext().id;
+    }
+
+    get previewObjectPaths(): string[] {
+        return this.actionContext().objectPaths;
+    }
+
     private drillDownRequest(path: string, jsonHover = false, excludeEventViews = false): DrillDownRequest {
         const context = this.actionContext();
         return {...new DrillDownRequest(), ...context,
@@ -52,27 +54,7 @@ export class RealtimeCategoryComponent implements OnDestroy {
     }
 
     openDrillDown(path: string, title: string, jsonHover = false): void {
-        this.preview = undefined;
         this.inspect.emit({request: this.drillDownRequest(path, jsonHover), title});
-    }
-
-    async showPreview(prop: PropModel, json: boolean): Promise<void> {
-        const preview = {prop, json, text: 'Loading preview…'};
-        this.preview = preview;
-        try {
-            const response = await this.realtimeModel.hubService.getDrillDown(
-                this.drillDownRequest(prop.getPropertyPath(), json, true));
-            if (this.preview !== preview) return;
-            const properties = response.diagnostics.propertyBags.map(bag => [bag.name.split('\u001f')[0],
-                    ...bag.categories.flatMap(category => category.properties.map(p => `${p.name}: ${p.value}`))
-                ].join('\n')).join('\n\n') || 'No properties';
-            preview.text = response.errorMessage || response.diagnostics.exceptionMessage || response.json || properties;
-            if (response.isTruncated)
-                preview.text += `\nShowing ${response.displayedCount} of ${response.totalCount ?? 'unknown'} items (truncated).`;
-        } catch (error) {
-            if (this.preview === preview)
-                preview.text = getErrorMessage(error) || 'Unable to load preview';
-        }
     }
 
     handleDoubleClick(prop: PropModel, evt: MouseEvent) {

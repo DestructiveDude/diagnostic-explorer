@@ -28,6 +28,7 @@ and routes clicks through its existing drilldown path. Structured previews are r
 - Modify `diagnostics-web/src/app/app.module.ts` for the component and OverlayModule.
 - Modify `diagnostics-web/src/styles.scss` for CDK overlay structural CSS and remove obsolete preview tooltip styling.
 - Modify `diagnostics-web/src/app/drill-down-dialog/drill-down-dialog.component.spec.ts` for preview integration.
+- Modify `diagnostics-web/src/app/Model/RealtimeModel.spec.ts` to control the clock for existing fixed-time log-stream fixtures; preserve explicit advancing expiry tests and production retention.
 - Update `docs/upstream-integration-status.md` to mark preview behavior complete after validation.
 
 **Interfaces:**

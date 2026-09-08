@@ -374,6 +374,13 @@ describe('RealtimeModel', () => {
     });
 
     describe('log stream', () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
+        });
+
+        afterEach(() => jest.useRealTimers());
+
         it('shows fixed destinations even before they receive an event', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();

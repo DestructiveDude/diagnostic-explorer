@@ -38,7 +38,7 @@ application, Realtime/Retro switch and Trace Scope views.
 | Complete | Fixed configured sinks render when empty and routes reconcile without discarding surviving view state. |
 | Complete | Visible event-bearing drilldowns own process subscriptions and retain their originating process after main selection changes. |
 | Complete | Bag, group and property operations use contextual operation sets and complete fenced paths while preserving their originating process and refresh behavior. |
-| Later | Preview buttons still fetch one-shot plain text or JSON. Consider live structured previews, readable JSON and refresh while visible after the event/operation work. |
+| Complete | Preview and JSON buttons provide live, read-only structured or formatted JSON overlays with five-second refresh, keyboard and pointer lifetime handling, and retained originating context. |
 
 The source comparison points are our `Model/RealtimeModel.ts`, `Model/EventSinkModel.ts`,
 `Model/PropGroup.ts`, `realtime-category/` and `drill-down-dialog/`, against upstream
