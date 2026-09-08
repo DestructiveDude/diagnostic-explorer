@@ -57,5 +57,21 @@ EMS must switch its realtime log4net configuration from `DiagnosticAppender` to
 `RoutingDiagnosticAppender` and supply routing. There is deliberately no bridge
 from the legacy appender to the new realtime stream.
 
-Self-hosted web assets and the WiX Windows installer remain separate deployment
-decisions. They are not prerequisites for the fork's Docker-hosted service.
+## Decision: hosting parity is deliberately unported
+
+Accepted 2026-09-08. Keep the Docker-hosted DiagnosticService and remote agents.
+The functional integration against upstream `f8dbb59` is complete for this topology;
+hosting parity is not unfinished merge work or a release prerequisite.
+
+Do not port upstream `Hosts`/SelfHost startup, bundled standalone web assets, the
+WiX Windows installer, or configurable system-environment presentation simply to
+match upstream. These add deployment options that the current estate does not need.
+Revisit them only when a concrete standalone or embedded deployment requires them.
+
+Some configuration types for these options exist in the fork, but the remote
+hosting API does not apply them. They are unsupported configuration, not working
+features. Clear rejection of unsupported options may be addressed separately;
+this decision does not implement new hosting behavior.
+
+Release packaging and the collector-first EMS rollout remain operational work.
+See the [4.0.0 release notes](releases/4.0.0.md) for artifacts and migration order.
