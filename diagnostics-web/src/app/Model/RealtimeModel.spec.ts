@@ -262,6 +262,40 @@ describe('RealtimeModel', () => {
 
             expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({severity: 'error'}));
         });
+
+        it('drops owners removed by an authoritative list before reconnecting', async () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            model.displayProcesses([proc('a', 'A'), proc('b', 'B')]);
+            model.activeProcess = proc('b', 'B');
+            model.retainProcessEvents('a');
+            (hub as any).connection = undefined;
+
+            model.displayProcesses([proc('b', 'B')]);
+            hub.connection = connection;
+            hub.emitStarted(connection);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(connection.invoke).toHaveBeenCalledWith('SetSubscriptions', ['b']);
+        });
+
+        it('finishes a deferred update with the latest selection after a retained owner releases', async () => {
+            const {model, hub} = makeModel();
+            let resolve!: (value: boolean) => void;
+            hub.connection.invoke.mockReturnValueOnce(new Promise<boolean>(done => resolve = done));
+
+            const selectingA = model.selectProcess(proc('a', 'A'));
+            await Promise.resolve();
+            const releaseA = model.retainProcessEvents('a');
+            const selectingB = model.selectProcess(proc('b', 'B'));
+            releaseA();
+            resolve(true);
+            await selectingA;
+            await selectingB;
+
+            expect(hub.connection.invoke).toHaveBeenLastCalledWith('SetSubscriptions', ['b']);
+        });
     });
 
     describe('displayRealtimeDiags', () => {
@@ -606,6 +640,19 @@ describe('RealtimeModel', () => {
 
             expect(model.getProcessEventStore('other').events).toEqual([]);
             release();
+        });
+
+        it('does not recreate the last removed process from a stale initialization', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.displayProcesses([proc('a', 'A')]);
+            connection.handlers['InitializeLogStream']('a', initialization([routeTo('Cat', 'Sink')]));
+            model.removeProcess('a');
+
+            connection.handlers['InitializeLogStream']('a', initialization([routeTo('Cat', 'Sink')], [logEvt()]));
+
+            expect(model.findProcessEventStore('a')).toBeUndefined();
         });
 
         it('places an event under the destination its route resolves to', () => {

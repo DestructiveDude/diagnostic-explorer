@@ -41,6 +41,7 @@ export class RealtimeModel {
     private readonly processEventStores = new Map<string, ProcessEventStore>();
     private readonly eventModels = new Map<string, EventModel>();
     private readonly retainedProcessEventOwners = new Map<string, number>();
+    private readonly removedProcessIds = new Set<string>();
     private desiredSubscriptionVersion = 0;
     private sentSubscriptionVersion = -1;
     private subscriptionChain = Promise.resolve();
@@ -93,7 +94,7 @@ export class RealtimeModel {
 
         this.hubService.connectionStarted.subscribe(_connection => {
             this.sentSubscriptionVersion = -1;
-            void this.reconcileSubscriptions();
+            this.reconcileSubscriptions();
         });
     }
 
@@ -130,8 +131,9 @@ export class RealtimeModel {
     }
 
     retainProcessEvents(id: string): () => void {
+        if (this.removedProcessIds.has(id)) return () => {};
         this.retainedProcessEventOwners.set(id, (this.retainedProcessEventOwners.get(id) ?? 0) + 1);
-        void this.reconcileSubscriptions();
+        this.reconcileSubscriptions();
         let released = false;
         return () => {
             if (released) return;
@@ -139,7 +141,7 @@ export class RealtimeModel {
             const owners = this.retainedProcessEventOwners.get(id) ?? 0;
             if (owners <= 1) this.retainedProcessEventOwners.delete(id);
             else this.retainedProcessEventOwners.set(id, owners - 1);
-            void this.reconcileSubscriptions();
+            this.reconcileSubscriptions();
         };
     }
 
@@ -278,22 +280,23 @@ export class RealtimeModel {
 
         if (removeOthers) {
             const ids = new Set(processes.map(process => process.id));
-            for (const id of this.processEventStores.keys()) {
-                if (!ids.has(id)) this.removeProcessEventStore(id);
+            for (const id of this.removedProcessIds) {
+                if (ids.has(id)) this.removedProcessIds.delete(id);
             }
-        }
-
-        if (this.activeProcess && !this.allProcesses.some(p => p.id === this.activeProcess!.id)) {
-            this.removeProcess(this.activeProcess.id);
+            for (const id of new Set([...this.processEventStores.keys(), ...this.retainedProcessEventOwners.keys()])) {
+                if (!ids.has(id)) this.removeProcess(id);
+            }
+            if (this.activeProcess && !ids.has(this.activeProcess.id)) this.removeProcess(this.activeProcess.id);
         }
     }
 
     public removeProcess(id: string) {
         this.allProcesses = this.allProcesses.filter(p => p.id !== id);
         this.filteredProcesses = this.filteredProcesses.filter(p => p.id !== id);
+        this.removedProcessIds.add(id);
         this.removeProcessEventStore(id);
         this.retainedProcessEventOwners.delete(id);
-        void this.reconcileSubscriptions();
+        this.reconcileSubscriptions();
 
         // If the removed process was the one being viewed, drop the selection and its diagnostics
         // view — otherwise activeProcess still points at a gone process and SetProperty/ExecuteOperation
@@ -429,10 +432,8 @@ export class RealtimeModel {
     }
 
     private acceptsProcessEvent(id: string): boolean {
-        return this.activeProcess?.id === id
-            || this.processEventStores.has(id)
-            || this.allProcesses.length === 0
-            || this.allProcesses.some(process => process.id === id);
+        return !this.removedProcessIds.has(id)
+            && (this.activeProcess?.id === id || this.allProcesses.some(process => process.id === id));
     }
 
     getProcessEventStore(id: string): ProcessEventStore {
@@ -442,6 +443,14 @@ export class RealtimeModel {
             this.processEventStores.set(id, store);
         }
         return store;
+    }
+
+    findProcessEventStore(id: string): ProcessEventStore | undefined {
+        return this.processEventStores.get(id);
+    }
+
+    isProcessRemoved(id: string): boolean {
+        return this.removedProcessIds.has(id);
     }
 
     private reconcileEventProjections(): void {

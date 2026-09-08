@@ -35,7 +35,7 @@
     @if (result.eventViews.length) {
       <p class="text-xs text-[color:var(--label)] mb-2">Showing retained events currently available for this process.</p>
       @for (view of result.eventViews; track view.id) {
-        <app-event-sink-view [view]="view" [events]="realtime.getProcessEventStore(request.id).events" />
+        <app-event-sink-view [view]="view" [events]="realtime.findProcessEventStore(request.id)?.events ?? []" />
       }
     }
   }
