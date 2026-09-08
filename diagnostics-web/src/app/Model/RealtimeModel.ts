@@ -2,7 +2,7 @@ import {DiagProcess} from './DiagProcess';
 import {Subscription, timer} from 'rxjs';
 import {Null} from '../util/Null';
 import {Watch} from '../util/Watch';
-import {DiagnosticResponse, OperationSet, PropertyBag} from './DiagResponse';
+import {DiagnosticResponse, OperationSet, PropertyBag, SystemEvent} from './DiagResponse';
 import {destinationKey, LogStreamEvent, LogStreamInitialization, resolveDestinations, toSystemEvent} from './LogStream';
 import _ from 'lodash';
 import {escapeRegExp} from 'lodash';
@@ -160,27 +160,7 @@ export class RealtimeModel {
 
         this.categories = cats;
 
-        if (this.activeCat) {
-            const foundIndex = cats.findIndex(c => c.name === this.activeCat!.name);
-            if (foundIndex >= 0) {
-                this.activeCat = cats[foundIndex];
-                this.selectedIndex = foundIndex;
-            } else {
-                if (cats.length > 0) {
-                    this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, cats.length - 1));
-                    this.activeCat = cats[this.selectedIndex];
-                } else {
-                    this.selectedIndex = 0;
-                    this.activeCat = undefined;
-                }
-            }
-        } else if (cats.length > 0) {
-            this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, cats.length - 1));
-            this.activeCat = cats[this.selectedIndex];
-        } else {
-            this.selectedIndex = 0;
-            this.activeCat = undefined;
-        }
+        this.reconcileActiveCategory();
 
         this.operationSets = response.operationSets;
     }
@@ -385,15 +365,21 @@ export class RealtimeModel {
     private initializeLogStream(id: string, initialization: LogStreamInitialization): void {
         if (this.activeProcess?.id !== id) return;
 
-        this.getProcessEventStore(id).initialize(initialization);
+        const store = this.getProcessEventStore(id);
+        store.initialize(initialization);
         this.reconcileEventProjections();
+        this.recordEventSeverity(store.events, store);
     }
 
     private streamLogEvents(id: string, events: LogStreamEvent[]): void {
         if (this.activeProcess?.id !== id) return;
 
-        this.getProcessEventStore(id).append(events);
+        const store = this.getProcessEventStore(id);
+        const known = new Set(store.events.map(event => this.eventModelKey(id, event)));
+        store.append(events);
         this.reconcileEventProjections();
+        this.recordEventSeverity(events.filter(event => event.streamId === store.streamId
+            && !known.has(this.eventModelKey(id, event)) && store.events.includes(event)), store);
     }
 
     getProcessEventStore(id: string): ProcessEventStore {
@@ -443,14 +429,20 @@ export class RealtimeModel {
         for (const category of this.categories)
             category.reconcileEventSinks([...categories.get(destinationKey(category.name, ''))?.sinks.values() ?? []]);
         this.categories = this.categories.filter(category => category.subCats.length || category.eventSinks.length);
+        this.reconcileActiveCategory();
         this.removeStaleEventModels(process.id, store.events);
         this.clearStaleSelectedEvent();
     }
 
     private getEventModel(processId: string, event: LogStreamEvent): EventModel {
         const key = this.eventModelKey(processId, event);
-        const converted = new EventModel(toSystemEvent(event));
+        const systemEvent = toSystemEvent(event);
         const existing = this.eventModels.get(key);
+        if (existing && existing.id === systemEvent.id && existing.date === systemEvent.date
+            && existing.level === systemEvent.level && existing.message === systemEvent.message
+            && existing.detail === systemEvent.detail) return existing;
+
+        const converted = new EventModel(systemEvent);
         if (existing) {
             const selected = existing.isSelected;
             Object.assign(existing, converted, {isSelected: selected});
@@ -487,6 +479,36 @@ export class RealtimeModel {
         }
     }
 
+    private recordEventSeverity(events: LogStreamEvent[], store: ProcessEventStore): void {
+        const grouped = _.groupBy<SystemEvent>(events.flatMap(event =>
+            resolveDestinations(store.routing, event).map(destination =>
+                toSystemEvent(event, destination.category, destination.name))), event => event.sinkCategory);
+        for (const category in grouped)
+            this.getCat(category).recordEventSeverity(grouped[category]);
+    }
+
+    private reconcileActiveCategory(): void {
+        if (this.activeCat) {
+            const foundIndex = this.categories.findIndex(category => category.name === this.activeCat!.name);
+            if (foundIndex >= 0) {
+                this.activeCat = this.categories[foundIndex];
+                this.selectedIndex = foundIndex;
+            } else if (this.categories.length > 0) {
+                this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, this.categories.length - 1));
+                this.activeCat = this.categories[this.selectedIndex];
+            } else {
+                this.selectedIndex = 0;
+                this.activeCat = undefined;
+            }
+        } else if (this.categories.length > 0) {
+            this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, this.categories.length - 1));
+            this.activeCat = this.categories[this.selectedIndex];
+        } else {
+            this.selectedIndex = 0;
+            this.activeCat = undefined;
+        }
+    }
+
     private getCat(name: string): CategoryModel {
         let cat = this.categories.find(c => strEqCI(c.name, name));
         if (!cat) {
@@ -498,7 +520,10 @@ export class RealtimeModel {
     }
 
     private checkEventSeverityLevels() {
-        for (const store of this.processEventStores.values()) store.prune();
+        for (const [id, store] of this.processEventStores) {
+            store.prune();
+            this.removeStaleEventModels(id, store.events);
+        }
         this.reconcileEventProjections();
         for (const cat of this.categories)
             cat.checkEventSeverityLevels();
