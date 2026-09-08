@@ -74,12 +74,9 @@
                     }
                     @for (json of [false, true]; track json) {
                       @if (json ? prop.canJsonHover : prop.canExpandedHover) {
-                        <button type="button" class="preview-button" [attr.aria-label]="(json ? 'JSON for ' : 'Preview ') + prop.name"
-                                [pTooltip]="preview?.prop === prop && preview.json === json ? preview.text : 'Loading preview…'"
-                                tooltipEvent="both" tooltipPosition="bottom" appendTo="body" [autoHide]="false"
-                                tooltipStyleClass="property-preview-tooltip"
-                                (mouseenter)="showPreview(prop, json)" (focus)="showPreview(prop, json)"
-                                (click)="openDrillDown(prop.getPropertyPath(), prop.name, json)">{{ json ? 'JSON' : 'Preview' }}</button>
+                        <app-property-preview [prop]="prop" [json]="json" [processId]="previewProcessId"
+                                              [objectPaths]="previewObjectPaths"
+                                              (inspect)="openDrillDown(prop.getPropertyPath(), prop.name, json)" />
                       }
                     }
                   </span>

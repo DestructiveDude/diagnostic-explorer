@@ -64,6 +64,8 @@ import {DatePickerModule} from 'primeng/datepicker';
 import {ProgressBarModule} from 'primeng/progressbar';
 import {ToastModule} from 'primeng/toast';
 import {MessageService} from 'primeng/api';
+import {OverlayModule} from '@angular/cdk/overlay';
+import {PropertyPreviewComponent} from './property-preview/property-preview.component';
 
 @NgModule({ declarations: [
         AppComponent,
@@ -84,7 +86,8 @@ import {MessageService} from 'primeng/api';
         EventDetailComponent,
         DrillDownDialogComponent,
         EventSinkViewComponent,
-        EventDetailPanelComponent
+        EventDetailPanelComponent,
+        PropertyPreviewComponent
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,
@@ -107,7 +110,8 @@ import {MessageService} from 'primeng/api';
         SelectModule,
         DatePickerModule,
         ProgressBarModule,
-        ToastModule], providers: [
+        ToastModule,
+        OverlayModule], providers: [
         { provide: APP_BASE_HREF, useFactory: getBaseLocation },
         { provide: BASE_API_URL, useValue: environment.apiRoot },
         { provide: BASE_API_KEY, useValue: environment.apiKey },
