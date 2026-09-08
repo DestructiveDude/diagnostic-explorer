@@ -22,6 +22,9 @@ public class WebClientHandler
 
     public string ConnectionId { get; }
 
+    /// <summary>Serializes this browser's subscription reconciliation with its legacy Subscribe calls.</summary>
+    public SemaphoreSlim SubscriptionGate { get; } = new(1, 1);
+
     public void Start(RealtimeManager realtimeManager)
     {
         _processSubscription = realtimeManager.ProcessChanged.Subscribe(HandleProcessesChanged);

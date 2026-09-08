@@ -228,13 +228,39 @@ describe('RealtimeModel', () => {
             expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'boom' }));
         });
 
-        it('subscribes the active process when the connection (re)starts', () => {
+        it('resends the desired process set when the connection (re)starts', async () => {
             const {model, hub} = makeModel();
             model.activeProcess = proc('p-7', 'Worker');
 
             hub.emitStarted(hub.connection);
+            await Promise.resolve();
 
-            expect(hub.connection.invoke).toHaveBeenCalledWith('Subscribe', 'p-7');
+            expect(hub.connection.invoke).toHaveBeenCalledWith('SetSubscriptions', ['p-7']);
+        });
+
+        it('keeps a retained drilldown subscribed when selection changes', async () => {
+            const {model, hub} = makeModel();
+            const processA = proc('a', 'A');
+            const processB = proc('b', 'B');
+
+            await model.selectProcess(processA);
+            const release = model.retainProcessEvents('a');
+            await model.selectProcess(processB);
+
+            expect(hub.connection.invoke).toHaveBeenLastCalledWith('SetSubscriptions', ['a', 'b']);
+            release();
+            release();
+            await Promise.resolve();
+            expect(hub.connection.invoke).toHaveBeenLastCalledWith('SetSubscriptions', ['b']);
+        });
+
+        it('surfaces a rejected desired subscription update', async () => {
+            const {model, hub, messages} = makeModel();
+            hub.connection.invoke.mockResolvedValue(false);
+
+            await model.selectProcess(proc('p-1', 'Worker'));
+
+            expect(messages.add).toHaveBeenCalledWith(expect.objectContaining({severity: 'error'}));
         });
     });
 
@@ -563,16 +589,23 @@ describe('RealtimeModel', () => {
             expect(model.logStreamEvents).toEqual([]);
         });
 
-        it('ignores streamed events for a process that is not the active one', () => {
+        it('retains streams for a visible nonselected process and ignores frames after its removal', () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
             hub.emitReady(connection);
+            model.displayProcesses([proc('active', 'Worker'), proc('other', 'Other')]);
             model.activeProcess = proc('active', 'Worker');
-            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Cat', 'Sink')]));
+            const release = model.retainProcessEvents('other');
+            connection.handlers['InitializeLogStream']('other', initialization([routeTo('Cat', 'Sink')]));
 
             connection.handlers['StreamLogEvents']('other', [logEvt()]);
 
-            expect(model.categories.find(category => category.name === 'Cat')?.eventSinks[0].events).toEqual([]);
+            expect(model.getProcessEventStore('other').events).toHaveLength(1);
+            model.removeProcess('other');
+            connection.handlers['StreamLogEvents']('other', [logEvt()]);
+
+            expect(model.getProcessEventStore('other').events).toEqual([]);
+            release();
         });
 
         it('places an event under the destination its route resolves to', () => {
@@ -799,7 +832,7 @@ describe('RealtimeModel', () => {
             await model.selectProcess(proc('p-1', 'Worker'));
 
             expect(model.activeProcess?.id).toBe('p-1');
-            expect(hub.connection.invoke).toHaveBeenCalledWith('Subscribe', 'p-1');
+            expect(hub.connection.invoke).toHaveBeenCalledWith('SetSubscriptions', ['p-1']);
         });
 
         it('opens an error dialog when setPropertyValue returns an error message', async () => {

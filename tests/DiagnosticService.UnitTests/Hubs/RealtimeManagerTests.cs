@@ -184,6 +184,181 @@ public sealed class RealtimeManagerTests
         response.ErrorMessage.Should().Be("client exploded");
     }
 
+    [Fact]
+    public async Task SetWebClientSubscriptions_ReconcilesOnlyChangedMembers()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
+        manager.AddWebHubClient("web-1", NSubstitute.Substitute.For<IWebHubClient>());
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
+        (await manager.SetWebClientSubscriptions("web-1", [processB])).Should().BeTrue();
+
+        manager
+            .Subscriptions.Single(subscription => subscription.ProcessId == processA)
+            .HasWebClient("web-1")
+            .Should()
+            .BeFalse();
+        manager
+            .Subscriptions.Single(subscription => subscription.ProcessId == processB)
+            .HasWebClient("web-1")
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task SetWebClientSubscriptions_InvalidMember_PreservesExistingMemberships()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        manager.AddWebHubClient("web-1", NSubstitute.Substitute.For<IWebHubClient>());
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA])).Should().BeTrue();
+        (await manager.SetWebClientSubscriptions("web-1", ["missing"])).Should().BeFalse();
+
+        manager.Subscriptions.Single().HasWebClient("web-1").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SetWebClientSubscriptions_EmptySet_ReleasesEveryMembership()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
+        manager.AddWebHubClient("web-1", NSubstitute.Substitute.For<IWebHubClient>());
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
+        (await manager.SetWebClientSubscriptions("web-1", [])).Should().BeTrue();
+
+        manager.Subscriptions.Should().OnlyContain(subscription => !subscription.HasWebClient("web-1"));
+    }
+
+    [Fact]
+    public async Task SetWebClientSubscriptions_RepeatedDesiredSet_DoesNotReplayUnchangedMembers()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
+        IWebHubClient client = NSubstitute.Substitute.For<IWebHubClient>();
+        var initializedBoth = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var initializationCount = 0;
+        client
+            .InitializeLogStream(Arg.Any<string>(), Arg.Any<DiagnosticExplorer.Logging.LogStreamInitialization>())
+            .Returns(_ =>
+            {
+                if (Interlocked.Increment(ref initializationCount) == 2)
+                {
+                    initializedBoth.TrySetResult();
+                }
+
+                return Task.CompletedTask;
+            });
+        manager.AddWebHubClient("web-1", client);
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
+        await initializedBoth.Task.WaitAsync(TestContext.Current.CancellationToken);
+        (await manager.SetWebClientSubscriptions("web-1", [processB])).Should().BeTrue();
+        (await manager.SetWebClientSubscriptions("web-1", [processB, processB])).Should().BeTrue();
+
+        initializationCount.Should().Be(2, "unchanged B keeps its existing replay chain");
+    }
+
+    [Fact]
+    public async Task SubscribeWebClient_RemainsExclusiveAfterASetSubscriptionCall()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
+        manager.AddWebHubClient("web-1", NSubstitute.Substitute.For<IWebHubClient>());
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
+        (await manager.SubscribeWebClient("web-1", processA)).Should().BeTrue();
+
+        manager
+            .Subscriptions.Single(subscription => subscription.ProcessId == processA)
+            .HasWebClient("web-1")
+            .Should()
+            .BeTrue();
+        manager
+            .Subscriptions.Single(subscription => subscription.ProcessId == processB)
+            .HasWebClient("web-1")
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task SetWebClientSubscriptions_DisconnectDuringAttachment_RollsBackMembership()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processId = RegisterProcess(manager, "a");
+        IWebHubClient client = NSubstitute.Substitute.For<IWebHubClient>();
+        var sendStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client
+            .ShowDiagnostics(Arg.Any<string>(), Arg.Any<DiagnosticResponse>())
+            .Returns(_ =>
+            {
+                sendStarted.TrySetResult();
+                return allowSend.Task;
+            });
+        manager.AddWebHubClient("web-1", client);
+
+        (await manager.SetWebClientSubscriptions("web-1", [processId])).Should().BeTrue();
+        DiagnosticSubscription subscription = manager.Subscriptions.Single();
+        typeof(DiagnosticSubscription)
+            .GetField(
+                "_lastResponse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
+            )!
+            .SetValue(subscription, new DiagnosticResponse());
+        (await manager.SetWebClientSubscriptions("web-1", [])).Should().BeTrue();
+
+        Task<bool> attaching = manager.SetWebClientSubscriptions("web-1", [processId]);
+        await sendStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        manager.RemoveWebHubClient("web-1");
+        allowSend.TrySetResult();
+
+        (await attaching).Should().BeFalse();
+        subscription.HasWebClient("web-1").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SetWebClientSubscriptions_ProcessRemovedDuringAttachment_DoesNotRecreateItsSubscription()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processId = RegisterProcess(manager, "a");
+        IWebHubClient client = NSubstitute.Substitute.For<IWebHubClient>();
+        var sendStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client
+            .ShowDiagnostics(Arg.Any<string>(), Arg.Any<DiagnosticResponse>())
+            .Returns(_ =>
+            {
+                sendStarted.TrySetResult();
+                return allowSend.Task;
+            });
+        manager.AddWebHubClient("web-1", client);
+
+        (await manager.SetWebClientSubscriptions("web-1", [processId])).Should().BeTrue();
+        DiagnosticSubscription subscription = manager.Subscriptions.Single();
+        typeof(DiagnosticSubscription)
+            .GetField(
+                "_lastResponse",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
+            )!
+            .SetValue(subscription, new DiagnosticResponse());
+        (await manager.SetWebClientSubscriptions("web-1", [])).Should().BeTrue();
+
+        Task<bool> attaching = manager.SetWebClientSubscriptions("web-1", [processId]);
+        await sendStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        manager.RemoveProcess(processId);
+        allowSend.TrySetResult();
+
+        (await attaching).Should().BeFalse();
+        manager.Subscriptions.Should().NotContain(item => item.ProcessId == processId);
+    }
+
     /// <summary>
     ///     GetDrillDown carries the same never-throw contract as the other two, and the same three
     ///     failure modes, but its own lookups and try/catch live at this layer - DrillDownTests
@@ -235,16 +410,21 @@ public sealed class RealtimeManagerTests
 
     private static string RegisterProcess(RealtimeManager manager)
     {
+        return RegisterProcess(manager, "default");
+    }
+
+    private static string RegisterProcess(RealtimeManager manager, string suffix)
+    {
         manager.Register(
             new Registration
             {
-                ProcessName = "test-process",
+                ProcessName = $"test-process-{suffix}",
                 MachineName = "test-machine",
                 UserName = "test-user",
-                InstanceId = "test-instance",
+                InstanceId = $"test-instance-{suffix}",
             }
         );
-        return manager.GetProcesses().Single().Id;
+        return manager.GetProcesses().Single(process => process.InstanceId == $"test-instance-{suffix}").Id;
     }
 
     private static async Task<string> RegisterProcessWithClient(

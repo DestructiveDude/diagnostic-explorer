@@ -40,6 +40,7 @@ public sealed class WebHubContractTests
         "RetroDelete",
         "RetroSupportsDelete",
         "SetProperty",
+        "SetSubscriptions",
         "StartRetroSearch",
         "Subscribe",
     ];

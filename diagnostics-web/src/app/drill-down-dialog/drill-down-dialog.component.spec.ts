@@ -231,6 +231,30 @@ describe('drilldown UI', () => {
         expect(component.selected).toBeUndefined();
     });
 
+    it('retains its process event stream and displays that store after main selection changes', async () => {
+        const event = {streamId: 'original-stream', sequence: 1, timestampUtc: '2026-09-08T10:00:00Z',
+            loggerCategory: 'App.Order', level: 2, message: 'Original'} as LogStreamEvent;
+        realtime.getProcessEventStore('original').initialize({streamId: 'original-stream', routing: {matchMode: 'AllMatches', routes: []},
+            replayEvents: [event], highWatermark: 1, maxEvents: 10, maxAgeMinutes: 10});
+        hub.getDrillDown.mockResolvedValue(Object.assign(new DrillDownResponse(), {
+            diagnostics: diagnostics(), eventViews: [{id: 'events', category: 'Trading', name: 'Orders', matchers: [
+                {loggerName: '*', loggerNameMatchMode: 'Wildcard', minLevel: null, maxLevel: null}
+            ]}]
+        }));
+        const release = jest.fn();
+        jest.spyOn(realtime, 'retainProcessEvents').mockReturnValue(release);
+
+        const fixture = await render();
+        realtime.activeProcess = {id: 'other'} as any;
+        fixture.detectChanges();
+
+        const eventView = fixture.debugElement.query(By.directive(EventSinkViewComponent)).componentInstance as EventSinkViewComponent;
+        expect(realtime.retainProcessEvents).toHaveBeenCalledWith('original');
+        expect(eventView.events).toEqual([event]);
+        fixture.destroy();
+        expect(release).toHaveBeenCalledTimes(1);
+    });
+
     it('refreshes after closing an operation dialog that executed more than once', async () => {
         const fixture = await render();
         const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;

@@ -38,6 +38,11 @@ public class DiagnosticSubscription
     public IDiagnosticClient? DiagnosticClient { get; private set; }
     public string ProcessId => Process.Id;
 
+    public bool HasWebClient(string connectionId)
+    {
+        return _webClients.ContainsKey(connectionId);
+    }
+
     public void SetDiagnosticClient(IDiagnosticClient? diagClient)
     {
         if (DiagnosticClient != diagClient)

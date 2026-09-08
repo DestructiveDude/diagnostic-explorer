@@ -38,6 +38,11 @@ public class WebHub : Hub<IWebHubClient>
         await _realtimeManager.SubscribeWebClient(Context.ConnectionId, processId);
     }
 
+    public Task<bool> SetSubscriptions(string[] processIds)
+    {
+        return _realtimeManager.SetWebClientSubscriptions(Context.ConnectionId, processIds);
+    }
+
     public Task RemoveProcess(string processId)
     {
         _realtimeManager.RemoveProcess(processId);

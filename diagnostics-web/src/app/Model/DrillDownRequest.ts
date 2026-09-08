@@ -37,9 +37,7 @@ export class DrillDownEventMatcher {
 }
 
 /**
- * One event table a drilldown offers, as a projection over events the client already receives.
- * A definition, not a subscription: opening a drilldown starts no new stream and cannot widen
- * what the process captures.
+ * One event table a drilldown offers, as a projection over that process's retained stream.
  */
 export class DrillDownEventViewDefinition {
     id = '';
