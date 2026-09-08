@@ -255,6 +255,24 @@ describe('drilldown UI', () => {
         expect(release).toHaveBeenCalledTimes(1);
     });
 
+    it('releases its owner when navigation fails while another owner keeps the process retained', async () => {
+        hub.getDrillDown.mockResolvedValueOnce(Object.assign(new DrillDownResponse(), {
+            diagnostics: diagnostics(), eventViews: [{id: 'events', category: 'Trading', name: 'Orders', matchers: []}]
+        }));
+        const component = new DrillDownDialogComponent(config, realtime);
+        await component.refresh();
+        const secondOwner = realtime.retainProcessEvents('original');
+        hub.getDrillDown.mockRejectedValueOnce(new Error('gone'));
+
+        component.navigate({title: 'Other', request: {...new DrillDownRequest(), id: 'other', objectPaths: []}});
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect((realtime as any).retainedProcessEventOwners.get('original')).toBe(1);
+        secondOwner();
+        expect((realtime as any).retainedProcessEventOwners.has('original')).toBe(false);
+    });
+
     it('refreshes after closing an operation dialog that executed more than once', async () => {
         const fixture = await render();
         const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;

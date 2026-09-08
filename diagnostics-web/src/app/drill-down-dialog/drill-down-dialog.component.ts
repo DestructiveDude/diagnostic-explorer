@@ -68,15 +68,19 @@ export class DrillDownDialogComponent implements OnInit, OnDestroy {
             const bags = _.groupBy(response.diagnostics.propertyBags, bag => bag.category);
             this.categories = Object.keys(bags).sort().map(name => new CategoryModel(this.realtime, name, bags[name]));
         } catch (error) {
-            if (generation === this.generation)
+            if (generation === this.generation) {
                 this.response = {...new DrillDownResponse(), errorMessage: getErrorMessage(error) || 'Unable to load diagnostics'};
+                this.updateEventRetention(this.response);
+            }
         } finally {
             if (generation === this.generation) this.loading = false;
         }
     }
 
     private updateEventRetention(response: DrillDownResponse): void {
-        const processId = response.eventViews.length ? this.request.id : undefined;
+        const processId = response.eventViews.length && !this.realtime.isProcessRemoved(this.request.id)
+            ? this.request.id
+            : undefined;
         if (processId === this.retainedProcessId) return;
         this.releaseProcessEvents?.();
         this.releaseProcessEvents = undefined;

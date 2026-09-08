@@ -631,6 +631,7 @@ public class RealtimeManager : IHostedService
         try
         {
             var desired = new Dictionary<string, DiagProcess>(_ic);
+            var additions = new List<DiagnosticSubscription>();
             foreach (string processId in processIds ?? [])
             {
                 if (string.IsNullOrWhiteSpace(processId) || !_processes.TryGetValue(processId, out var process))
@@ -654,8 +655,7 @@ public class RealtimeManager : IHostedService
             {
                 if (!IsCurrentWebClientAndProcesses(webConnectionId, webClient, desired.Values))
                 {
-                    RemoveClientFromSubscriptions(webClient);
-                    RemoveRemovedProcessSubscriptions(desired.Values);
+                    RollBackSetWebClientSubscriptions(webConnectionId, webClient, additions, desired.Values);
                     return false;
                 }
 
@@ -663,6 +663,7 @@ public class RealtimeManager : IHostedService
                 if (!subscription.HasWebClient(webConnectionId))
                 {
                     await subscription.AddWebClient(webClient);
+                    additions.Add(subscription);
                 }
             }
 
@@ -671,14 +672,37 @@ public class RealtimeManager : IHostedService
                 return true;
             }
 
-            RemoveClientFromSubscriptions(webClient);
-            RemoveRemovedProcessSubscriptions(desired.Values);
+            RollBackSetWebClientSubscriptions(webConnectionId, webClient, additions, desired.Values);
             return false;
         }
         finally
         {
             webClient.SubscriptionGate.Release();
         }
+    }
+
+    private void RollBackSetWebClientSubscriptions(
+        string webConnectionId,
+        WebClientHandler webClient,
+        IEnumerable<DiagnosticSubscription> additions,
+        IEnumerable<DiagProcess> processes
+    )
+    {
+        if (
+            !_webClients.TryGetValue(webConnectionId, out var currentWebClient)
+            || !ReferenceEquals(currentWebClient, webClient)
+        )
+        {
+            RemoveClientFromSubscriptions(webClient);
+            return;
+        }
+
+        foreach (DiagnosticSubscription subscription in additions)
+        {
+            subscription.RemoveWebClient(webClient);
+        }
+
+        RemoveRemovedProcessSubscriptions(processes);
     }
 
     private bool IsCurrentWebClientAndProcesses(

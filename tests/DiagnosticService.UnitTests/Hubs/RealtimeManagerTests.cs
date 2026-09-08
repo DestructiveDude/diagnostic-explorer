@@ -328,6 +328,7 @@ public sealed class RealtimeManagerTests
     {
         RealtimeManager manager = new(TimeProvider.System);
         string processId = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
         IWebHubClient client = NSubstitute.Substitute.For<IWebHubClient>();
         var sendStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var allowSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -349,14 +350,16 @@ public sealed class RealtimeManagerTests
             )!
             .SetValue(subscription, new DiagnosticResponse());
         (await manager.SetWebClientSubscriptions("web-1", [])).Should().BeTrue();
+        (await manager.SetWebClientSubscriptions("web-1", [processB])).Should().BeTrue();
 
-        Task<bool> attaching = manager.SetWebClientSubscriptions("web-1", [processId]);
+        Task<bool> attaching = manager.SetWebClientSubscriptions("web-1", [processId, processB]);
         await sendStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         manager.RemoveProcess(processId);
         allowSend.TrySetResult();
 
         (await attaching).Should().BeFalse();
         manager.Subscriptions.Should().NotContain(item => item.ProcessId == processId);
+        manager.Subscriptions.Single(item => item.ProcessId == processB).HasWebClient("web-1").Should().BeTrue();
     }
 
     /// <summary>
