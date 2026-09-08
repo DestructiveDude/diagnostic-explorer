@@ -245,6 +245,28 @@ public class RoutingDiagnosticAppenderTests
     }
 
     [Fact]
+    public void ActivateOptions_AfterTerminalClose_DoesNotRegisterAnUnusableAppender()
+    {
+        var store = new LogEventStore();
+        var appender = new RoutingDiagnosticAppender(store)
+        {
+            RoutingOptions = new EventSinkRouteOptions().Route(
+                "Widgets",
+                route => route.To("Widgets", "Widget Events")
+            ),
+        };
+        appender.ActivateOptions();
+        appender.DoAppend(Event("Widgets", Level.Info, "before close"));
+        appender.Close();
+
+        appender.ActivateOptions();
+        appender.DoAppend(Event("Widgets", Level.Info, "after close"));
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
+        Replay(store).Select(@event => @event.Message).Should().Equal("before close");
+    }
+
+    [Fact]
     public void ConfigureDiagnosticExplorer_PreservesExistingAppendersAndReplacesOnlyItsOwn()
     {
         ILoggerRepository repository = LogManager.CreateRepository(Guid.NewGuid().ToString("N"), typeof(Hierarchy));

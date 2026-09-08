@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using AwesomeAssertions;
 using DiagnosticExplorer.Logging;
 using Microsoft.Extensions.Logging;
@@ -373,5 +374,35 @@ public class EventSinkRouterTests
         LogStreamRoutingConfiguration routing = store.CreateInitialization().Routing;
         routing.MatchMode.Should().Be(EventSinkRouteMatchMode.FirstMatch);
         routing.Routes.Should().ContainSingle().Which.LoggerName.Should().Be("After");
+    }
+
+    [Fact]
+    public void Dispose_WhileReconfigureWaitsForTheStore_RemovesTheReplacementContribution()
+    {
+        var store = new LogEventStore();
+        var router = new EventSinkRouter(RouteFor("Before"), store);
+        object sync = typeof(LogEventStore)
+            .GetField("_sync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(store)!;
+        var reconfigure = new Thread(() => router.Reconfigure(RouteFor("After")));
+        var dispose = new Thread(router.Dispose);
+
+        lock (sync)
+        {
+            reconfigure.Start();
+            SpinWait
+                .SpinUntil(() => (reconfigure.ThreadState & ThreadState.WaitSleepJoin) != 0, TimeSpan.FromSeconds(1))
+                .Should()
+                .BeTrue();
+            dispose.Start();
+            SpinWait
+                .SpinUntil(() => (dispose.ThreadState & ThreadState.WaitSleepJoin) != 0, TimeSpan.FromSeconds(1))
+                .Should()
+                .BeTrue();
+        }
+
+        reconfigure.Join(TimeSpan.FromSeconds(1)).Should().BeTrue();
+        dispose.Join(TimeSpan.FromSeconds(1)).Should().BeTrue();
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
     }
 }

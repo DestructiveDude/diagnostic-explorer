@@ -1,5 +1,6 @@
 using DiagnosticExplorer.Logging;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DiagnosticExplorer.Extensions.Logging;
@@ -25,7 +26,7 @@ public static class LoggingBuilderExtensions
             throw new ArgumentNullException(nameof(builder));
         }
 
-        builder.AddProvider(new DiagnosticExplorerLoggerProvider(options, eventStore));
+        builder.Services.AddSingleton<ILoggerProvider>(_ => new DiagnosticExplorerLoggerProvider(options, eventStore));
         return builder;
     }
 
