@@ -1,4 +1,4 @@
-import {EventResponse, PropertyBag} from './DiagResponse';
+import {EventResponse, PropertyBag, SystemEvent} from './DiagResponse';
 import {customMerge} from '../util/Merge';
 import {EventSinkModel} from './EventSinkModel';
 import {EventModel} from './EventModel';
@@ -54,11 +54,14 @@ export class CategoryModel {
         });
         this.eventSinks = sinks;
 
-        const worstSev = _.maxBy(sinks.flatMap(sink => sink.events), event => event.level)?.level ?? 0;
-        if (worstSev !== this.worstSev) {
-            this.worstSev = worstSev;
+    }
+
+    recordEventSeverity(events: SystemEvent[]) {
+        const worstSev = _.maxBy(events, event => event.level)?.level ?? 0;
+        if (worstSev > 0) {
+            if (worstSev >= this.worstSev) this.worstSev = worstSev;
             this.worstSevDate = new Date();
-            this.labelClass = worstSev === 0 ? '' : 'event-level-' + Level.LevelToString(worstSev).toLocaleLowerCase();
+            this.labelClass = 'event-level-' + Level.LevelToString(this.worstSev).toLocaleLowerCase();
         }
     }
 

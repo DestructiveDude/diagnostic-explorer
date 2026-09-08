@@ -397,6 +397,149 @@ describe('RealtimeModel', () => {
             }
         });
 
+        it('keeps the selected trace-scope tree when a retained record is unchanged', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Disk', 'IO')], [logEvt({
+                detail: '[00.000] [00.000] BEGIN Outer\n[00.001] [00.001] BEGIN Inner\n[00.002] [00.001] END Inner\n[00.003] [00.001] END Outer'
+            })]));
+            const selected = model.categories.find(category => category.name === 'Disk')!.eventSinks[0].events[0];
+            model.setCurrentEvent(selected);
+            const region = selected.region!;
+            region.expanded = false;
+            region.childRegions[0].expanded = true;
+
+            (model as any).checkEventSeverityLevels();
+
+            expect(model.selectedEvent).toBe(selected);
+            expect(selected.region).toBe(region);
+            expect(selected.region?.expanded).toBe(false);
+            expect(selected.region?.childRegions[0].expanded).toBe(true);
+        });
+
+        it('keeps the active category selected when a preceding projection disappears', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([
+                routeTo('Alpha', 'A'), routeTo('Beta', 'B')
+            ]));
+            model.handleSelectedTabChanged(1);
+            model.selectedIndex = 1;
+
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Beta', 'B')]));
+
+            expect(model.activeCat?.name).toBe('Beta');
+            expect(model.selectedIndex).toBe(0);
+        });
+
+        it('selects an available category when the active projection disappears', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            connection.handlers['InitializeLogStream']('active', initialization([
+                routeTo('Alpha', 'A'), routeTo('Beta', 'B')
+            ]));
+            model.handleSelectedTabChanged(1);
+
+            connection.handlers['InitializeLogStream']('active', initialization([routeTo('Alpha', 'A')]));
+
+            expect(model.activeCat?.name).toBe('Alpha');
+            expect(model.selectedIndex).toBe(0);
+        });
+
+        it('does not revive a severity after its five-minute display timeout while the record remains retained', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
+            try {
+                const {model, hub} = makeModel();
+                const connection = makeConnection();
+                hub.emitReady(connection);
+                model.activeProcess = proc('active', 'Worker');
+                connection.handlers['InitializeLogStream']('active', {...initialization([
+                    routeTo('Disk', 'IO')
+                ], [logEvt({level: WireLevel.WARN})]), maxAgeMinutes: 10});
+
+                jest.setSystemTime(new Date('2026-09-08T10:05:00.001Z'));
+                (model as any).checkEventSeverityLevels();
+                (model as any).checkEventSeverityLevels();
+
+                expect(model.categories.find(category => category.name === 'Disk')!.worstSev).toBe(0);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('refreshes severity timeout when another retained event arrives at the current maximum', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
+            try {
+                const {model, hub} = makeModel();
+                const connection = makeConnection();
+                hub.emitReady(connection);
+                model.activeProcess = proc('active', 'Worker');
+                connection.handlers['InitializeLogStream']('active', {...initialization([
+                    routeTo('Disk', 'IO')
+                ], [logEvt({sequence: 1, level: WireLevel.WARN})]), maxAgeMinutes: 10});
+
+                jest.setSystemTime(new Date('2026-09-08T10:04:00.000Z'));
+                connection.handlers['StreamLogEvents']('active', [logEvt({
+                    sequence: 2, level: WireLevel.WARN, timestampUtc: '2026-09-08T10:04:00.000Z'
+                })]);
+                jest.setSystemTime(new Date('2026-09-08T10:05:00.001Z'));
+                (model as any).checkEventSeverityLevels();
+
+                expect(model.categories.find(category => category.name === 'Disk')!.worstSev).toBe(Level.WARN);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('prunes inactive process projections with their expired stores', () => {
+            jest.useFakeTimers();
+            jest.setSystemTime(new Date('2026-09-08T10:00:00.000Z'));
+            try {
+                const {model, hub} = makeModel();
+                const connection = makeConnection();
+                hub.emitReady(connection);
+                model.activeProcess = proc('a', 'A');
+                connection.handlers['InitializeLogStream']('a', {...initialization([
+                    routeTo('Disk', 'IO')
+                ], [logEvt({sequence: 1})]), maxAgeMinutes: 1});
+                const firstKey = [...(model as any).eventModels.keys()][0];
+                model.activeProcess = proc('b', 'B');
+                connection.handlers['InitializeLogStream']('b', {...initialization([
+                    routeTo('Disk', 'IO')
+                ], [logEvt({sequence: 2})]), maxAgeMinutes: 1});
+
+                jest.setSystemTime(new Date('2026-09-08T10:01:00.001Z'));
+                (model as any).checkEventSeverityLevels();
+
+                expect(model.getProcessEventStore('a').events).toEqual([]);
+                expect(model.getProcessEventStore('b').events).toEqual([]);
+                expect((model as any).eventModels.has(firstKey)).toBe(false);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('projects a configured retention count above 500 into the sink without a second cap', () => {
+            const {model, hub} = makeModel();
+            const connection = makeConnection();
+            hub.emitReady(connection);
+            model.activeProcess = proc('active', 'Worker');
+            const events = Array.from({length: 600}, (_, sequence) => logEvt({sequence}));
+
+            connection.handlers['InitializeLogStream']('active', {...initialization([routeTo('Disk', 'IO')], events), maxEvents: 1_200});
+
+            expect(model.logStreamEvents).toHaveLength(600);
+            expect(model.categories.find(category => category.name === 'Disk')!.eventSinks[0].events).toHaveLength(600);
+        });
+
         it('retains a bounded raw projection, deduplicates replay, and fences process and stream changes', async () => {
             const {model, hub} = makeModel();
             const connection = makeConnection();
