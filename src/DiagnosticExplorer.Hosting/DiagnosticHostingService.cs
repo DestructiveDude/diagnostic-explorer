@@ -28,13 +28,19 @@ public class DiagnosticHostingService
 
     private readonly Action<HttpConnectionOptions>? _configureHttp;
     private readonly DiagnosticOptions _options;
+    private readonly IServiceProvider? _serviceProvider;
 
     private RegistrationHandler[]? _registrationHandlers;
 
-    private DiagnosticHostingService(DiagnosticOptions options, Action<HttpConnectionOptions>? configureHttp = null)
+    private DiagnosticHostingService(
+        DiagnosticOptions options,
+        Action<HttpConnectionOptions>? configureHttp = null,
+        IServiceProvider? serviceProvider = null
+    )
     {
         _options = options;
         _configureHttp = configureHttp;
+        _serviceProvider = serviceProvider;
     }
 
     // Claim the singleton slot atomically, then start. Publish stays only if hosting actually
@@ -79,7 +85,7 @@ public class DiagnosticHostingService
                 .Split(_options.Uri, @"\s|;|,", RegexOptions.None, TimeSpan.FromSeconds(1))
                 .Select(hubUrl => hubUrl.Trim())
                 .Where(hubUrl => !string.IsNullOrWhiteSpace(hubUrl))
-                .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey))
+                .Select(hubUrl => new RegistrationHandler(hubUrl, registration, _options.ApiKey, _serviceProvider))
                 .ToArray();
 
             _registrationHandlers = handlers;
@@ -175,6 +181,16 @@ public class DiagnosticHostingService
         Action<HttpConnectionOptions>? configureHttp = null
     )
         : this(options.Value, configureHttp)
+    {
+        Debug.WriteLine($"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}");
+    }
+
+    public DiagnosticHostingService(
+        IOptions<DiagnosticOptions> options,
+        Action<HttpConnectionOptions>? configureHttp,
+        IServiceProvider serviceProvider
+    )
+        : this(options.Value, configureHttp, serviceProvider)
     {
         Debug.WriteLine($"DiagnosticHostingService constructed {_options.Enabled} Uri [{_options.Uri}");
     }

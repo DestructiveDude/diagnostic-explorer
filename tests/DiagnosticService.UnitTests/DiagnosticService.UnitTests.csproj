@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DiagnosticService\Diagnostic.Service.csproj" />
+    <ProjectReference Include="..\..\src\DiagnosticExplorer.Hosting\DiagnosticExplorer.Hosting.csproj" />
   </ItemGroup>
 
 </Project>
