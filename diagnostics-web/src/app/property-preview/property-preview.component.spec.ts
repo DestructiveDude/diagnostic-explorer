@@ -72,7 +72,9 @@ describe('property preview', () => {
     });
 
     it('formats valid JSON, preserves malformed JSON, and escapes remote markup', async () => {
-        hub.getDrillDown.mockReset().mockResolvedValue(Object.assign(new DrillDownResponse(), {json: '{"markup":"<script>bad()</script>"}'}));
+        hub.getDrillDown.mockReset().mockResolvedValue(Object.assign(new DrillDownResponse(), {
+            json: '{"markup":"<script>bad()</script>"}', isTruncated: true, displayedCount: 2, totalCount: 3
+        }));
         fixture.componentRef.setInput('json', true);
         fixture.detectChanges();
         expect(fixture.componentInstance.json).toBe(true);
@@ -82,6 +84,7 @@ describe('property preview', () => {
 
         expect(document.querySelector('pre')?.textContent).toContain('  "markup": "<script>bad()</script>"');
         expect(document.querySelector('[role="tooltip"] script')).toBeNull();
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Showing 2 of 3 items (truncated).');
 
         button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
         fixture.componentRef.setInput('processId', 'next');
@@ -168,5 +171,131 @@ describe('property preview', () => {
 
         expect(inspect).toHaveBeenCalledTimes(1);
         expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    });
+
+    it('stops hover-only polling when CDK dismisses Escape from the body', async () => {
+        jest.useFakeTimers();
+        hub.getDrillDown.mockReset().mockResolvedValue(response('10'));
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+        await settle();
+        jest.advanceTimersByTime(5300);
+
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
+        expect(hub.getDrillDown).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes a reopened preview after an old hovered overlay was dismissed', async () => {
+        jest.useFakeTimers();
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        (document.querySelector('[role="tooltip"]') as HTMLElement).dispatchEvent(new MouseEvent('mouseenter'));
+        document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+        await settle();
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        button.dispatchEvent(new MouseEvent('mouseleave'));
+        jest.advanceTimersByTime(150);
+
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    });
+
+    it('keeps a focused preview open after pointer departure and closes it after blur', async () => {
+        jest.useFakeTimers();
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new FocusEvent('focus'));
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        button.dispatchEvent(new MouseEvent('mouseleave'));
+        jest.advanceTimersByTime(150);
+        expect(document.querySelector('[role="tooltip"]')).not.toBeNull();
+
+        button.dispatchEvent(new FocusEvent('blur'));
+        jest.advanceTimersByTime(150);
+        fixture.detectChanges();
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    });
+
+    it('closes and fences a preview when its property path mutates in place', async () => {
+        jest.useFakeTimers();
+        let path = 'Trading|Orders||Order';
+        fixture.componentRef.setInput('prop', {name: 'Order', getPropertyPath: () => path});
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        path = 'Trading|Orders||Replacement';
+        fixture.detectChanges();
+        jest.advanceTimersByTime(5000);
+
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
+        expect(hub.getDrillDown).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders empty results and diagnostic exceptions without stale properties', async () => {
+        hub.getDrillDown.mockReset().mockResolvedValue(Object.assign(new DrillDownResponse(), {
+            diagnostics: Object.assign(new DiagnosticResponse(), {exceptionMessage: 'Agent failed'})
+        }));
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new FocusEvent('focus'));
+        await settle();
+        expect(document.querySelector('[role="alert"]')?.textContent).toContain('Agent failed');
+
+        button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        fixture.componentRef.setInput('processId', 'empty');
+        hub.getDrillDown.mockResolvedValue(new DrillDownResponse());
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('No properties');
+    });
+
+    it('keeps a reopened request pending when the old request resolves first', async () => {
+        let resolveOld!: (value: DrillDownResponse) => void;
+        let resolveNew!: (value: DrillDownResponse) => void;
+        hub.getDrillDown.mockReset()
+            .mockReturnValueOnce(new Promise<DrillDownResponse>(done => resolveOld = done))
+            .mockReturnValueOnce(new Promise<DrillDownResponse>(done => resolveNew = done));
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        resolveOld(response('old'));
+        await settle();
+
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Loading preview…');
+        resolveNew(response('new'));
+        await settle();
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('new');
+    });
+
+    it('keeps new preview data when the new request resolves before the old request', async () => {
+        let resolveOld!: (value: DrillDownResponse) => void;
+        let resolveNew!: (value: DrillDownResponse) => void;
+        hub.getDrillDown.mockReset()
+            .mockReturnValueOnce(new Promise<DrillDownResponse>(done => resolveOld = done))
+            .mockReturnValueOnce(new Promise<DrillDownResponse>(done => resolveNew = done));
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        button.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        resolveNew(response('new'));
+        await settle();
+        resolveOld(response('old'));
+        await settle();
+
+        expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('new');
+        expect(document.querySelector('[role="tooltip"]')?.textContent).not.toContain('old');
+    });
+
+    it('stops polling when destroyed', async () => {
+        jest.useFakeTimers();
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        fixture.destroy();
+        jest.advanceTimersByTime(5000);
+
+        expect(hub.getDrillDown).toHaveBeenCalledTimes(1);
     });
 });

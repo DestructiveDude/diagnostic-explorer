@@ -9,7 +9,7 @@
              [cdkConnectedOverlayPositions]="positions" [cdkConnectedOverlayViewportMargin]="16"
              [cdkConnectedOverlayFlexibleDimensions]="true" [cdkConnectedOverlayGrowAfterOpen]="true"
              [cdkConnectedOverlayHasBackdrop]="false" cdkConnectedOverlayPanelClass="property-preview-overlay"
-             (overlayOutsideClick)="close()">
+             (overlayOutsideClick)="close()" (overlayKeydown)="dismiss($event)" (detach)="close()">
   <section class="property-preview-tooltip" [id]="tooltipId" role="tooltip"
            (mouseenter)="enterOverlay()" (mouseleave)="leaveOverlay()">
     @if (error) {
@@ -28,7 +28,7 @@
           </section>
         }
       } @else { <div>No properties</div> }
-      @if (response?.isTruncated) { <div>Showing {{ response.displayedCount }} of {{ response.totalCount ?? 'unknown' }} items (truncated).</div> }
     } @else { <div>Loading preview…</div> }
+    @if (!error && response?.isTruncated) { <div>Showing {{ response.displayedCount }} of {{ response.totalCount ?? 'unknown' }} items (truncated).</div> }
   </section>
 </ng-template>

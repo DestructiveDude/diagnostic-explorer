@@ -1,4 +1,4 @@
-import {afterNextRender, ChangeDetectionStrategy, Component, DoCheck, EventEmitter, Injector, Input, OnDestroy, Output, ViewChild} from '@angular/core';
+import {afterNextRender, ChangeDetectionStrategy, Component, DoCheck, EventEmitter, HostListener, Injector, Input, OnDestroy, Output, ViewChild} from '@angular/core';
 import {CdkConnectedOverlay, ConnectedPosition} from '@angular/cdk/overlay';
 import {PropModel} from '../Model/PropModel';
 import {DiagnosticResponse} from '../Model/DiagResponse';
@@ -61,6 +61,11 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
 
     ngOnDestroy(): void {
         this.close();
+    }
+
+    @HostListener('document:keydown', ['$event'])
+    onDocumentKeydown(event: KeyboardEvent): void {
+        this.dismiss(event);
     }
 
     openFromPointer(): void {
@@ -201,6 +206,7 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
         this.loading = false;
         this.pending = false;
         this.request = undefined;
+        this.pointerOnOverlay = false;
         this.opening++;
     }
 
