@@ -31,7 +31,7 @@ using log4net.Core;
 
 namespace DiagnosticExplorer;
 
-// Events are bounded by the inline MaxMessages trim in AddSingleEvent. The former static
+// Events are bounded by EventSinkRepo retention. The former static
 // `sinks` WeakReferenceHash + 20s purge timer were dead code — nothing ever registered a sink
 // into `sinks` (live sinks live in EventSinkRepo), so the 30-minute age purge never ran.
 // Removed rather than half-wired (per-instance timers would leak; re-registering into the
@@ -189,16 +189,6 @@ public class EventSink
     internal void Purge(EventRetentionOptions retention, DateTime now)
     {
         _ = Purge(retention, now, null);
-    }
-
-    internal void PurgeIfExpired(EventRetentionOptions retention, DateTime now)
-    {
-        // ponytail: cached earliest expiry avoids an O(n) scan on every log write; snapshots and
-        // explicit reconfiguration still force a full scan, which bounds direct queue writes.
-        if (now > _nextExpiryUtc)
-        {
-            _ = Purge(retention, now, null);
-        }
     }
 
     private bool Purge(EventRetentionOptions retention, DateTime now, SystemEvent added)

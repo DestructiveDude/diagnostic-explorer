@@ -43,6 +43,11 @@ public class RoutingDiagnosticAppender : AppenderSkeleton
 
     public override void ActivateOptions()
     {
+        if (_closed)
+        {
+            return;
+        }
+
         base.ActivateOptions();
         EventSinkRouteOptions options = RoutingOptions ?? LoadRoutingOptions();
         if (_router == null)

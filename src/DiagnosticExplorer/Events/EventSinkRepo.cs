@@ -46,7 +46,7 @@ public sealed class EventSinkRepo : IDisposable
         {
             ThrowIfDisposed();
             Volatile.Write(ref _eventRetention, replacement);
-            PurgeSinks(replacement, force: true);
+            PurgeSinks(replacement);
         }
         finally
         {
@@ -109,7 +109,7 @@ public sealed class EventSinkRepo : IDisposable
         try
         {
             ThrowIfDisposed();
-            PurgeSinks(Volatile.Read(ref _eventRetention), force: true);
+            PurgeSinks(Volatile.Read(ref _eventRetention));
 
             EventSinkStream stream = new(_sinks.Values.SelectMany(sink => sink.Events).ToArray(), buffer, bufferSize);
             _sinkStreams.Add(stream);
@@ -136,7 +136,7 @@ public sealed class EventSinkRepo : IDisposable
         try
         {
             ThrowIfDisposed();
-            PurgeSinks(Volatile.Read(ref _eventRetention), force: true);
+            PurgeSinks(Volatile.Read(ref _eventRetention));
             return _sinks.Values.SelectMany(sink => sink.Events).ToArray();
         }
         finally
@@ -201,19 +201,12 @@ public sealed class EventSinkRepo : IDisposable
         }
     }
 
-    private void PurgeSinks(EventRetentionOptions retention, bool force)
+    private void PurgeSinks(EventRetentionOptions retention)
     {
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         foreach (EventSink sink in _sinks.Values)
         {
-            if (force)
-            {
-                sink.Purge(retention, now);
-            }
-            else
-            {
-                sink.PurgeIfExpired(retention, now);
-            }
+            sink.Purge(retention, now);
         }
     }
 

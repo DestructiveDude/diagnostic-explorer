@@ -30,6 +30,20 @@ public sealed class LoggingBuilderExtensionsTests : IDisposable
     }
 
     [Fact]
+    public void AddDiagnosticExplorer_HostDisposalRemovesTheProvidersRoutingContribution()
+    {
+        var store = new LogEventStore();
+        EventSinkRouteOptions options = new EventSinkRouteOptions().Route("Widgets", route => route.To("Logs", "App"));
+        ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddDiagnosticExplorer(options, store));
+
+        factory.CreateLogger("Widgets").LogInformation("Painted");
+        store.CreateInitialization().Routing.Routes.Should().ContainSingle();
+        factory.Dispose();
+
+        store.CreateInitialization().Routing.Routes.Should().BeEmpty();
+    }
+
+    [Fact]
     public void AddDiagnosticExplorer_WithAConfigureAction_RoutesThroughToTheStore()
     {
         var store = new LogEventStore();

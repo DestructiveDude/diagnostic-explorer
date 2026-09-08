@@ -153,6 +153,13 @@ public class DiagnosticExplorerTargetTests
 
             returned.Should().BeSameAs(configuration);
             configuration.FindTargetByName("DiagnosticExplorer").Should().NotBeNull();
+            int before = DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Length;
+            using (LogFactory factory = new() { Configuration = configuration })
+            {
+                factory.GetLogger("Widgets").Info("Painted");
+            }
+
+            DiagnosticManager.LogEventStore.CreateInitialization().ReplayEvents.Should().HaveCount(before + 1);
         }
         finally
         {

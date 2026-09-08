@@ -23,6 +23,7 @@ public sealed class EventSinkRouter : IDisposable
 {
     private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
     private readonly LogEventStore _eventStore;
+    private readonly object _lifetimeSync = new();
     private CompiledRoute[] _routes;
     private LogEventStore.RoutingContribution _contribution;
     private bool _disposed;
@@ -68,29 +69,37 @@ public sealed class EventSinkRouter : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lifetimeSync)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _disposed = true;
-        _eventStore.RemoveRoutingContribution(_contribution);
+            _disposed = true;
+            _eventStore.RemoveRoutingContribution(_contribution);
+        }
     }
 
     public void Reconfigure(EventSinkRouteOptions options)
     {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(EventSinkRouter));
-        }
-
         CompiledRoute[] routes = CompileRoutes(options);
-        LogEventStore.RoutingContribution contribution = _eventStore.ReplaceRoutingContribution(
-            _contribution,
-            options.CreateSnapshot()
-        );
-        _routes = routes;
-        _contribution = contribution;
+        LogStreamRoutingConfiguration routing = options.CreateSnapshot();
+
+        lock (_lifetimeSync)
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(EventSinkRouter));
+            }
+
+            LogEventStore.RoutingContribution contribution = _eventStore.ReplaceRoutingContribution(
+                _contribution,
+                routing
+            );
+            _routes = routes;
+            _contribution = contribution;
+        }
     }
 
     private static CompiledRoute[] CompileRoutes(EventSinkRouteOptions options)

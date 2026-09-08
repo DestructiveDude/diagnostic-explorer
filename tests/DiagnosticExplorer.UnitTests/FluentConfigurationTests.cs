@@ -185,13 +185,14 @@ public sealed class FluentConfigurationTests : IDisposable
     [Fact]
     public void GetRegisteredObjects_RerunsConfiguredRegistrationCallbacks()
     {
-        var widget = new Widget();
+        var firstWidget = new Widget();
+        var secondWidget = new Widget();
         int calls = 0;
         DiagnosticManager.Configure(configure =>
             configure.RegisterObjects(registrar =>
             {
                 calls++;
-                registrar.Register(widget, "Configured", "Widget");
+                registrar.Register(calls == 1 ? firstWidget : secondWidget, "Configured", "Widget");
             })
         );
 
@@ -199,8 +200,8 @@ public sealed class FluentConfigurationTests : IDisposable
         RegisteredObject[] second = DiagnosticManager.GetRegisteredObjects();
 
         calls.Should().Be(2);
-        first.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
-        second.Should().ContainSingle().Which.Object.Should().BeSameAs(widget);
+        first.Should().ContainSingle().Which.Object.Should().BeSameAs(firstWidget);
+        second.Should().ContainSingle().Which.Object.Should().BeSameAs(secondWidget);
     }
 
     [Fact]
