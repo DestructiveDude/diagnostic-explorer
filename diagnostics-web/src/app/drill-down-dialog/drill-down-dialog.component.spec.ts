@@ -53,6 +53,7 @@ describe('drilldown UI', () => {
     let hub: {getDrillDown: jest.Mock, setPropertyValue: jest.Mock, executeOperation: jest.Mock};
     let config: DynamicDialogConfig;
     let dialogs: {open: jest.Mock};
+    let readNow: jest.SpyInstance<number, []>;
 
     beforeAll(() => {
         // jsdom has no layout observer; PrimeNG tabs still register one when opened.
@@ -66,6 +67,7 @@ describe('drilldown UI', () => {
     });
 
     beforeEach(async () => {
+        readNow = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-08T10:00:00.000Z'));
         hub = {
             getDrillDown: jest.fn().mockResolvedValue(Object.assign(new DrillDownResponse(), {
                 diagnostics: diagnostics(), displayedCount: 1, totalCount: 4, isTruncated: true
@@ -88,6 +90,10 @@ describe('drilldown UI', () => {
                 {provide: DialogService, useValue: dialogs}
             ]
         }).compileComponents();
+    });
+
+    afterEach(() => {
+        readNow.mockRestore();
     });
 
     async function render() {
