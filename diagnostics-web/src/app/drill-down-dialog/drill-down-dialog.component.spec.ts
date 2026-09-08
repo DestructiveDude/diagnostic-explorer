@@ -273,6 +273,21 @@ describe('drilldown UI', () => {
         expect((realtime as any).retainedProcessEventOwners.has('original')).toBe(false);
     });
 
+    it('does not acquire an owner when a successful response arrives after its process is removed', async () => {
+        let resolve!: (response: DrillDownResponse) => void;
+        hub.getDrillDown.mockReturnValueOnce(new Promise<DrillDownResponse>(done => resolve = done));
+        const component = new DrillDownDialogComponent(config, realtime);
+        const pending = component.refresh();
+        realtime.removeProcess('original');
+        resolve(Object.assign(new DrillDownResponse(), {
+            diagnostics: diagnostics(), eventViews: [{id: 'events', category: 'Trading', name: 'Orders', matchers: []}]
+        }));
+
+        await pending;
+
+        expect((realtime as any).retainedProcessEventOwners.has('original')).toBe(false);
+    });
+
     it('refreshes after closing an operation dialog that executed more than once', async () => {
         const fixture = await render();
         const grid = fixture.debugElement.query(By.directive(RealtimeCategoryComponent)).componentInstance as RealtimeCategoryComponent;

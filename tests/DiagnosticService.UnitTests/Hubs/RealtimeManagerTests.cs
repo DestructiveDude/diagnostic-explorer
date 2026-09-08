@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
+using System.Reactive.Subjects;
 using AwesomeAssertions;
 using Diagnostic.Service.ClientHandlers;
 using Diagnostic.Service.Common;
 using Diagnostic.Service.Hubs;
 using Diagnostic.Service.Transport;
 using DiagnosticExplorer;
+using DiagnosticExplorer.Logging;
 using NSubstitute;
 using Xunit;
 
@@ -265,6 +268,52 @@ public sealed class RealtimeManagerTests
     }
 
     [Fact]
+    public async Task SetWebClientSubscriptions_ReleasingA_ContinuesDeliveringBStream()
+    {
+        RealtimeManager manager = new(TimeProvider.System);
+        string processA = RegisterProcess(manager, "a");
+        string processB = RegisterProcess(manager, "b");
+        Subject<LogStreamInitialization> initializedA = new();
+        Subject<LogStreamInitialization> initializedB = new();
+        Subject<LogStreamEvent[]> eventsA = new();
+        Subject<LogStreamEvent[]> eventsB = new();
+        IDiagnosticClient agentA = StreamingClient(initializedA, eventsA);
+        IDiagnosticClient agentB = StreamingClient(initializedB, eventsB);
+        await manager.SetProperty(new SetPropertyRequest { Id = processA, Path = "p" });
+        await manager.SetProperty(new SetPropertyRequest { Id = processB, Path = "p" });
+        manager.Subscriptions.Single(subscription => subscription.ProcessId == processA).SetDiagnosticClient(agentA);
+        manager.Subscriptions.Single(subscription => subscription.ProcessId == processB).SetDiagnosticClient(agentB);
+        var delivered = new ConcurrentQueue<string>();
+        var bSentinel = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        IWebHubClient web = NSubstitute.Substitute.For<IWebHubClient>();
+        web.StreamLogEvents(Arg.Any<string>(), Arg.Any<LogStreamEvent[]>())
+            .Returns(call =>
+            {
+                string entry = $"{call.Arg<string>()}:{call.ArgAt<LogStreamEvent[]>(1)[0].Sequence}";
+                delivered.Enqueue(entry);
+                if (entry == $"{processB}:2")
+                {
+                    bSentinel.TrySetResult();
+                }
+                return Task.CompletedTask;
+            });
+        manager.AddWebHubClient("web-1", web);
+
+        (await manager.SetWebClientSubscriptions("web-1", [processA, processB])).Should().BeTrue();
+        initializedA.OnNext(Initialization("a"));
+        initializedB.OnNext(Initialization("b"));
+        eventsA.OnNext([Event("a", 1)]);
+        eventsB.OnNext([Event("b", 1)]);
+        (await manager.SetWebClientSubscriptions("web-1", [processB])).Should().BeTrue();
+        eventsA.OnNext([Event("a", 2)]);
+        eventsB.OnNext([Event("b", 2)]);
+
+        await bSentinel.Task.WaitAsync(TestContext.Current.CancellationToken);
+        delivered.Should().Contain($"{processA}:1").And.Contain($"{processB}:1").And.Contain($"{processB}:2");
+        delivered.Should().NotContain($"{processA}:2", "B's queued sentinel follows A's attempted send");
+    }
+
+    [Fact]
     public async Task SubscribeWebClient_RemainsExclusiveAfterASetSubscriptionCall()
     {
         RealtimeManager manager = new(TimeProvider.System);
@@ -428,6 +477,40 @@ public sealed class RealtimeManagerTests
             }
         );
         return manager.GetProcesses().Single(process => process.InstanceId == $"test-instance-{suffix}").Id;
+    }
+
+    private static IDiagnosticClient StreamingClient(
+        IObservable<LogStreamInitialization> initializations,
+        IObservable<LogStreamEvent[]> events
+    )
+    {
+        IDiagnosticClient client = NSubstitute.Substitute.For<IDiagnosticClient>();
+        client.LogStreamInitialized.Returns(initializations);
+        client.LogStreamEvents.Returns(events);
+        client.SubscribeEvents().Returns(Task.CompletedTask);
+        client.UnsubscribeEvents().Returns(Task.CompletedTask);
+        client.GetDiagnostics(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new DiagnosticResponse()));
+        return client;
+    }
+
+    private static LogStreamInitialization Initialization(string streamId)
+    {
+        return new LogStreamInitialization
+        {
+            StreamId = streamId,
+            Routing = new(),
+            ReplayEvents = [],
+        };
+    }
+
+    private static LogStreamEvent Event(string streamId, long sequence)
+    {
+        return new LogStreamEvent
+        {
+            StreamId = streamId,
+            Sequence = sequence,
+            TimestampUtc = DateTime.UtcNow,
+        };
     }
 
     private static async Task<string> RegisterProcessWithClient(

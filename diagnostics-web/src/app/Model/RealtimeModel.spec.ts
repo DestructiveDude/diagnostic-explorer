@@ -296,6 +296,22 @@ describe('RealtimeModel', () => {
 
             expect(hub.connection.invoke).toHaveBeenLastCalledWith('SetSubscriptions', ['b']);
         });
+
+        it('resends the latest union on a new connection when the prior invoke settles late', async () => {
+            const {model, hub} = makeModel();
+            const oldConnection = hub.connection;
+            let resolveOld!: (value: boolean) => void;
+            oldConnection.invoke.mockReturnValueOnce(new Promise<boolean>(done => resolveOld = done));
+            const selecting = model.selectProcess(proc('a', 'A'));
+            await Promise.resolve();
+            const freshConnection = makeConnection();
+            (hub as any).connection = freshConnection;
+            hub.emitStarted(freshConnection);
+            resolveOld(true);
+            await selecting;
+
+            expect(freshConnection.invoke).toHaveBeenCalledWith('SetSubscriptions', ['a']);
+        });
     });
 
     describe('displayRealtimeDiags', () => {
@@ -653,6 +669,17 @@ describe('RealtimeModel', () => {
             connection.handlers['InitializeLogStream']('a', initialization([routeTo('Cat', 'Sink')], [logEvt()]));
 
             expect(model.findProcessEventStore('a')).toBeUndefined();
+        });
+
+        it('clears owners when an authoritative list becomes empty', () => {
+            const {model} = makeModel();
+            model.displayProcesses([proc('a', 'A')]);
+            model.retainProcessEvents('a');
+
+            model.displayProcesses([]);
+
+            expect((model as any).retainedProcessEventOwners.has('a')).toBe(false);
+            expect(model.isProcessRemoved('a')).toBe(true);
         });
 
         it('places an event under the destination its route resolves to', () => {
