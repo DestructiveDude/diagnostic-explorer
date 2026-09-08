@@ -188,6 +188,46 @@ describe('property preview', () => {
         expect(hub.getDrillDown).toHaveBeenCalledTimes(1);
     });
 
+    it('leaves document Escape untouched before opening and after closing', async () => {
+        const escape = () => {
+            const event = new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+            document.body.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+        expect(escape()).toBe(false);
+        const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button.dispatchEvent(new MouseEvent('mouseenter'));
+        await settle();
+        escape();
+        await settle();
+        expect(document.querySelector('[role="tooltip"]')).toBeNull();
+        expect(escape()).toBe(false);
+    });
+
+    it('renders repeated category and property names across refreshes without duplicate keys', async () => {
+        jest.useFakeTimers();
+        const data = response('10');
+        const category = data.diagnostics.propertyBags[0].categories[0];
+        category.name = '';
+        category.properties.push(Object.assign(new Property(), {name: 'Price', value: '20'}));
+        data.diagnostics.propertyBags[0].categories.push(Object.assign(new Category(), {
+            name: '', properties: [Object.assign(new Property(), {name: 'Price', value: '30'})]
+        }));
+        hub.getDrillDown.mockReset().mockResolvedValue(data);
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            (fixture.nativeElement.querySelector('button') as HTMLButtonElement).dispatchEvent(new MouseEvent('mouseenter'));
+            await settle();
+            jest.advanceTimersByTime(5000);
+            await settle();
+            expect(document.querySelectorAll('.preview-category').length).toBe(2);
+            expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('30');
+            expect(warn.mock.calls.flat().join(' ')).not.toContain('NG0955');
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('closes a reopened preview after an old hovered overlay was dismissed', async () => {
         jest.useFakeTimers();
         const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;

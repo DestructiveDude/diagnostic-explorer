@@ -20,9 +20,9 @@
       @if (diagnostics.propertyBags.length) {
         @for (bag of diagnostics.propertyBags; track bag.name) {
           <section class="preview-bag">@if (bag.category) { <h3>{{ bag.category }}</h3> }<h4>{{ bag.name.split('\u001f')[0] }}</h4>
-            @for (category of bag.categories; track category.name) {
+            @for (category of bag.categories; track category.name + '#' + $index) {
               <section class="preview-category">@if (category.name) { <h5>{{ category.name }}</h5> }
-                @for (property of category.properties; track property.name) { <div><span>{{ property.name }}</span><span>{{ property.value }}</span></div> }
+                @for (property of category.properties; track property.name + '#' + $index) { <div><span>{{ property.name }}</span><span>{{ property.value }}</span></div> }
               </section>
             }
           </section>
