@@ -24,7 +24,7 @@ and routes clicks through its existing drilldown path. Structured previews are r
 
 **Files:**
 - Create `diagnostics-web/src/app/property-preview/property-preview.component.ts`, `.html`, `.scss`, `.spec.ts`.
-- Modify `diagnostics-web/src/app/realtime-category/realtime-category.component.ts` and `.html` to replace the old tooltip fetching flow.
+- Modify `diagnostics-web/src/app/realtime-category/realtime-category.component.ts` and `.html` to replace the old tooltip fetching flow; move its preview-button rule from `.scss` into the new component.
 - Modify `diagnostics-web/src/app/app.module.ts` for the component and OverlayModule.
 - Modify `diagnostics-web/src/styles.scss` for CDK overlay structural CSS and remove obsolete preview tooltip styling.
 - Modify `diagnostics-web/src/app/drill-down-dialog/drill-down-dialog.component.spec.ts` for preview integration.
@@ -71,8 +71,9 @@ const request: DrillDownRequest = {
   deciding whether an in-place updated property/context still identifies the target.
 
 - [ ] Render grouped diagnostics with Angular interpolation and JSON in `<pre>`.
-  Format only valid JSON with `JSON.stringify(JSON.parse(raw), null, 2)`, returning
-  the unchanged raw string on parse failure. Empty/absent JSON uses `null`.
+  Preserve the returned JSON text unchanged: the service already indents it and
+  client parsing would round large integers and precise decimals. Empty/absent
+  JSON uses the existing empty state. Assert exact numeric text in rendered tests.
   Preserve diagnostics.exceptionMessage, response.errorMessage, transport error,
   empty results and displayedCount/totalCount truncation notices. Hide fences only
   in display (`bag.name.split('\u001f')[0]`), never in requests. Clear stale data on

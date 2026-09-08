@@ -152,7 +152,7 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
             this.error = '';
             if (this.json) {
                 this.diagnostics = undefined;
-                this.jsonText = this.formatJson(response.json);
+                this.jsonText = response.json || null;
             } else {
                 this.jsonText = null;
                 this.diagnostics = response.diagnostics;
@@ -173,15 +173,6 @@ export class PropertyPreviewComponent implements DoCheck, OnDestroy {
         this.diagnostics = undefined;
         this.jsonText = null;
         this.response = undefined;
-    }
-
-    private formatJson(raw: string | null): string | null {
-        if (!raw) return null;
-        try {
-            return JSON.stringify(JSON.parse(raw), null, 2);
-        } catch {
-            return raw;
-        }
     }
 
     private scheduleClose(): void {

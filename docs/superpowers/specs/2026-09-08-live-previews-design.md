@@ -11,8 +11,9 @@ Astra reviews. This changes the preview lifecycle within the existing Angular UI
 - Show structured read-only diagnostics grouped by category, bag and property group.
   Preserve property names/values and display collection bag names without identity fences.
   Actions and nested navigation remain in the existing click-open drilldown.
-- Show JSON with indentation using native JSON parsing/formatting; preserve raw text
-  when malformed or truncated. Render all remote text through Angular escaping.
+- Show the service's indented JSON text unchanged, preserving large integers,
+  precise decimals and malformed/truncated text without numeric coercion.
+  Render all remote text through Angular escaping.
 - Fetch immediately on opening, then every 5000ms while visible, with no overlapping
   requests for a preview. Hovering the preview keeps it open so it can be read/scrolled.
   Keyboard focus keeps it open independently of pointer movement; Escape dismisses it.
@@ -34,7 +35,8 @@ Use one property-preview component to own the trigger, CDK connected overlay and
 request/timer lifetime. Angular CDK is already installed. Bind originating context
 from RealtimeCategoryComponent and emit inspect to its existing openDrillDown flow.
 Use a read-only grouped template rather than recursively embedding the action-rich
-category component in a tooltip. No JSON tokenizer or new dependency is necessary.
+category component in a tooltip. The service already serializes JSON with
+WriteIndented=true; no client parser, tokenizer or new dependency is necessary.
 
 The installed PrimeNG tooltip creates embedded template views without destroying
 them on hide and exposes no onHide output. A polling component inside that tooltip
