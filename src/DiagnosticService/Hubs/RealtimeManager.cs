@@ -694,12 +694,17 @@ public class RealtimeManager : IHostedService
         )
         {
             RemoveClientFromSubscriptions(webClient);
-            return;
+            foreach (DiagnosticSubscription subscription in additions)
+            {
+                subscription.RemoveWebClient(webClient);
+            }
         }
-
-        foreach (DiagnosticSubscription subscription in additions)
+        else
         {
-            subscription.RemoveWebClient(webClient);
+            foreach (DiagnosticSubscription subscription in additions)
+            {
+                subscription.RemoveWebClient(webClient);
+            }
         }
 
         RemoveRemovedProcessSubscriptions(processes);

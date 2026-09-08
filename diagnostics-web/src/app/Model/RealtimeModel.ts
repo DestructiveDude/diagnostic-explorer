@@ -265,6 +265,7 @@ export class RealtimeModel {
     }
 
     private mergeProcesses(processes: DiagProcess[], removeOthers: boolean) {
+        const priorIds = removeOthers ? this.allProcesses.map(process => process.id) : [];
         this.allProcesses = customMerge(
             processes,
             this.allProcesses,
@@ -283,7 +284,7 @@ export class RealtimeModel {
             for (const id of this.removedProcessIds) {
                 if (ids.has(id)) this.removedProcessIds.delete(id);
             }
-            for (const id of new Set([...this.processEventStores.keys(), ...this.retainedProcessEventOwners.keys()])) {
+            for (const id of new Set([...priorIds, ...this.processEventStores.keys(), ...this.retainedProcessEventOwners.keys()])) {
                 if (!ids.has(id)) this.removeProcess(id);
             }
             if (this.activeProcess && !ids.has(this.activeProcess.id)) this.removeProcess(this.activeProcess.id);
