@@ -10,6 +10,12 @@ those get pushed over SignalR to a central hosting service which fans
 them out to a browser-based dashboard for live inspection across a
 fleet of running processes.
 
+For the current fluent configuration and logging adapters, see the
+[agent configuration guide](docs/agent-configuration-guide.md) and the
+[runnable logging examples](samples/Logging/README.md). The
+[upstream integration status](docs/upstream-integration-status.md) records what
+has landed and the remaining UI scope.
+
 The project originated as Cameron Elliot's open-source diagnostic
 toolset around 2010 (LGPL v3+) and has been carried forward under
 Centerprise's EMS trading platform as the diagnostic backbone for the
@@ -20,7 +26,7 @@ TOMI engine and its surrounding services.
 ```
 src/DiagnosticExplorer/      net10.0 / net48 core library
                              - PropertyBag, TraceScope, OperationSet,
-                               protobuf transport types, log4net forwarding
+                               MessagePack transfer types, log4net forwarding
 src/DiagnosticExplorer.Hosting/
                              net10.0 / net48 hosting integration
                              - AddDiagnosticExplorer DI extension,
@@ -168,7 +174,7 @@ The core library and service are covered by xUnit v3 suites under `tests/`
 and run on every push/PR via GitHub Actions.
 
 Coverage spans the public surface — `PropertyBag`/`Property`/`Category`,
-`ProtobufUtil` wire round-tripping, the JSON converters, `AttributeUtil`,
+MessagePack wire round-tripping, the JSON converters, `AttributeUtil`,
 `WeakReferenceHash`, `EventSink`/`EventSinkRepo`, and the `TraceScope` tracing
 hierarchy — and two internal helpers, `ScopeStack` and `TypeUtil`. The library
 grants the test project access to its internals via an `InternalsVisibleTo`
@@ -249,7 +255,10 @@ package's settings page on GitHub.
 
 ## Releases
 
-Current release: **3.2.2**. The libraries preserve the intentional `net48`
+The current development package version is **4.0.0**. The recorded prior release
+is **3.2.2**; a source version bump does not establish package publication or
+consumer migration. See the [rollout notes](docs/upstream-integration-status.md#deployment-boundary).
+The libraries preserve the intentional `net48`
 compatibility targets while the current application and test scaffold use
 `.NET 10`.
 
