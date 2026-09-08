@@ -285,10 +285,10 @@ public sealed class RealtimeManagerTests
         RealtimeManager manager = new(TimeProvider.System);
         string processA = RegisterProcess(manager, "a");
         string processB = RegisterProcess(manager, "b");
-        Subject<LogStreamInitialization> initializedA = new();
-        Subject<LogStreamInitialization> initializedB = new();
-        Subject<LogStreamEvent[]> eventsA = new();
-        Subject<LogStreamEvent[]> eventsB = new();
+        using Subject<LogStreamInitialization> initializedA = new();
+        using Subject<LogStreamInitialization> initializedB = new();
+        using Subject<LogStreamEvent[]> eventsA = new();
+        using Subject<LogStreamEvent[]> eventsB = new();
         IDiagnosticClient agentA = StreamingClient(initializedA, eventsA);
         IDiagnosticClient agentB = StreamingClient(initializedB, eventsB);
         await manager.SetProperty(new SetPropertyRequest { Id = processA, Path = "p" });
